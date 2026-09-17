@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Clock3, Grid2X2, ImagePlus, LayoutDashboard, Pencil, RotateCcw, Share2, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Clock3, Grid2X2, ImagePlus, LayoutDashboard, Pencil, RotateCcw, Share2, Shuffle, Trash2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -106,6 +106,24 @@ export function CollectionPage() {
     toast.success('Canvas layout reset')
   }
 
+  const remixLayout = async () => {
+    const anchors = [
+      [38, 52, -4], [274, 26, 3], [516, 82, -2], [744, 42, 4],
+      [108, 318, 2], [354, 286, -3], [602, 334, 3], [814, 292, -2],
+    ] as const
+    await Promise.all(items.map((item, index) => {
+      const [anchorX, anchorY, rotation] = anchors[index % anchors.length]
+      const row = Math.floor(index / anchors.length)
+      return api.updateItem(id, item.id, {
+        canvasX: anchorX + (row % 2) * 34,
+        canvasY: anchorY + row * 520,
+        rotation: rotation + (row % 3 - 1),
+      })
+    }))
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success('Board remixed')
+  }
+
   return (
     <>
       <Link className="back-link" to="/collections"><ArrowLeft size={16} /> All collections</Link>
@@ -155,8 +173,17 @@ export function CollectionPage() {
             </div>
           </Tabs.Content>
           <Tabs.Content value="canvas">
-            <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag saved images around to turn this collection into a visual board.</span></div><button className="canvas-reset" onClick={resetLayout}><RotateCcw size={14} /> Reset layout</button></div>
-            <div className="canvas-board">{items.map((item) => <CanvasItem key={item.id} collectionId={id} item={item} />)}</div>
+            <div className="canvas-intro">
+              <div><strong>Make it yours.</strong><span>Drag, nudge, and remix your saves into a visual story.</span></div>
+              <div className="canvas-tools">
+                <button className="canvas-reset" onClick={remixLayout}><Shuffle size={14} /> Remix board</button>
+                <button className="canvas-reset" onClick={resetLayout}><RotateCcw size={14} /> Tidy up</button>
+              </div>
+            </div>
+            <div className="canvas-board">
+              <div className="canvas-board-label"><span>MOSAIC BOARD</span><strong>{collection.name}</strong></div>
+              {items.map((item) => <CanvasItem key={`${item.id}:${item.canvas_x}:${item.canvas_y}:${item.rotation}`} collectionId={id} item={item} />)}
+            </div>
           </Tabs.Content>
           <Tabs.Content value="activity">
             <div className="activity-panel">

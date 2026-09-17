@@ -12,7 +12,7 @@ A first-time reviewer should be able to understand the product without instructi
 - [x] Optional provider upgrades: Pixabay search and Cloudinary uploads from environment variables.
 - [x] Creation loop: web discovery, URL pins, file upload, PWA Quick Capture/share target.
 - [x] Collection loop: create, rename, describe, save, edit, remove, search, sort, privacy toggle, public link.
-- [x] Signature interaction: persisted draggable Canvas with keyboard movement and reset.
+- [x] Signature interaction: persisted tactile Canvas with drag/keyboard movement plus one-click remix and tidy compositions.
 - [x] Collaboration: account-based editors, scoped permissions, activity history, notifications, optimistic UI with rollback.
 - [x] Social layer: public profiles, follows, follower/following browser, For You/Following/Trending feeds, likes, comments, moderation, related pins.
 - [x] Unified discovery: live image search plus Mosaic people and public collections.

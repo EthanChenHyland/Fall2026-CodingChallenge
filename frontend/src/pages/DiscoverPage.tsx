@@ -84,8 +84,21 @@ export function DiscoverPage() {
   return (
     <>
       <section className="hero-copy">
-        <div><span className="eyebrow"><Sparkles size={13} /> DISCOVER SOMETHING WORTH KEEPING</span><h1>Your internet,<br /><em>worth remembering.</em></h1></div>
-        <p>Collect images, ideas, and references into spaces you can actually find again.</p>
+        <div className="hero-copy-main">
+          <span className="eyebrow"><Sparkles size={13} /> DISCOVER SOMETHING WORTH KEEPING</span>
+          <h1>Your internet,<br /><em>worth remembering.</em></h1>
+          <p>Collect images, ideas, and references into spaces you can actually find again.</p>
+        </div>
+        <div className="hero-scrapbook" aria-hidden="true">
+          {results.slice(0, 3).map((image, index) => (
+            <figure className={`hero-scrap hero-scrap-${index + 1}`} key={image.id}>
+              <img src={image.imageUrl} alt="" />
+              <figcaption>{image.title}</figcaption>
+            </figure>
+          ))}
+          {!results.length && <><span className="hero-scrap-placeholder one" /><span className="hero-scrap-placeholder two" /><span className="hero-scrap-placeholder three" /></>}
+          <div className="hero-scrap-note"><Sparkles size={13} /><strong>Search it. Save it. Shape it.</strong><span>Turn loose inspiration into a board that feels like yours.</span></div>
+        </div>
       </section>
 
       <div className="discover-search">

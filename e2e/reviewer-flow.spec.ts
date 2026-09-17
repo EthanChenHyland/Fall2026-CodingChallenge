@@ -16,6 +16,8 @@ test('reviewer can move through the core product', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Museum of small things' })).toBeVisible()
   await page.getByRole('tab', { name: /Canvas/ }).click()
   await expect(page.getByText('Make it yours.')).toBeVisible()
+  await page.getByRole('button', { name: 'Remix board' }).click()
+  await expect(page.getByText('Board remixed')).toBeVisible()
 
   await page.getByRole('link', { name: 'Explore' }).click()
   await expect(page.getByRole('heading', { name: /See what people/ })).toBeVisible()

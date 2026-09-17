@@ -37,7 +37,7 @@ The login screen includes a one-click demo login. You can also use:
 Suggested walkthrough:
 1. Discover an image and save it to a collection.
 2. Open Collections and enter a collection.
-3. Edit or remove an item, then try the Canvas tab and drag an image.
+3. Edit or remove an item, then open Canvas, drag an image, and hit Remix board to generate a new visual composition.
 4. Open Activity to see collection history.
 5. Open Share to toggle Private/Public access or add sam@mosaic.local as an editor.
 6. Open Explore and switch between For You, Following, and Trending; open a pin and curator profile, then try Follow, Like, Comment, and Share.
