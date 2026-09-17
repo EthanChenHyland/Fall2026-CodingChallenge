@@ -86,8 +86,17 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS follows (
+    follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id),
+    CHECK (follower_id != following_id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_members_user ON collection_members(user_id);
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id, created_at DESC);
 `)
 
 ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")
