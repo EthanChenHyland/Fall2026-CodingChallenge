@@ -13,6 +13,13 @@ export const db = new Database(process.env.DATABASE_PATH ? resolve(process.env.D
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+  if (!columns.some((entry) => entry.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+  }
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,6 +89,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_members_user ON collection_members(user_id);
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
 `)
+
+ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")
+ensureColumn('users', 'avatar_url', "TEXT NOT NULL DEFAULT ''")
 
 function hashPassword(password: string, salt: string) {
   return crypto.scryptSync(password, salt, 64).toString('hex')
