@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ImagePlus, UploadCloud } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
@@ -17,14 +17,11 @@ export function CapturePage() {
   const [sourceUrl, setSourceUrl] = useState(params.get('url') || '')
   const [note, setNote] = useState(params.get('text') || '')
   const [uploading, setUploading] = useState(false)
-
-  useEffect(() => {
-    if (!collectionId && data?.collections[0]) setCollectionId(data.collections[0].id)
-  }, [collectionId, data])
+  const effectiveCollectionId = collectionId || data?.collections[0]?.id || 0
 
   const save = useMutation({
     mutationFn: async () => {
-      const result = await api.saveImage(collectionId, {
+      const result = await api.saveImage(effectiveCollectionId, {
         id: `capture-${Date.now()}`,
         title: title.trim(),
         creator: 'Captured by you',
@@ -34,14 +31,14 @@ export function CapturePage() {
         width: 1,
         height: 1,
       })
-      if (note.trim()) await api.updateItem(collectionId, result.item.id, { note: note.trim() })
+      if (note.trim()) await api.updateItem(effectiveCollectionId, result.item.id, { note: note.trim() })
       return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collections'] })
-      queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
+      queryClient.invalidateQueries({ queryKey: ['collection', effectiveCollectionId] })
       toast.success('Captured to Mosaic')
-      navigate(`/collections/${collectionId}`)
+      navigate(`/collections/${effectiveCollectionId}`)
     },
     onError: (error) => toast.error(error.message),
   })
@@ -69,8 +66,8 @@ export function CapturePage() {
         <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
         <label className="field-label">Note <span className="field-optional">optional</span><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why are you keeping it?" /></label>
         <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
-        {data?.collections.length ? <label className="field-label">Collection<select value={collectionId} onChange={(event) => setCollectionId(Number(event.target.value))}>{data.collections.map((collection) => <option value={collection.id} key={collection.id}>{collection.name}</option>)}</select></label> : <div className="capture-no-collections"><p>Create a collection before capturing your first pin.</p><Link className="secondary-button" to="/collections">Go to Collections</Link></div>}
-        <button className="primary-button full" disabled={!collectionId || !imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : <>Save to Mosaic <ArrowRight size={16} /></>}</button>
+        {data?.collections.length ? <label className="field-label">Collection<select value={effectiveCollectionId} onChange={(event) => setCollectionId(Number(event.target.value))}>{data.collections.map((collection) => <option value={collection.id} key={collection.id}>{collection.name}</option>)}</select></label> : <div className="capture-no-collections"><p>Create a collection before capturing your first pin.</p><Link className="secondary-button" to="/collections">Go to Collections</Link></div>}
+        <button className="primary-button full" disabled={!effectiveCollectionId || !imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : <>Save to Mosaic <ArrowRight size={16} /></>}</button>
       </div>
     </section>
   )
