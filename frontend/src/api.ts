@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, NotificationItem, PinDetail, PublicPin, PublicProfile, SavedItem, User } from './types'
+import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, PublicPin, PublicProfile, SavedItem, User } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -25,6 +25,8 @@ export const api = {
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
+  pinComments: (id: number) => request<{ comments: PinComment[] }>(`/api/pins/${id}/comments`),
+  addPinComment: (id: number, body: string) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
   profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),

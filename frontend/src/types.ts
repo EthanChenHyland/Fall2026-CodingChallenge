@@ -41,6 +41,17 @@ export type PinDetail = PublicPin & {
   liked_by_me: boolean
 }
 
+
+export type PinComment = {
+  id: number
+  item_id: number
+  body: string
+  created_at: string
+  user_id: number
+  user_name: string
+  user_avatar: string
+}
+
 export type ActivityItem = {
   id: number
   collection_id: number
