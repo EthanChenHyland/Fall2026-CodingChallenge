@@ -33,7 +33,7 @@ app.use(helmet({
   },
 }))
 app.use(compression())
-app.use(cors({ origin: true, credentials: true }))
+app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : true, credentials: true }))
 app.use(express.json({ limit: '1mb' }))
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }))
