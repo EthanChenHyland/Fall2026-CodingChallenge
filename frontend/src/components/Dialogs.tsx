@@ -146,6 +146,37 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
   )
 }
 
+export function EditCollectionDialog({ collection, trigger }: { collection: Collection; trigger: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(collection.name)
+  const [description, setDescription] = useState(collection.description)
+  const queryClient = useQueryClient()
+  const update = useMutation({
+    mutationFn: () => api.updateCollection(collection.id, { name, description }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
+      setOpen(false)
+      toast.success('Collection updated')
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay" />
+        <Dialog.Content className="dialog-card">
+          <div className="dialog-head"><div><span className="eyebrow">COLLECTION DETAILS</span><Dialog.Title>Shape the board.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
+          <label className="field-label">Name<input value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label className="field-label">Description<textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+          <button className="primary-button full" disabled={!name.trim() || update.isPending} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save collection'}</button>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
 export function ShareCollectionDialog({ collection, trigger }: { collection: Collection; trigger: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
