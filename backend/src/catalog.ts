@@ -1,0 +1,133 @@
+export type CatalogImage = {
+  id: string
+  title: string
+  creator: string
+  imageUrl: string
+  pageUrl: string
+  tags: string[]
+  width: number
+  height: number
+}
+
+export const catalog: CatalogImage[] = [
+  {
+    id: 'tokyo-night',
+    title: 'Tokyo after dark',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['tokyo', 'city', 'night', 'travel', 'neon'],
+    width: 900,
+    height: 1200,
+  },
+  {
+    id: 'coast-road',
+    title: 'Road to the coast',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['travel', 'coast', 'road', 'nature'],
+    width: 900,
+    height: 650,
+  },
+  {
+    id: 'brutalist-room',
+    title: 'Quiet geometry',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['interior', 'architecture', 'minimal', 'design'],
+    width: 900,
+    height: 1125,
+  },
+  {
+    id: 'mountain-lake',
+    title: 'Still water',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['mountain', 'lake', 'nature', 'travel'],
+    width: 900,
+    height: 600,
+  },
+  {
+    id: 'coffee-table',
+    title: 'Sunday objects',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['interior', 'coffee', 'home', 'objects'],
+    width: 900,
+    height: 675,
+  },
+  {
+    id: 'fashion-red',
+    title: 'Red study',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['fashion', 'red', 'editorial', 'style'],
+    width: 900,
+    height: 1350,
+  },
+  {
+    id: 'desert-car',
+    title: 'Desert drive',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['car', 'desert', 'travel', 'road'],
+    width: 900,
+    height: 600,
+  },
+  {
+    id: 'flower-shadow',
+    title: 'Soft shadow',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1497250681960-ef046c08a56e?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['flower', 'green', 'botanical', 'nature'],
+    width: 900,
+    height: 1200,
+  },
+  {
+    id: 'library',
+    title: 'Collected thoughts',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['books', 'library', 'study', 'architecture'],
+    width: 900,
+    height: 650,
+  },
+  {
+    id: 'ocean-blue',
+    title: 'Blue hour',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['ocean', 'blue', 'beach', 'travel'],
+    width: 900,
+    height: 600,
+  },
+  {
+    id: 'ceramics',
+    title: 'Clay forms',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['ceramics', 'art', 'objects', 'craft'],
+    width: 900,
+    height: 1200,
+  },
+  {
+    id: 'city-window',
+    title: 'Window seat',
+    creator: 'Mosaic demo library',
+    imageUrl: 'https://images.unsplash.com/photo-1449157291145-7efd050a4d0e?auto=format&fit=crop&w=900&q=85',
+    pageUrl: 'https://unsplash.com',
+    tags: ['city', 'window', 'architecture', 'travel'],
+    width: 900,
+    height: 1350,
+  },
+]

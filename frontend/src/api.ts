@@ -1,0 +1,56 @@
+import type { CatalogImage, Collection, SavedItem } from './types'
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+  })
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Request failed')
+  }
+  if (response.status === 204) return undefined as T
+  return response.json() as Promise<T>
+}
+
+export const api = {
+  search: (query = '') =>
+    request<{ results: CatalogImage[] }>(`/api/search?q=${encodeURIComponent(query)}`),
+  collections: () => request<{ collections: Collection[] }>('/api/collections'),
+  collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
+  createCollection: (body: { name: string; description?: string }) =>
+    request<{ collection: Collection }>('/api/collections', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateCollection: (
+    id: number,
+    body: Partial<Pick<Collection, 'name' | 'description' | 'visibility'>>,
+  ) =>
+    request<{ collection: Collection }>(`/api/collections/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  saveImage: (collectionId: number, image: CatalogImage) =>
+    request<{ item: SavedItem }>(`/api/collections/${collectionId}/items`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceId: image.id,
+        imageUrl: image.imageUrl,
+        sourcePage: image.pageUrl,
+        sourceCreator: image.creator,
+        title: image.title,
+      }),
+    }),
+  updateItem: (collectionId: number, itemId: number, body: Record<string, unknown>) =>
+    request<{ item: SavedItem }>(`/api/collections/${collectionId}/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  deleteItem: (collectionId: number, itemId: number) =>
+    request<void>(`/api/collections/${collectionId}/items/${itemId}`, { method: 'DELETE' }),
+  shareCollection: (id: number) =>
+    request<{ token: string }>(`/api/collections/${id}/share`, { method: 'POST' }),
+  sharedCollection: (token: string) =>
+    request<{ collection: Collection }>(`/api/shared/${encodeURIComponent(token)}`),
+}

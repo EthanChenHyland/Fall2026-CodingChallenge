@@ -1,0 +1,18 @@
+import { Bookmark, ExternalLink } from 'lucide-react'
+import type { CatalogImage } from '../types'
+import { SaveImageDialog } from './Dialogs'
+
+export function ImageCard({ image }: { image: CatalogImage }) {
+  return (
+    <article className="image-card">
+      <div className="image-frame" style={{ aspectRatio: `${image.width}/${image.height}` }}>
+        <img src={image.imageUrl} alt={image.title} loading="lazy" />
+        <div className="image-hover">
+          <a className="round-action" href={image.pageUrl} target="_blank" rel="noreferrer" aria-label="Open source"><ExternalLink size={17} /></a>
+          <SaveImageDialog image={image} trigger={<button className="save-button"><Bookmark size={16} /> Save</button>} />
+        </div>
+      </div>
+      <div className="image-meta"><strong>{image.title}</strong><span>{image.tags.slice(0, 2).join(' · ')}</span></div>
+    </article>
+  )
+}
