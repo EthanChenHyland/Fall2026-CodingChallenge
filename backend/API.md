@@ -12,8 +12,9 @@ In development, Vite and Express run separately and Vite proxies `/api` to Expre
 
 ## Discovery
 
-- `GET /api/search?q=<query>&page=<number>` — paginated image search.
-- `GET /api/explore?page=<number>` — paginated public Mosaic pins.
+- `GET /api/search?q=<query>&page=<number>` — paginated live image search.
+- `GET /api/search/social?q=<query>` — search Mosaic people and public collections.
+- `GET /api/explore?page=<number>&mode=all|following|trending` — public Mosaic pins with chronological, social-graph, or engagement ranking.
 
 Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searches Wikimedia Commons. A bundled catalog is the final reliability fallback.
 
@@ -23,6 +24,7 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `PATCH /api/profiles/me` — edit the signed-in profile.
 - `POST /api/profiles/:id/follow` — follow an account.
 - `DELETE /api/profiles/:id/follow` — unfollow an account.
+- `GET /api/profiles/:id/connections?kind=followers|following` — browse a profile's social graph.
 
 ## Collections
 
@@ -40,10 +42,12 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 ## Pin pages and social actions
 
 - `GET /api/pins/:id` — retrieve a public pin, or a private pin when the signed-in user is a collection member.
+- `GET /api/pins/:id/related` — related public pins, preferring the same collection and curator.
 - `POST /api/pins/:id/like` — like a public pin.
 - `DELETE /api/pins/:id/like` — remove the current user's like.
 - `GET /api/pins/:id/comments` — list comments on a public pin.
 - `POST /api/pins/:id/comments` — comment on a public pin; the curator receives a notification.
+- `DELETE /api/pins/:id/comments/:commentId` — comment author or collection owner moderation.
 
 ## Sharing and collaboration
 
@@ -55,7 +59,13 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 
 ## Notifications
 
-- `GET /api/notifications` — recent shared-collection and comment activity for the signed-in account.
+- `GET /api/notifications` — recent collaboration, follow, like, and comment activity for the signed-in account.
 - `POST /api/notifications/read` — mark current notifications read.
 
 All private collection routes require a valid session and membership. Editors may change saved content and Canvas placement. Owner-only actions include deletion, public sharing, visibility, and collaborator management.
+
+## Operations
+
+- `GET /api/health` — readiness check that verifies SQLite and reports the active search provider.
+
+Production responses use Helmet security headers, compression, API rate limiting, and same-origin CORS. The process handles SIGTERM/SIGINT for graceful container shutdown.
