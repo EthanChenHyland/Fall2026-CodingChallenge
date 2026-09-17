@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { db } from './db.js'
 import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
@@ -38,7 +39,21 @@ app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeader
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use(loadUser)
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'mosaic-api' }))
+app.get('/api/health', (_req, res) => {
+  try {
+    db.prepare('SELECT 1').get()
+    res.setHeader('Cache-Control', 'no-store')
+    return res.json({
+      ok: true,
+      service: 'mosaic-api',
+      database: 'ready',
+      searchProvider: process.env.PIXABAY_API_KEY ? 'pixabay' : 'wikimedia',
+      uptimeSeconds: Math.round(process.uptime()),
+    })
+  } catch {
+    return res.status(503).json({ ok: false, service: 'mosaic-api', database: 'unavailable' })
+  }
+})
 app.use('/api/auth', authRouter)
 app.use('/api/search', searchRouter)
 app.use('/api/collections', collectionsRouter)
