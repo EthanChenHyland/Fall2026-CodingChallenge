@@ -8,6 +8,7 @@ import { AuthPage } from './pages/AuthPage'
 import { CollectionPage } from './pages/CollectionPage'
 import { CollectionsPage } from './pages/CollectionsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
+import { ExplorePage } from './pages/ExplorePage'
 import { SharedPage } from './pages/SharedPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PinPage } from './pages/PinPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Routes>
           <Route element={<ProtectedApp />}>
             <Route path="/" element={<DiscoverPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/collections/:id" element={<CollectionPage />} />
             <Route path="/people/:id" element={<ProfilePage />} />

@@ -434,3 +434,9 @@ img { display: block; max-width: 100%; }
 .pin-mini-owner { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin-top: 4px; color: var(--muted); }
 .pin-mini-owner img, .pin-mini-owner i { width: 19px; height: 19px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: #d9d2c7; font-style: normal; font-size: 8px; }
 .pin-mini-owner b { font-size: 9px; font-weight: 650; }
+.explore-hero { max-width: 900px; padding: 10px 0 58px; }
+.explore-hero h1 { margin: 17px 0 15px; font-family: Georgia, serif; font-size: clamp(52px, 6vw, 88px); line-height: .96; font-weight: 400; letter-spacing: -.045em; }
+.explore-hero h1 em { color: var(--accent); font-weight: 400; }
+.explore-hero p { max-width: 520px; color: var(--muted); font-family: Georgia, serif; line-height: 1.55; }
+.feed-sentinel { min-height: 48px; display: grid; place-items: center; padding-top: 20px; color: var(--muted); font-size: 10px; }
+@media (max-width: 700px) { .explore-hero { padding-bottom: 38px; } .explore-hero h1 { font-size: 50px; } .explore-hero p { font-size: 13px; } }
