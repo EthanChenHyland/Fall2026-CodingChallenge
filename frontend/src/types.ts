@@ -49,7 +49,10 @@ export type PublicProfile = {
   created_at: string
   collection_count: number
   pin_count: number
+  follower_count: number
+  following_count: number
   is_self: boolean
+  followed_by_me: boolean
 }
 
 export type Collaborator = {
