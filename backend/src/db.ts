@@ -3,12 +3,13 @@ import crypto from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import './env.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const dataDir = resolve(here, '../data')
 mkdirSync(dataDir, { recursive: true })
 
-export const db = new Database(resolve(dataDir, 'mosaic.sqlite'))
+export const db = new Database(process.env.DATABASE_PATH ? resolve(process.env.DATABASE_PATH) : resolve(dataDir, 'mosaic.sqlite'))
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
