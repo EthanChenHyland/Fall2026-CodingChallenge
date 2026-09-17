@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Bookmark, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Bookmark, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { api } from '../api'
 import { EditItemDialog, SaveImageDialog } from '../components/Dialogs'
 import { PublicPinCard } from '../components/PublicPinCard'
@@ -26,6 +27,15 @@ export function PinPage() {
 
   const pin = data.pin
   const image: CatalogImage = { id: `pin-${pin.id}`, title: pin.title, creator: pin.source_creator || pin.owner_name, imageUrl: pin.image_url, pageUrl: pin.source_page || pin.image_url, tags: [], width: 1, height: 1 }
+  const sharePin = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      try { await navigator.share({ title: pin.title, text: pin.note || `Saved by ${pin.owner_name} on Mosaic`, url }) } catch { /* cancelled */ }
+      return
+    }
+    await navigator.clipboard.writeText(url)
+    toast.success('Pin link copied')
+  }
   return (
     <>
       <Link className="back-link" to="/explore"><ArrowLeft size={16} /> Explore</Link>
@@ -42,6 +52,7 @@ export function PinPage() {
           <div className="pin-detail-actions">
             <SaveImageDialog image={image} trigger={<button className="primary-button"><Bookmark size={16} /> Save</button>} />
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}
+            <button className="secondary-button" onClick={() => void sharePin()}><Share2 size={15} /> Share</button>
             {pin.can_edit && <EditItemDialog collectionId={pin.collection_id} item={pin} trigger={<button className="secondary-button"><Pencil size={15} /> Edit</button>} />}
             {pin.can_edit && <button className={removeArmed ? 'danger-button' : 'secondary-button'} disabled={removePin.isPending} onClick={() => removeArmed ? removePin.mutate() : setRemoveArmed(true)} onBlur={() => setRemoveArmed(false)}><Trash2 size={15} /> {removeArmed ? 'Click again to remove' : 'Remove'}</button>}
           </div>
