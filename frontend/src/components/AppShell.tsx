@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, FolderHeart, Globe2, LogOut, Plus, Search, Sparkles, UserRound } from 'lucide-react'
+import { Bell, Compass, FolderHeart, Globe2, LogOut, Plus, Search, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { BrandMark } from './BrandMark'
 
 export function AppShell() {
   const navigate = useNavigate()
@@ -30,7 +31,7 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate('/')} aria-label="Mosaic home">
-          <span className="brand-mark"><Sparkles size={18} /></span>
+          <BrandMark />
           <span>Mosaic</span>
         </button>
         <nav className="nav-list" aria-label="Primary navigation">
@@ -53,7 +54,7 @@ export function AppShell() {
       <main className="main-area">
         <header className="topbar">
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
-            <Sparkles size={18} /> Mosaic
+            <BrandMark compact /> Mosaic
           </button>
           <button className="topbar-search" onClick={() => navigate('/', { state: { focusSearch: true } })}>
             <Search size={17} />

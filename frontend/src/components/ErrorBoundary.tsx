@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { RefreshCcw, Sparkles } from 'lucide-react'
+import { RefreshCcw } from 'lucide-react'
+import { BrandMark } from './BrandMark'
 
 type Props = { children: ReactNode }
 type State = { failed: boolean }
@@ -19,7 +20,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children
     return (
       <main className="crash-page">
-        <span className="brand-mark"><Sparkles size={20} /></span>
+        <BrandMark />
         <span className="eyebrow">MOSAIC HIT A SNAG</span>
         <h1>Your collections are still safe.</h1>
         <p>Reload the app to reconnect to your workspace.</p>

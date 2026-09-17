@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { ArrowRight, LoaderCircle, Search, Sparkles } from 'lucide-react'
+import { ArrowRight, LoaderCircle, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
@@ -85,19 +85,9 @@ export function DiscoverPage() {
     <>
       <section className="hero-copy">
         <div className="hero-copy-main">
-          <span className="eyebrow"><Sparkles size={13} /> DISCOVER SOMETHING WORTH KEEPING</span>
-          <h1>Your internet,<br /><em>worth remembering.</em></h1>
-          <p>Collect images, ideas, and references into spaces you can actually find again.</p>
-        </div>
-        <div className="hero-scrapbook" aria-hidden="true">
-          {results.slice(0, 3).map((image, index) => (
-            <figure className={`hero-scrap hero-scrap-${index + 1}`} key={image.id}>
-              <img src={image.imageUrl} alt="" />
-              <figcaption>{image.title}</figcaption>
-            </figure>
-          ))}
-          {!results.length && <><span className="hero-scrap-placeholder one" /><span className="hero-scrap-placeholder two" /><span className="hero-scrap-placeholder three" /></>}
-          <div className="hero-scrap-note"><Sparkles size={13} /><strong>Search it. Save it. Shape it.</strong><span>Turn loose inspiration into a board that feels like yours.</span></div>
+          <span className="eyebrow">DISCOVER</span>
+          <h1>Save the good stuff.</h1>
+          <p>Search the web, keep what matters, and sort it into collections you can actually find again.</p>
         </div>
       </section>
 
@@ -113,7 +103,7 @@ export function DiscoverPage() {
 
       <SocialSearchResults query={debouncedQuery} />
 
-      <section className="section-head"><div><span className="eyebrow">CURATED FOR YOU</span><h2>{effectiveQuery ? `Ideas for “${effectiveQuery}”` : 'Things you might want later'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
+      <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{effectiveQuery ? `Results for “${effectiveQuery}”` : 'Recent finds'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
       ) : isError ? (

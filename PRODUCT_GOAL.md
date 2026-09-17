@@ -26,7 +26,7 @@ A first-time reviewer should be able to understand the product without instructi
 
 1. Add behavior a reviewer can see or reliability they can feel. Do not pad LOC or commit count.
 2. Keep commits small enough to tell a believable development story, but large enough to represent a real change.
-3. Preserve the cream / black / oxblood editorial identity and the Canvas as Mosaic's signature differentiator.
+3. Preserve the restrained graphite / warm-neutral / blue product identity and the Canvas as Mosaic's signature differentiator.
 4. Every new external dependency or provider must degrade gracefully when unavailable.
 5. Private data stays private by default; public collections and social surfaces are explicit opt-ins.
 6. Before calling a milestone done, run `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`, and `git diff --check`.

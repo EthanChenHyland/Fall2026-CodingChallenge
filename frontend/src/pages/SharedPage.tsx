@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
+import { BrandMark } from '../components/BrandMark'
 
 export function SharedPage() {
   const token = useParams().token ?? ''
@@ -17,7 +18,7 @@ export function SharedPage() {
   const collection = data.collection
   return (
     <div className="shared-shell">
-      <header className="shared-header"><Link to="/"><span className="brand-mark"><Sparkles size={17} /></span><strong>Mosaic</strong></Link><span>Shared collection</span></header>
+      <header className="shared-header"><Link to="/"><BrandMark compact /><strong>Mosaic</strong></Link><span>Shared collection</span></header>
       <main className="shared-main">
         <Link className="back-link" to="/"><ArrowLeft size={16} /> Explore Mosaic</Link>
         <section className="shared-title"><span className="eyebrow">SHARED WITH YOU</span><h1>{collection.name}</h1><p>{collection.description}</p></section>

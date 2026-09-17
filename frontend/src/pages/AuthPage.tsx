@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { BrandMark } from '../components/BrandMark'
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -34,13 +35,13 @@ export function AuthPage() {
   return (
     <main className="auth-shell">
       <section className="auth-story">
-        <div className="auth-brand"><span className="brand-mark"><Sparkles size={18} /></span> Mosaic</div>
+        <div className="auth-brand"><BrandMark /> Mosaic</div>
         <div>
-          <span className="eyebrow">A PLACE FOR WHAT CATCHES YOUR EYE</span>
-          <h1>Keep the internet<br /><em>worth keeping.</em></h1>
-          <p>Discover images, shape visual collections, and build boards together.</p>
+          <span className="eyebrow">SAVE · ORGANIZE · SHARE</span>
+          <h1>Keep track of what you find.</h1>
+          <p>Save images, build collections, and share them when you want to.</p>
         </div>
-        <span className="auth-foot">Designed for collecting slowly.</span>
+        <span className="auth-foot">Mosaic · Fall 2026</span>
       </section>
 
       <section className="auth-panel">

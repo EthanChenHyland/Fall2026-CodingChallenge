@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { Sparkles } from 'lucide-react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { api } from './api'
 import { AppShell } from './components/AppShell'
+import { BrandMark } from './components/BrandMark'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthPage } from './pages/AuthPage'
 import { CollectionPage } from './pages/CollectionPage'
@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
 
 function ProtectedApp() {
   const { data, isLoading } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
-  if (isLoading) return <div className="app-boot"><span className="brand-mark"><Sparkles size={18} /></span><span>Mosaic</span></div>
+  if (isLoading) return <div className="app-boot"><BrandMark /><span>Mosaic</span></div>
   if (!data?.user) return <AuthPage />
   return <AppShell />
 }

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 async function enterDemo(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Explore with the demo account' }).click()
-  await expect(page.getByRole('heading', { name: /Your internet/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
 }
 
 test('reviewer can move through the core product', async ({ page }) => {
@@ -20,7 +20,7 @@ test('reviewer can move through the core product', async ({ page }) => {
   await expect(page.getByText('Board remixed')).toBeVisible()
 
   await page.getByRole('link', { name: 'Explore' }).click()
-  await expect(page.getByRole('heading', { name: /See what people/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What people are saving.' })).toBeVisible()
   const firstPin = page.locator('.public-pin-image').first()
   await expect(firstPin).toBeVisible()
   await firstPin.click()
@@ -33,7 +33,7 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   await enterDemo(page)
   await expect(page.locator('.mobile-nav')).toBeVisible()
   await page.getByRole('link', { name: 'Explore' }).last().click()
-  await expect(page.getByRole('heading', { name: /See what people/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What people are saving.' })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
 })

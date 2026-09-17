@@ -58,7 +58,7 @@ export function CapturePage() {
 
   return (
     <section className="capture-page">
-      <div className="capture-intro"><span className="eyebrow">QUICK CAPTURE</span><h1>Bring it into<br /><em>Mosaic.</em></h1><p>Paste an image URL, share one into the installed app, or upload a file when Cloudinary is configured.</p></div>
+      <div className="capture-intro"><span className="eyebrow">QUICK CAPTURE</span><h1>Save something new.</h1><p>Paste an image URL, share one into the installed app, or upload a file when Cloudinary is configured.</p></div>
       <div className="capture-card">
         {imageUrl ? <div className="capture-preview"><img src={imageUrl} alt="Preview" /></div> : <div className="capture-placeholder"><ImagePlus size={32} /><span>Your image preview will appear here.</span></div>}
         {cloudUploadsConfigured() && <label className="capture-upload secondary-button"><UploadCloud size={15} /> {uploading ? 'Uploading…' : 'Upload image'}<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label>}
