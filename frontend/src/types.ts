@@ -33,6 +33,12 @@ export type PublicPin = SavedItem & {
   owner_avatar: string
 }
 
+
+export type PinDetail = PublicPin & {
+  collection_description: string
+  visibility: 'private' | 'public'
+}
+
 export type ActivityItem = {
   id: number
   collection_id: number
