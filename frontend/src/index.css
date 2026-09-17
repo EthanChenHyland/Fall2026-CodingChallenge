@@ -510,3 +510,6 @@ img { display: block; max-width: 100%; }
 
 .danger-button { min-height: 40px; border: 1px solid #cbaeb2; border-radius: 999px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #fff3f3; color: #9b3f4d; cursor: pointer; font-size: 11px; font-weight: 750; }
 .danger-button:hover { background: #f9e5e7; }
+
+.comment-delete { align-self: start; border: 0; background: transparent; color: #9a9288; padding: 4px; cursor: pointer; opacity: .55; }
+.pin-comment:hover .comment-delete, .comment-delete:focus-visible { opacity: 1; color: #95404e; }
