@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
+import { SocialSearchResults } from '../components/SocialSearchResults'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
 
@@ -96,6 +97,8 @@ export function DiscoverPage() {
       <div className="topic-row">
         {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => { setActiveTopic(topic); setQuery(''); setDebouncedQuery('') }}>{topic}</button>)}
       </div>
+
+      <SocialSearchResults query={debouncedQuery} />
 
       <section className="section-head"><div><span className="eyebrow">CURATED FOR YOU</span><h2>{effectiveQuery ? `Ideas for “${effectiveQuery}”` : 'Things you might want later'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (
