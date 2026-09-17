@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, and collaboration app inspired by Pinterest. It includes live web image search, infinite discovery, public profiles and Explore, follows, likes/comments, manual and file-based pin creation, collections, a draggable Canvas, public sharing, account collaboration, notifications, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, For You/Following/Trending feeds, people/board search, public profiles, follows, likes/comments, related pins, URL/file/PWA capture, collections, a draggable Canvas, public sharing, account collaboration, notifications, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -40,21 +40,23 @@ Suggested walkthrough:
 3. Edit or remove an item, then try the Canvas tab and drag an image.
 4. Open Activity to see collection history.
 5. Open Share to toggle Private/Public access or add sam@mosaic.local as an editor.
-6. Open Explore, a public pin, and the curator profile; try Follow, Like, and Comment.
-7. Use Add pin to save an image URL. With Cloudinary configured, upload a local image file instead.
-8. Check Notifications after shared edits or comments.
+6. Open Explore and switch between For You, Following, and Trending; open a pin and curator profile, then try Follow, Like, Comment, and Share.
+7. Search from Discover to see both live web images and matching Mosaic people/boards.
+8. Use Add pin or Quick Capture to save an image URL. With Cloudinary configured, drag/drop or upload a local image file instead.
+9. Check Notifications after shared edits, follows, likes, or comments.
 
 PRODUCTION / HOSTING
 - npm run build
 - npm start
 
-In production, Express serves the built React app and API from one process on PORT (default 3001). Dockerfile provides the same one-service setup and uses /data/mosaic.sqlite for persistent storage. Mount /data as a persistent volume on the host.
+In production, Express serves the built React app and API from one process on PORT (default 3001). Dockerfile provides the same one-service setup and uses /data/mosaic.sqlite for persistent storage. Mount /data as a persistent volume on the host. `render.yaml` is a ready-to-connect Render Blueprint with the health check, disk, Docker build, graceful shutdown window, and optional API-key placeholders already declared.
 
 USEFUL COMMANDS
-- npm run test       Backend collaboration/share tests
+- npm run test       Backend collaboration + social regression tests
 - npm run typecheck  TypeScript checks for frontend and backend
 - npm run lint       Frontend lint
 - npm run build      Production builds for frontend and backend
+- npm run test:e2e   Production Chrome reviewer-flow + 390px mobile smoke tests
 
 REFLECTION
 This challenge pushed me beyond a basic CRUD app into account permissions, collaboration, optimistic UI updates, rollback behavior, and responsive design. I reinforced React, TypeScript, Express, REST APIs, and database modeling while learning how much product polish depends on small interaction details. The most interesting part was building collaboration safely: owner/editor permissions, revocable public links, notifications, and activity history all had to work together without making the interface feel complicated.
