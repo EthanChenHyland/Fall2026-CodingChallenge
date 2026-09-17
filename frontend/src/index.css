@@ -221,7 +221,7 @@ img { display: block; max-width: 100%; }
   .topbar-search span, .topbar-search kbd { display: none; }
   .avatar { width: 32px; height: 32px; }
   .page-wrap { width: calc(100% - 28px); padding: 30px 0 34px; }
-  .mobile-nav { position: fixed; display: grid; grid-template-columns: repeat(3, 1fr); left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; min-height: 62px; border: 1px solid #d6d0c6; border-radius: 18px; background: rgba(250,248,243,.96); backdrop-filter: blur(18px); box-shadow: 0 10px 35px rgba(33,29,25,.14); }
+  .mobile-nav { position: fixed; display: grid; grid-template-columns: repeat(4, 1fr); left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; min-height: 62px; border: 1px solid #d6d0c6; border-radius: 18px; background: rgba(250,248,243,.96); backdrop-filter: blur(18px); box-shadow: 0 10px 35px rgba(33,29,25,.14); }
   .mobile-nav a, .mobile-nav button { border: 0; background: transparent; display: grid; place-items: center; align-content: center; gap: 2px; color: #706b63; font-size: 9px; }
   .mobile-nav a.active { color: var(--accent); }
   .mobile-nav button svg { width: 34px; height: 34px; border-radius: 50%; padding: 7px; background: var(--accent); color: white; }

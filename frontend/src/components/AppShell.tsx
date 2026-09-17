@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, FolderHeart, LogOut, Plus, Search, Sparkles, UserRound } from 'lucide-react'
+import { Bell, Compass, FolderHeart, Globe2, LogOut, Plus, Search, Sparkles, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -36,6 +36,9 @@ export function AppShell() {
         <nav className="nav-list" aria-label="Primary navigation">
           <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <Compass size={20} /> <span>Discover</span>
+          </NavLink>
+          <NavLink to="/explore" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Globe2 size={20} /> <span>Explore</span>
           </NavLink>
           <NavLink to="/collections" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FolderHeart size={20} /> <span>Collections</span>
@@ -103,6 +106,7 @@ export function AppShell() {
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
         <NavLink to="/" end><Compass size={21} /><span>Discover</span></NavLink>
+        <NavLink to="/explore"><Globe2 size={21} /><span>Explore</span></NavLink>
         <button onClick={() => navigate('/', { state: { focusSearch: true } })}><Plus size={22} /><span>Save</span></button>
         <NavLink to="/collections"><FolderHeart size={21} /><span>Collections</span></NavLink>
       </nav>
