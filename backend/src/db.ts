@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import './env.js'
+import { catalog } from './catalog.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const dataDir = resolve(here, '../data')
@@ -145,3 +146,21 @@ db.prepare(`
     SELECT 1 FROM collection_members m WHERE m.collection_id = c.id
   )
 `).run(demoUserId)
+
+
+const publicDemo = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number } | undefined
+if (!publicDemo) {
+  const created = db.prepare(`
+    INSERT INTO collections (name, description, visibility, share_token)
+    VALUES (?, ?, 'public', 'mosaic-demo-public')
+  `).run('Museum of small things', 'Objects, rooms, colors, and details worth looking at twice.')
+  const collectionId = Number(created.lastInsertRowid)
+  db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(collectionId, demoUserId)
+  for (const [index, image] of catalog.slice(0, 8).entries()) {
+    db.prepare(`
+      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, canvas_x, canvas_y, rotation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(collectionId, image.id, image.imageUrl, image.pageUrl, image.creator, image.title, 36 + (index % 3) * 220, 40 + Math.floor(index / 3) * 250, (index % 3 - 1) * 2)
+  }
+  db.prepare('INSERT INTO activity (collection_id, message) VALUES (?, ?)').run(collectionId, 'Demo Curator published this collection')
+}
