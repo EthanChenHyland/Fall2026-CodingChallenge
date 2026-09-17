@@ -513,3 +513,7 @@ img { display: block; max-width: 100%; }
 
 .comment-delete { align-self: start; border: 0; background: transparent; color: #9a9288; padding: 4px; cursor: pointer; opacity: .55; }
 .pin-comment:hover .comment-delete, .comment-delete:focus-visible { opacity: 1; color: #95404e; }
+
+.related-pin-section { margin-top: 64px; padding-top: 38px; border-top: 1px solid var(--line); }
+.related-pin-grid { columns: 4 210px; }
+@media (max-width: 700px) { .related-pin-section { margin-top: 38px; padding-top: 28px; } .related-pin-grid { columns: 2 140px; } }

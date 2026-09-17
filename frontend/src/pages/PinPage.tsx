@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EditItemDialog, SaveImageDialog } from '../components/Dialogs'
+import { PublicPinCard } from '../components/PublicPinCard'
 import type { CatalogImage } from '../types'
 
 export function PinPage() {
@@ -16,6 +17,7 @@ export function PinPage() {
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
   const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin', id] }) })
   const comments = useQuery({ queryKey: ['pin-comments', id], queryFn: () => api.pinComments(id), enabled: Number.isInteger(id) })
+  const related = useQuery({ queryKey: ['related-pins', id], queryFn: () => api.relatedPins(id), enabled: Number.isInteger(id) })
   const addComment = useMutation({ mutationFn: () => api.addPinComment(id, comment), onSuccess: () => { setComment(''); queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) } })
   const removeComment = useMutation({ mutationFn: (commentId: number) => api.deletePinComment(id, commentId), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) })
   const removePin = useMutation({ mutationFn: () => api.deleteItem(data!.pin.collection_id, id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['collections'] }); queryClient.invalidateQueries({ queryKey: ['explore'] }); navigate(`/collections/${data!.pin.collection_id}`) } })
@@ -45,6 +47,7 @@ export function PinPage() {
           </div>
         </div>
       </article>
+      {related.data?.pins.length ? <section className="related-pin-section"><div className="section-head"><div><span className="eyebrow">KEEP GOING</span><h2>More from this corner of Mosaic</h2></div><Link className="result-count" to="/explore">See Explore</Link></div><div className="masonry-grid related-pin-grid">{related.data.pins.map((item) => <PublicPinCard pin={item} key={item.id} />)}</div></section> : null}
     </>
   )
 }
