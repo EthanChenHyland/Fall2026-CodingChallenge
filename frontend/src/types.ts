@@ -37,6 +37,8 @@ export type PublicPin = SavedItem & {
 export type PinDetail = PublicPin & {
   collection_description: string
   visibility: 'private' | 'public'
+  like_count: number
+  liked_by_me: boolean
 }
 
 export type ActivityItem = {

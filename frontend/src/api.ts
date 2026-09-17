@@ -23,6 +23,8 @@ export const api = {
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   explore: (page = 1) => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}`),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
+  likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
+  unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
   profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
