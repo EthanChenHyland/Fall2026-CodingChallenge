@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
-import { membership, type AuthedRequest } from '../middleware/auth.js'
+import { membership, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const pinsRouter = Router()
 
@@ -10,7 +10,8 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   const pin = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.description AS collection_description,
       c.visibility, c.share_token,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      (SELECT COUNT(*) FROM item_likes WHERE item_id = i.id) AS like_count
     FROM items i
     JOIN collections c ON c.id = i.collection_id
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
@@ -20,5 +21,20 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   if (!pin) return res.status(404).json({ error: 'Pin not found.' })
   const canView = pin.visibility === 'public' || (req.user && membership(Number(pin.collection_id), req.user.id))
   if (!canView) return res.status(404).json({ error: 'Pin not found.' })
-  return res.json({ pin })
+  return res.json({ pin: { ...pin, liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false } })
+})
+
+
+pinsRouter.post('/:id/like', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  const pin = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
+  if (!pin) return res.status(404).json({ error: 'Pin not found.' })
+  db.prepare('INSERT OR IGNORE INTO item_likes (item_id, user_id) VALUES (?, ?)').run(pinId, req.user!.id)
+  return res.status(204).end()
+})
+
+pinsRouter.delete('/:id/like', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  db.prepare('DELETE FROM item_likes WHERE item_id = ? AND user_id = ?').run(pinId, req.user!.id)
+  return res.status(204).end()
 })
