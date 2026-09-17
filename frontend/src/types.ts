@@ -24,6 +24,15 @@ export type SavedItem = {
   created_at: string
 }
 
+
+export type PublicPin = SavedItem & {
+  collection_name: string
+  share_token: string
+  owner_id: number
+  owner_name: string
+  owner_avatar: string
+}
+
 export type ActivityItem = {
   id: number
   collection_id: number
