@@ -6,22 +6,22 @@ import { PublicPinCard } from '../components/PublicPinCard'
 
 export function ExplorePage() {
   const sentinel = useRef<HTMLDivElement>(null)
-  const query = useInfiniteQuery({
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['explore'],
     queryFn: ({ pageParam }) => api.explore(pageParam),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
   })
-  const pins = query.data?.pages.flatMap((page) => page.pins) ?? []
+  const pins = data?.pages.flatMap((page) => page.pins) ?? []
 
   useEffect(() => {
     if (!sentinel.current) return
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage()
+      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage()
     }, { rootMargin: '500px' })
     observer.observe(sentinel.current)
     return () => observer.disconnect()
-  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <>
@@ -31,8 +31,8 @@ export function ExplorePage() {
         <p>Public collections, mixed into one wall of references, places, objects, and ideas.</p>
       </section>
       <section className="section-head"><div><span className="eyebrow">EXPLORE</span><h2>Fresh saves from public collections</h2></div><span className="result-count">{pins.length} loaded</span></section>
-      {query.isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>Nothing public yet.</h3><p>Make a collection public and it will show up here.</p></div>}
-      <div ref={sentinel} className="feed-sentinel">{query.isFetchingNextPage ? 'Finding more…' : query.hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
+      {isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>Nothing public yet.</h3><p>Make a collection public and it will show up here.</p></div>}
+      <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
     </>
   )
 }
