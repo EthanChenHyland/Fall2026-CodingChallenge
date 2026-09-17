@@ -39,3 +39,27 @@ test('following feed is driven by the social graph', async () => {
   const following = await demo.get('/api/explore?mode=following').expect(200)
   assert.ok(following.body.pins.some((pin: { owner_id: number }) => pin.owner_id === curator.id))
 })
+
+test('likes and comment moderation stay consistent', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const curator = await makeCurator()
+  const explore = await curator.agent.get('/api/explore').expect(200)
+  const pinId = explore.body.pins.find((pin: { owner_name: string }) => pin.owner_name === 'Demo Curator').id as number
+
+  await curator.agent.post(`/api/pins/${pinId}/like`).expect(204)
+  const liked = await curator.agent.get(`/api/pins/${pinId}`).expect(200)
+  assert.equal(liked.body.pin.liked_by_me, true)
+  assert.ok(liked.body.pin.like_count >= 1)
+
+  const posted = await curator.agent.post(`/api/pins/${pinId}/comments`).send({ body: 'This belongs on my reference wall.' }).expect(201)
+  const commentId = posted.body.comment.id as number
+  const ownerView = await demo.get(`/api/pins/${pinId}/comments`).expect(200)
+  const comment = ownerView.body.comments.find((entry: { id: number }) => entry.id === commentId)
+  assert.equal(comment.can_delete, true)
+  await demo.delete(`/api/pins/${pinId}/comments/${commentId}`).expect(204)
+
+  await curator.agent.delete(`/api/pins/${pinId}/like`).expect(204)
+  const unliked = await curator.agent.get(`/api/pins/${pinId}`).expect(200)
+  assert.equal(unliked.body.pin.liked_by_me, false)
+})
