@@ -83,6 +83,16 @@ export type PublicProfile = {
   followed_by_me: boolean
 }
 
+
+
+export type ProfileConnection = {
+  id: number
+  name: string
+  bio: string
+  avatar_url: string
+  followed_by_me: number | boolean
+}
+
 export type Collaborator = {
   id: number
   name: string

@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, PublicPin, PublicProfile, SavedItem, User } from './types'
+import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, User } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -30,6 +30,7 @@ export const api = {
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
   profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
+  profileConnections: (id: number, kind: 'followers' | 'following') => request<{ kind: string; people: ProfileConnection[] }>(`/api/profiles/${id}/connections?kind=${kind}`),
   updateProfile: (body: { name?: string; bio?: string; avatarUrl?: string }) => request<{ user: User }>('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(body) }),
   followProfile: (id: number) => request<void>(`/api/profiles/${id}/follow`, { method: 'POST' }),
   unfollowProfile: (id: number) => request<void>(`/api/profiles/${id}/follow`, { method: 'DELETE' }),

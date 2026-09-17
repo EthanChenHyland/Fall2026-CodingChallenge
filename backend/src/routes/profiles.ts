@@ -71,6 +71,30 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
 })
 
 
+
+profilesRouter.get('/:id/connections', (req: AuthedRequest, res) => {
+  const userId = Number(req.params.id)
+  const kind = req.query.kind === 'following' ? 'following' : 'followers'
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'Invalid profile.' })
+  if (!db.prepare('SELECT id FROM users WHERE id = ?').get(userId)) return res.status(404).json({ error: 'Profile not found.' })
+
+  const join = kind === 'following'
+    ? 'JOIN users u ON u.id = f.following_id WHERE f.follower_id = ?'
+    : 'JOIN users u ON u.id = f.follower_id WHERE f.following_id = ?'
+  const people = db.prepare(`
+    SELECT u.id, u.name, u.bio, u.avatar_url,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM follows mine WHERE mine.follower_id = ? AND mine.following_id = u.id
+      ) THEN 1 ELSE 0 END AS followed_by_me
+    FROM follows f
+    ${join}
+    ORDER BY f.created_at DESC, u.name ASC
+    LIMIT 100
+  `).all(req.user?.id ?? -1, userId)
+
+  return res.json({ kind, people })
+})
+
 profilesRouter.post('/:id/follow', requireAuth, (req: AuthedRequest, res) => {
   const userId = Number(req.params.id)
   if (!Number.isInteger(userId) || userId === req.user!.id) return res.status(400).json({ error: 'You cannot follow that profile.' })
