@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: mosaic-changepp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    maxShutdownDelaySeconds: 10
+    numInstances: 1
+    envVars:
+      - key: PIXABAY_API_KEY
+        sync: false
+      - key: VITE_CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: VITE_CLOUDINARY_UPLOAD_PRESET
+        sync: false
+    disk:
+      name: mosaic-data
+      mountPath: /data
+      sizeGB: 1
