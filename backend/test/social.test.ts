@@ -63,3 +63,15 @@ test('likes and comment moderation stay consistent', async () => {
   const unliked = await curator.agent.get(`/api/pins/${pinId}`).expect(200)
   assert.equal(unliked.body.pin.liked_by_me, false)
 })
+
+test('social search finds people and public boards without exposing email', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+
+  const people = await demo.get('/api/search/social?q=demo').expect(200)
+  assert.ok(people.body.people.some((person: { name: string }) => person.name === 'Demo Curator'))
+  assert.ok(people.body.people.every((person: Record<string, unknown>) => !('email' in person)))
+
+  const boards = await demo.get('/api/search/social?q=museum').expect(200)
+  assert.ok(boards.body.collections.some((collection: { name: string }) => collection.name === 'Museum of small things'))
+})
