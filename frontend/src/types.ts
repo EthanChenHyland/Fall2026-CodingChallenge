@@ -31,6 +31,8 @@ export type PublicPin = SavedItem & {
   owner_id: number
   owner_name: string
   owner_avatar: string
+  like_count?: number
+  comment_count?: number
 }
 
 
