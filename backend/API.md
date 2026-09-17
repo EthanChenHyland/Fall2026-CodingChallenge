@@ -39,3 +39,7 @@ The frontend and API run as separate processes. Development requests under `/api
 - `POST /api/notifications/read` — mark current notifications read.
 
 All private collection routes require a valid session and membership. Editor accounts may change saved content and Canvas placement; owner-only actions include deletion, public sharing, visibility, and collaborator management.
+
+### Search providers
+
+Search results are paginated with `?q=<query>&page=<number>`. Mosaic uses Pixabay when `PIXABAY_API_KEY` is configured. Without a key it searches Wikimedia Commons, so reviewer searches still use a live image API. If a remote provider is unavailable, the API falls back to the bundled catalog.

@@ -21,8 +21,8 @@ export const api = {
     request<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
-  search: (query = '') =>
-    request<{ results: CatalogImage[]; source: 'local' | 'pixabay'; fallback?: boolean; cached?: boolean }>(`/api/search?q=${encodeURIComponent(query)}`),
+  search: (query = '', page = 1) =>
+    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   createCollection: (body: { name: string; description?: string }) =>

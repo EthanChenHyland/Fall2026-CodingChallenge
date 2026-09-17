@@ -39,7 +39,7 @@ test('owner can add an editor while editor permissions stay scoped', async () =>
   const shared = editorCollections.body.collections.find((collection: { id: number }) => collection.id === collectionId)
   assert.equal(shared.role, 'editor')
 
-  const search = await editor.get('/api/search?q=Tokyo').expect(200)
+  const search = await editor.get('/api/search').expect(200)
   const image = search.body.results[0]
   await editor
     .post(`/api/collections/${collectionId}/items`)
