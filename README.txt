@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, and collaboration app inspired by Pinterest. Users can search for images, create collections, save/edit/remove content, arrange saved images on a draggable Canvas, share view-only public links, and collaborate with other accounts.
+Mosaic is an image discovery, saving, and collaboration app inspired by Pinterest. It includes live web image search, infinite discovery, public profiles and Explore, follows, likes/comments, manual and file-based pin creation, collections, a draggable Canvas, public sharing, account collaboration, notifications, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -20,13 +20,14 @@ RUNNING THE APP
 3. Open the frontend URL printed by Vite (normally http://127.0.0.1:5173).
    The Express API runs on http://127.0.0.1:3001.
 
-No API key is required. Mosaic includes a bundled image catalog so search works out of the box.
+No API key is required. Search uses Wikimedia Commons automatically and falls back to Mosaic's bundled catalog if a remote provider is unavailable.
 
-OPTIONAL PIXABAY SEARCH
-Copy .env.example to .env and add a Pixabay API key:
-   PIXABAY_API_KEY=your_key_here
+OPTIONAL API KEYS
+Copy .env.example to .env.
+- PIXABAY_API_KEY enables Pixabay as the preferred search provider.
+- VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET enable direct file uploads using an unsigned Cloudinary preset.
 
-If Pixabay is unavailable, Mosaic automatically falls back to the bundled catalog.
+Without Cloudinary, users can still add pins from any image URL.
 
 REVIEWER DEMO
 The login screen includes a one-click demo login. You can also use:
@@ -39,7 +40,15 @@ Suggested walkthrough:
 3. Edit or remove an item, then try the Canvas tab and drag an image.
 4. Open Activity to see collection history.
 5. Open Share to toggle Private/Public access or add sam@mosaic.local as an editor.
-6. Check Notifications after shared edits.
+6. Open Explore, a public pin, and the curator profile; try Follow, Like, and Comment.
+7. Use Add pin to save an image URL. With Cloudinary configured, upload a local image file instead.
+8. Check Notifications after shared edits or comments.
+
+PRODUCTION / HOSTING
+- npm run build
+- npm start
+
+In production, Express serves the built React app and API from one process on PORT (default 3001). Dockerfile provides the same one-service setup and uses /data/mosaic.sqlite for persistent storage. Mount /data as a persistent volume on the host.
 
 USEFUL COMMANDS
 - npm run test       Backend collaboration/share tests
