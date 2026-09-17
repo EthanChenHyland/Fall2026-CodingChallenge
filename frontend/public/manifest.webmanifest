@@ -1,0 +1,17 @@
+{
+  "name": "Mosaic",
+  "short_name": "Mosaic",
+  "description": "Collect the internet you want to remember.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#7e3040",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
