@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, FolderHeart } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EditProfileDialog } from '../components/EditProfileDialog'
 
 export function ProfilePage() {
+  const queryClient = useQueryClient()
   const { id: rawId } = useParams()
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['profile', id], queryFn: () => api.profile(id), enabled: Number.isInteger(id) })
+  const follow = useMutation({ mutationFn: () => data?.profile.followed_by_me ? api.unfollowProfile(id) : api.followProfile(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', id] }) })
 
   if (isLoading) return <div className="loading-page">Opening profile…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That profile is not available.</h3><Link className="primary-button" to="/">Back to Mosaic</Link></div>
@@ -23,8 +25,8 @@ export function ProfilePage() {
           <span className="eyebrow">MOSAIC PROFILE</span>
           <h1>{profile.name}</h1>
           <p>{profile.bio || 'Collecting a few good things at a time.'}</p>
-          <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span></div>
-          {profile.is_self && <div className="profile-actions"><EditProfileDialog profile={profile} /></div>}
+          <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span><span><strong>{profile.follower_count}</strong> followers</span><span><strong>{profile.following_count}</strong> following</span></div>
+          <div className="profile-actions">{profile.is_self ? <EditProfileDialog profile={profile} /> : <button className={profile.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={follow.isPending} onClick={() => follow.mutate()}>{profile.followed_by_me ? 'Following' : 'Follow'}</button>}</div>
         </div>
       </section>
 
