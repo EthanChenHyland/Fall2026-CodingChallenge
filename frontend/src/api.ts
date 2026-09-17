@@ -24,6 +24,7 @@ export const api = {
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
   profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
+  updateProfile: (body: { name?: string; bio?: string; avatarUrl?: string }) => request<{ user: User }>('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(body) }),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   createCollection: (body: { name: string; description?: string }) =>

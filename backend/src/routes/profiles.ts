@@ -1,8 +1,30 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { db } from '../db.js'
-import type { AuthedRequest } from '../middleware/auth.js'
+import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const profilesRouter = Router()
+
+
+const profileSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  bio: z.string().trim().max(220).optional(),
+  avatarUrl: z.string().trim().url().or(z.literal('')).optional(),
+})
+
+profilesRouter.patch('/me', requireAuth, (req: AuthedRequest, res) => {
+  const parsed = profileSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid profile update.' })
+  const current = db.prepare('SELECT name, bio, avatar_url FROM users WHERE id = ?').get(req.user!.id) as { name: string; bio: string; avatar_url: string }
+  db.prepare('UPDATE users SET name = ?, bio = ?, avatar_url = ? WHERE id = ?').run(
+    parsed.data.name ?? current.name,
+    parsed.data.bio ?? current.bio,
+    parsed.data.avatarUrl ?? current.avatar_url,
+    req.user!.id,
+  )
+  const user = db.prepare('SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(req.user!.id)
+  return res.json({ user })
+})
 
 profilesRouter.get('/:id', (req: AuthedRequest, res) => {
   const userId = Number(req.params.id)
