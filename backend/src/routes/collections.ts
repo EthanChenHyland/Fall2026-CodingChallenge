@@ -101,6 +101,8 @@ collectionsRouter.post('/:id/items', requireMembership, (req: AuthedRequest, res
   const parsed = itemSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid image.' })
   const p = parsed.data
+  const duplicate = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)
+  if (duplicate) return res.status(409).json({ error: 'That pin is already in this collection.' })
   const offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(collectionId) as { count: number }).count
   const result = db.prepare(`
     INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, canvas_x, canvas_y, rotation)
