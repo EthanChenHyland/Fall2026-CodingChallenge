@@ -1,16 +1,19 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ArrowRight, LoaderCircle, Search, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
 
 export function DiscoverPage() {
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [activeTopic, setActiveTopic] = useState('All')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialQuery = searchParams.get('q') ?? ''
+  const initialTopic = topics.includes(searchParams.get('topic') ?? '') ? searchParams.get('topic')! : 'All'
+  const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
+  const [activeTopic, setActiveTopic] = useState(initialTopic)
   const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -33,9 +36,16 @@ export function DiscoverPage() {
   const firstPage = data?.pages[0]
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250)
+    const timeout = window.setTimeout(() => {
+      const nextQuery = query.trim()
+      setDebouncedQuery(nextQuery)
+      const next = new URLSearchParams()
+      if (nextQuery) next.set('q', nextQuery)
+      else if (activeTopic !== 'All') next.set('topic', activeTopic)
+      setSearchParams(next, { replace: true })
+    }, 250)
     return () => window.clearTimeout(timeout)
-  }, [query])
+  }, [query, activeTopic, setSearchParams])
 
   useEffect(() => {
     if ((location.state as { focusSearch?: boolean } | null)?.focusSearch) inputRef.current?.focus()
