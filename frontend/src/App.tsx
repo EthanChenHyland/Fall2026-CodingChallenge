@@ -12,6 +12,7 @@ import { ExplorePage } from './pages/ExplorePage'
 import { SharedPage } from './pages/SharedPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PinPage } from './pages/PinPage'
+import { CapturePage } from './pages/CapturePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/collections/:id" element={<CollectionPage />} />
             <Route path="/people/:id" element={<ProfilePage />} />
             <Route path="/pin/:id" element={<PinPage />} />
+            <Route path="/capture" element={<CapturePage />} />
           </Route>
           <Route path="/shared/:token" element={<SharedPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
