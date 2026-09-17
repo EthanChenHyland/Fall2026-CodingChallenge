@@ -6,3 +6,6 @@ backend/data
 .git
 .env
 .DS_Store
+
+test-results
+playwright-report

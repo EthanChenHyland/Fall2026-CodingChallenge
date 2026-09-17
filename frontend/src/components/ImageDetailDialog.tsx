@@ -32,7 +32,7 @@ export function ImageDetailDialog({ image }: { image: CatalogImage }) {
               <a className="secondary-button" href={image.pageUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} /> View source</a>
             </div>
             <div className="pin-detail-note">
-              <span>ORIGINAL SIZE</span>
+              <span>IMAGE SIZE</span>
               <strong>{image.width} × {image.height}</strong>
             </div>
           </div>

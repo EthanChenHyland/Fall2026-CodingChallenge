@@ -13,7 +13,7 @@ export function SmartCollectionPage() {
   const raw = useParams().mode
   const valid = raw === 'recent' || raw === 'popular' || raw === 'unsorted'
   const mode = valid ? raw : 'recent'
-  const { data, isLoading } = useQuery({ queryKey: ['smart-collection', mode], queryFn: () => api.smartCollection(mode), enabled: valid })
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['smart-collection', mode], queryFn: () => api.smartCollection(mode), enabled: valid })
   if (!valid) return <Navigate to="/collections" replace />
   const detail = meta[mode]
   const Icon = detail.Icon
@@ -25,7 +25,7 @@ export function SmartCollectionPage() {
         <span className="smart-hero-icon"><Icon size={20} /></span>
         <div><span className="eyebrow">SMART VIEW</span><h1>{detail.title}</h1><p>{detail.copy}</p></div>
       </section>
-      {isLoading ? <div className="saved-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : data?.items.length ? (
+      {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="saved-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : data?.items.length ? (
         <div className="saved-grid smart-saved-grid">
           {data.items.map((item) => (
             <Link className="saved-card smart-saved-card" to={`/collections/${item.collection_id}`} key={item.id}>

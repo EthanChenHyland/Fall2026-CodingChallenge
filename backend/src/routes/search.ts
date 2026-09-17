@@ -15,10 +15,7 @@ type SearchResponse = {
   nextPage?: number
 }
 
-type CachedSearch = SearchResponse & { expiresAt: number }
-
-const cache = new Map<string, CachedSearch>()
-const CACHE_MS = 10 * 60 * 1000
+const CACHE_MS = 24 * 60 * 60 * 1000
 const PAGE_SIZE = 30
 const MAX_PAGE = 10
 
@@ -73,10 +70,10 @@ async function searchPixabay(query: string, page: number, apiKey: string): Promi
     return {
       id: `pixabay-${hit.id}`,
       title: tags[0] ? tags[0].replace(/\b\w/g, (char) => char.toUpperCase()) : 'Untitled',
-      creator: hit.user,
+      creator: hit.user.slice(0, 120),
       imageUrl: hit.webformatURL,
       pageUrl: hit.pageURL,
-      tags,
+      tags: tags.slice(0, 8).map((tag) => tag.slice(0, 40)),
       width: hit.webformatWidth,
       height: hit.webformatHeight,
     }
@@ -142,11 +139,11 @@ async function searchWikimedia(query: string, page: number): Promise<SearchRespo
 
     return [{
       id: `wikimedia-${pageResult.pageid}`,
-      title: titleFromFileName(pageResult.title) || 'Untitled',
-      creator: info.user || 'Wikimedia contributor',
+      title: (titleFromFileName(pageResult.title) || 'Untitled').slice(0, 120),
+      creator: (info.user || 'Wikimedia contributor').slice(0, 120),
       imageUrl,
       pageUrl: info.descriptionurl || info.url || imageUrl,
-      tags: [...queryTags.slice(0, 2), 'Wikimedia'],
+      tags: [...queryTags.slice(0, 2).map((tag) => tag.slice(0, 40)), 'Wikimedia'],
       width,
       height,
     }]
@@ -162,7 +159,7 @@ async function searchWikimedia(query: string, page: number): Promise<SearchRespo
 
 
 searchRouter.get('/social', (req: AuthedRequest, res) => {
-  const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 80)
+  const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 100).slice(0, 80)
   if (query.length < 2) return res.json({ people: [], collections: [] })
   const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`
 
@@ -198,30 +195,33 @@ searchRouter.get('/social', (req: AuthedRequest, res) => {
 })
 
 searchRouter.get('/', async (req, res) => {
-  const query = String(req.query.q ?? '').trim().toLowerCase()
+  const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 100)
   const page = readPage(req.query.page)
   const apiKey = process.env.PIXABAY_API_KEY?.trim()
 
   if (!query) return res.json({ results: localSearch(''), source: 'local' } satisfies SearchResponse)
 
-  const provider = apiKey ? 'pixabay' : 'wikimedia'
+  const provider = req.query.source === 'wikimedia' ? 'wikimedia' : apiKey ? 'pixabay' : 'wikimedia'
   const cacheKey = `${provider}:${query}:${page}`
-  const cached = cache.get(cacheKey)
-  if (cached && cached.expiresAt > Date.now()) {
-    const { expiresAt: _expiresAt, ...cachedResponse } = cached
-    return res.json({ ...cachedResponse, cached: true })
-  }
+  db.prepare('DELETE FROM search_cache WHERE expires_at <= ?').run(Date.now())
+  const cached = db.prepare('SELECT payload FROM search_cache WHERE key = ?').get(cacheKey) as { payload: string } | undefined
+  if (cached) return res.json({ ...JSON.parse(cached.payload), cached: true })
 
-  try {
-    let response = apiKey ? await searchPixabay(query, page, apiKey) : null
-    if (!response) response = await searchWikimedia(query, page)
-    if (response) {
-      cache.set(cacheKey, { ...response, expiresAt: Date.now() + CACHE_MS })
-      return res.json(response)
-    }
-  } catch (error) {
-    console.warn('Remote image search unavailable; using local catalog.', error)
+  const cacheCount = (db.prepare('SELECT COUNT(*) AS count FROM search_cache').get() as { count: number }).count
+  if (cacheCount >= 5000) return res.status(503).json({ error: 'Search is busy. Please try again later.' })
+  let response: SearchResponse | null = null
+  if (provider === 'pixabay' && apiKey) {
+    try { response = await searchPixabay(query, page, apiKey) }
+    catch { console.warn('Pixabay search unavailable.') }
   }
-
-  return res.json({ results: localSearch(query), source: 'local', fallback: true } satisfies SearchResponse)
+  // A provider must not change halfway through its page sequence.
+  if (!response && (provider === 'wikimedia' || page === 1)) {
+    try { response = await searchWikimedia(query, page) }
+    catch { console.warn('Wikimedia search unavailable.') }
+  }
+  response ??= { results: page === 1 ? localSearch(query) : [], source: 'local', fallback: true }
+  const expiry = Date.now() + (response.fallback ? 60_000 : CACHE_MS)
+  // Bound disk use without evicting live 24-hour provider cache entries.
+  db.prepare('INSERT OR REPLACE INTO search_cache VALUES (?, ?, ?)').run(cacheKey, JSON.stringify(response), expiry)
+  return res.json(response)
 })

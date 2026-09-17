@@ -33,7 +33,11 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `GET /api/collections/:id` — get a collection, items, activity, and collaborators.
 - `PATCH /api/collections/:id` — edit collection metadata; only owners can change visibility.
 - `DELETE /api/collections/:id` — owner-only collection deletion.
-- `POST /api/collections/:id/items` — save an image or manually added pin.
+- `POST /api/collections/:id/items` — save an image with optional note atomically; images require HTTPS or an existing local media URL. Pixabay images are copied to persistent media.
+- `POST /api/collections/:id/items/restore` — restore `{itemId}` from a server-side deletion snapshot within 10 minutes, preserving social data and identity.
+- `PATCH /api/collections/:id/layout` — atomically update `{positions: [{itemId, x, y, rotation}]}` for member-owned pins.
+- `POST /api/collections/:id/items/bulk` — transactionally delete or move selected item IDs.
+- `GET /api/collections/smart/:view` — recent, popular, or unsorted views (up to 60 pins).
 - `PATCH /api/collections/:id/items/:itemId` — edit title/note or persisted Canvas position.
 - `DELETE /api/collections/:id/items/:itemId` — remove a saved image.
 

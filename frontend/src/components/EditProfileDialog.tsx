@@ -28,10 +28,10 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
       <Dialog.Trigger asChild><button className="secondary-button"><Pencil size={15} /> Edit profile</button></Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">YOUR PROFILE</span><Dialog.Title>Make it feel like you.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
-          <label className="field-label">Name<input value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label className="field-label">Bio<textarea rows={4} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="What are you collecting lately?" /></label>
+          <label className="field-label">Name<input maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label className="field-label">Bio<textarea maxLength={220} rows={4} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="What are you collecting lately?" /></label>
           <label className="field-label">Avatar URL<input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} placeholder="https://…" /></label>
           <button className="primary-button full" disabled={update.isPending || name.trim().length < 2} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save profile'}</button>
         </Dialog.Content>

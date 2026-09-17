@@ -1,3 +1,5 @@
+> **Mosaic submission:** setup, demo accounts, walkthrough, production instructions, and reflection are in [README.txt](README.txt). The original challenge follows below.
+
 # ChangePlusPlus Fall 2026 Coding Challenge
 ***Due 9/18 at 11:59 PM (CT)***. 
 Remember to submit [this form](https://forms.gle/JfR4cwAEwn4HhBuX8) when complete.

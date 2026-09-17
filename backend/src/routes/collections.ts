@@ -2,6 +2,9 @@ import crypto from 'node:crypto'
 import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
+import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
+import { persistProviderImage } from '../lib/media.js'
+import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
 import {
   requireAuth,
@@ -19,11 +22,12 @@ const collectionSchema = z.object({
 })
 
 const itemSchema = z.object({
-  sourceId: z.string().min(1),
-  imageUrl: z.string().url(),
-  sourcePage: z.string().url().or(z.literal('')).optional().default(''),
+  sourceId: z.string().min(1).max(200),
+  imageUrl: imageUrlSchema,
+  sourcePage: sourceUrlSchema.optional().default(''),
   sourceCreator: z.string().max(120).optional().default(''),
   title: z.string().trim().min(1).max(120),
+  note: z.string().trim().max(500).optional().default(''),
   tags: z.array(z.string().trim().min(1).max(40)).max(8).optional().default([]),
 })
 
@@ -132,6 +136,7 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
     if (!coverItem) return res.status(400).json({ error: 'Choose an image from this collection for the cover.' })
   }
   const next = { ...existing, ...parsed.data }
+  const shareToken = parsed.data.visibility === 'private' ? null : parsed.data.visibility === 'public' ? existing.share_token ?? crypto.randomBytes(16).toString('base64url') : existing.share_token
   const coverItemId = parsed.data.coverItemId === undefined ? existing.cover_item_id : parsed.data.coverItemId
   const coverFocusX = parsed.data.coverFocusX ?? Number(existing.cover_focus_x ?? 50)
   const coverFocusY = parsed.data.coverFocusY ?? Number(existing.cover_focus_y ?? 50)
@@ -139,9 +144,9 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   const gridLayout = parsed.data.gridLayout ?? String(existing.grid_layout ?? 'gallery')
   db.prepare(`
     UPDATE collections
-    SET name = ?, description = ?, visibility = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
+    SET name = ?, description = ?, visibility = ?, share_token = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(next.name, next.description, next.visibility, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
+  `).run(next.name, next.description, next.visibility, shareToken, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
   logActivity(id, `${actor(req)} updated collection details`, req.user!.id)
   res.json({ collection: getCollection(id, req.user!.id) })
 })
@@ -151,18 +156,24 @@ collectionsRouter.delete('/:id', requireMembership, requireOwner, (req, res) => 
   res.status(204).end()
 })
 
-collectionsRouter.post('/:id/items', requireMembership, (req: AuthedRequest, res) => {
+collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   const parsed = itemSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid image.' })
   const p = parsed.data
   const duplicate = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)
   if (duplicate) return res.status(409).json({ error: 'That pin is already in this collection.' })
+  let imageUrl: string
+  try { imageUrl = await persistProviderImage(p.imageUrl) }
+  catch { return res.status(502).json({ error: 'Could not store this image. Please try again.' }) }
+  // Recheck access and duplicates after the asynchronous provider download.
+  if (!db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, req.user!.id)) return res.status(404).json({ error: 'Collection not found.' })
+  if (db.prepare('SELECT 1 FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)) return res.status(409).json({ error: 'That pin is already in this collection.' })
   const offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(collectionId) as { count: number }).count
   const result = db.prepare(`
-    INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, tags, canvas_x, canvas_y, rotation)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(collectionId, p.sourceId, p.imageUrl, p.sourcePage, p.sourceCreator, p.title, p.tags.join(', '), 36 + (offset % 3) * 220, 40 + Math.floor(offset / 3) * 250, (offset % 3 - 1) * 2)
+    INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(collectionId, p.sourceId, imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags.join(', '), 36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2)
   db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
   logActivity(collectionId, `${actor(req)} saved “${p.title}”`, req.user!.id)
   const item = db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
@@ -197,33 +208,36 @@ collectionsRouter.patch('/:id/items/:itemId', requireMembership, (req: AuthedReq
   res.json({ item: db.prepare('SELECT * FROM items WHERE id = ?').get(itemId) })
 })
 
-const restoreItemSchema = z.object({
-  sourceId: z.string().min(1),
-  imageUrl: z.string().url(),
-  sourcePage: z.string().url().or(z.literal('')).default(''),
-  sourceCreator: z.string().max(120).default(''),
-  title: z.string().trim().min(1).max(120),
-  note: z.string().max(500).default(''),
-  tags: z.string().max(240).default(''),
-  canvasX: z.number().finite().min(0).max(5000).default(40),
-  canvasY: z.number().finite().min(0).max(5000).default(40),
-  rotation: z.number().min(-12).max(12).default(0),
-})
-
 collectionsRouter.post('/:id/items/restore', requireMembership, (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
-  const parsed = restoreItemSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'That pin can’t be restored.' })
-  const p = parsed.data
-  const duplicate = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)
-  if (duplicate) return res.status(409).json({ error: 'That pin is already back in this collection.' })
-  const result = db.prepare(`
-    INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(collectionId, p.sourceId, p.imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags, p.canvasX, p.canvasY, p.rotation)
-  db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
-  logActivity(collectionId, `${actor(req)} restored “${p.title}”`, req.user!.id)
-  res.status(201).json({ item: db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid) })
+  const itemId = Number(req.body.itemId)
+  if (!Number.isSafeInteger(itemId)) return res.status(400).json({ error: 'Invalid saved pin.' })
+  const result = restoreSnapshot(collectionId, itemId)
+  if (!result) return res.status(410).json({ error: 'Undo has expired or this pin was already restored.' })
+  if (result === 'duplicate') return res.status(409).json({ error: 'That pin is already in this collection.' })
+  logActivity(collectionId, `${actor(req)} restored “${result.title}”`, req.user!.id)
+  return res.status(201).json({ item: result })
+})
+
+// Layout changes are validated together and committed in one SQLite transaction.
+collectionsRouter.patch('/:id/layout', requireMembership, (req: AuthedRequest, res) => {
+  const parsed = z.object({ positions: z.array(z.object({
+    itemId: z.number().int().positive(),
+    x: z.number().finite().min(0).max(5000),
+    y: z.number().finite().min(0).max(5000),
+    rotation: z.number().finite().min(-12).max(12),
+  })).min(1).max(1000) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid canvas layout.' })
+  const collectionId = Number(req.params.id)
+  const positions = parsed.data.positions
+  if (positions.some((p) => !db.prepare('SELECT 1 FROM items WHERE id = ? AND collection_id = ?').get(p.itemId, collectionId))) return res.status(404).json({ error: 'A pin is no longer in this collection. Reload and try again.' })
+  db.transaction(() => {
+    const update = db.prepare('UPDATE items SET canvas_x = ?, canvas_y = ?, rotation = ? WHERE id = ? AND collection_id = ?')
+    for (const p of positions) update.run(p.x, p.y, p.rotation, p.itemId, collectionId)
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} arranged ${positions.length} canvas ${positions.length === 1 ? 'pin' : 'pins'}`, req.user!.id)
+  })()
+  return res.status(204).end()
 })
 
 const bulkSchema = z.object({
@@ -243,6 +257,7 @@ collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest
 
   if (parsed.data.action === 'delete') {
     const removeMany = db.transaction(() => {
+      for (const item of items) snapshotItem(Number(item.id), collectionId)
       db.prepare(`DELETE FROM items WHERE collection_id = ? AND id IN (${placeholders})`).run(collectionId, ...ids)
       db.prepare(`UPDATE collections SET cover_item_id = CASE WHEN cover_item_id IN (${placeholders}) THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...ids, collectionId)
       logActivity(collectionId, `${actor(req)} removed ${ids.length} saved ${ids.length === 1 ? 'pin' : 'pins'}`, req.user!.id)
@@ -273,7 +288,10 @@ collectionsRouter.delete('/:id/items/:itemId', requireMembership, (req: AuthedRe
   const collectionId = Number(req.params.id)
   const item = db.prepare('SELECT title FROM items WHERE id = ? AND collection_id = ?').get(Number(req.params.itemId), collectionId) as { title: string } | undefined
   if (!item) return res.status(404).json({ error: 'Saved image not found.' })
-  db.prepare('DELETE FROM items WHERE id = ? AND collection_id = ?').run(Number(req.params.itemId), collectionId)
+  db.transaction(() => {
+    snapshotItem(Number(req.params.itemId), collectionId)
+    db.prepare('DELETE FROM items WHERE id = ? AND collection_id = ?').run(Number(req.params.itemId), collectionId)
+  })()
   db.prepare('UPDATE collections SET cover_item_id = CASE WHEN cover_item_id = ? THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(req.params.itemId), collectionId)
   logActivity(collectionId, `${actor(req)} removed “${item.title}”`, req.user!.id)
   res.status(204).end()

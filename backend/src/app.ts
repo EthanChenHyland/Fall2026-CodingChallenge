@@ -6,6 +6,7 @@ import helmet from 'helmet'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { db } from './db.js'
+import { mediaDir } from './lib/media.js'
 import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
@@ -19,6 +20,8 @@ import { sharedRouter } from './routes/shared.js'
 export const app = express()
 
 app.disable('x-powered-by')
+// Only trust the explicitly configured number of reverse-proxy hops.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0))
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
@@ -35,8 +38,9 @@ app.use(helmet({
 app.use(compression())
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : true, credentials: true }))
 app.use(express.json({ limit: '1mb' }))
-app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
+app.use('/api', rateLimit({ skip: (req) => req.path === '/health', windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use(['/api/auth/login', '/api/auth/register', '/api/auth/demo'], rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use(loadUser)
 
 app.get('/api/health', (_req, res) => {
@@ -63,11 +67,13 @@ app.use('/api/pins', pinsRouter)
 app.use('/api/profiles', profilesRouter)
 app.use('/api/shared', sharedRouter)
 
+app.use('/media', express.static(mediaDir, { maxAge: '1y', immutable: true, dotfiles: 'deny' }), (_req, res) => res.status(404).end())
+
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }))
 
 if (process.env.NODE_ENV === 'production') {
   const frontendDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../frontend/dist')
-  app.use(express.static(frontendDist, { maxAge: '1h', immutable: false, setHeaders: (res, path) => { if (path.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable') } }))
+  app.use(express.static(frontendDist, { maxAge: '1h', immutable: false, setHeaders: (res, path) => { res.setHeader('Cache-Control', path.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache') } }))
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next()
     return res.sendFile(resolve(frontendDist, 'index.html'))
@@ -75,6 +81,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const status = typeof err === 'object' && err !== null && 'status' in err ? Number(err.status) : 500
+  if (status === 400 || status === 413) return res.status(status).json({ error: status === 413 ? 'Request is too large.' : 'Invalid JSON request.' })
   console.error(err)
   res.status(500).json({ error: 'Something went wrong.' })
 })

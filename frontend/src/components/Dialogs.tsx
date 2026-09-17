@@ -35,14 +35,14 @@ export function CreateCollectionDialog({ trigger, open: controlledOpen, onOpenCh
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head">
             <div><span className="eyebrow">NEW COLLECTION</span><Dialog.Title>Start a new mood.</Dialog.Title></div>
             <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
           </div>
           <Dialog.Description className="muted">Give it a name now. You can shape it as you collect.</Dialog.Description>
-          <label className="field-label">Name<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Late night Tokyo" /></label>
-          <label className="field-label">Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Neon, small bars, rainy streets..." rows={3} /></label>
+          <label className="field-label">Name<input maxLength={80} autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Late night Tokyo" /></label>
+          <label className="field-label">Description<textarea maxLength={280} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Neon, small bars, rainy streets..." rows={3} /></label>
           <button className="primary-button full" disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
             <Plus size={17} /> {create.isPending ? 'Creating…' : 'Create collection'}
           </button>
@@ -99,7 +99,7 @@ export function SaveImageDialog({ image, trigger }: { image: CatalogImage; trigg
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card compact">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card compact">
           <div className="dialog-head">
             <div><span className="eyebrow">SAVE IMAGE</span><Dialog.Title>Choose a collection</Dialog.Title></div>
             <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
@@ -156,12 +156,12 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head"><Dialog.Title>Edit saved image</Dialog.Title><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           <img className="edit-image" src={item.image_url} alt="" />
-          <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-          <label className="field-label">Note<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} placeholder="Why did you save this?" /></label>
-          <label className="field-label">Tags <span className="field-optional">comma separated</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="architecture, blue, reference" /></label>
+          <label className="field-label">Title<input maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+          <label className="field-label">Note<textarea aria-label="Note" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} rows={4} placeholder="Why did you save this?" /></label>
+          <label className="field-label">Tags <span className="field-optional">comma separated</span><input maxLength={240} value={tags} onChange={(event) => setTags(event.target.value)} placeholder="architecture, blue, reference" /></label>
           <button className="primary-button full" disabled={!title.trim() || update.isPending} onClick={() => update.mutate()}>Save changes</button>
         </Dialog.Content>
       </Dialog.Portal>
@@ -200,7 +200,7 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
             }).then(() => {
               queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
               queryClient.invalidateQueries({ queryKey: ['collections'] })
-            })
+            }).catch((error: Error) => toast.error(error.message))
           },
         },
       })
@@ -212,10 +212,10 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">COLLECTION DETAILS</span><Dialog.Title>Shape the board.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
-          <label className="field-label">Name<input value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label className="field-label">Description<textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+          <label className="field-label">Name<input maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label className="field-label">Description<textarea maxLength={280} rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
           <section className="collection-style-editor">
             <div className="cover-editor-head"><strong>Board style</strong><span>A little personality, without changing the content.</span></div>
             <div className="theme-picker" aria-label="Collection background">
@@ -262,10 +262,10 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
   }
   const share = useMutation({
     mutationFn: () => api.shareCollection(collection.id),
-    onSuccess: ({ token }) => {
+    onSuccess: async ({ token }) => {
       refresh()
-      navigator.clipboard.writeText(`${window.location.origin}/shared/${token}`).catch(() => undefined)
-      toast.success('Public link copied')
+      try { await navigator.clipboard.writeText(`${window.location.origin}/shared/${token}`); toast.success('Public link copied') }
+      catch { toast.info('Public link created. Select the link to copy it.') }
     },
     onError: (error) => toast.error(error.message),
   })
@@ -309,7 +309,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
             {collection.share_token ? (
               <div className="share-link-row">
                 <span className="share-url">{shareUrl.replace(/^https?:\/\//, '')}</span>
-                <button className="secondary-button" onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied') }}><Copy size={15} /> Copy</button>
+                <button className="secondary-button" onClick={() => { void navigator.clipboard.writeText(shareUrl).then(() => toast.success('Link copied')).catch(() => toast.error('Could not copy. Select the link and copy it manually.')) }}><Copy size={15} /> Copy</button>
               </div>
             ) : <p className="privacy-note">Only collaborators can open this collection while it is private.</p>}
           </section>
@@ -328,7 +328,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
             </div>
             {isOwner && (
               <div className="invite-row">
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Collaborator account email" onKeyDown={(event) => { if (event.key === 'Enter' && email.trim()) invite.mutate() }} />
+                <input aria-label="Collaborator account email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Collaborator account email" onKeyDown={(event) => { if (event.key === 'Enter' && email.trim()) invite.mutate() }} />
                 <button className="primary-button" disabled={!email.trim() || invite.isPending} onClick={() => invite.mutate()}><UserPlus size={15} /> {invite.isPending ? 'Adding…' : 'Add editor'}</button>
               </div>
             )}
@@ -389,13 +389,13 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-card">
+        <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">ADD YOUR OWN PIN</span><Dialog.Title>Save something from anywhere.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           {imageUrl && <img className="edit-image" src={imageUrl} alt="Preview" />}
-          {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : 'Drop an image here'}</strong><span>or choose one from your computer</span><label className="secondary-button upload-browse">Browse<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
+          {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (!uploading && file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : 'Drop an image here'}</strong><span>or choose one from your computer</span><label className="secondary-button upload-browse">Browse<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
           <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
-          <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
-          <label className="field-label">Tags <span className="field-optional">optional</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="interior, type, reference" /></label>
+          <label className="field-label">Title<input maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
+          <label className="field-label">Tags <span className="field-optional">optional</span><input maxLength={240} value={tags} onChange={(event) => setTags(event.target.value)} placeholder="interior, type, reference" /></label>
           <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
           <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
         </Dialog.Content>

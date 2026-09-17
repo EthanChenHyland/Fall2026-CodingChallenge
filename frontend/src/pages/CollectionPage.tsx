@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, CheckSquare, Clock3, Grid2X2, ImagePlus, LayoutDashboard, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
@@ -35,15 +35,18 @@ function CanvasItem({ collectionId, item, siblings, onCommit, onGuideChange }: {
   const [position, setPosition] = useState({ x: item.canvas_x, y: item.canvas_y })
   const [dragging, setDragging] = useState(false)
   const start = useRef({ x: 0, y: 0, originX: 0, originY: 0 })
+  // Synchronize persisted server positions after undo/redo without remounting the focused pin.
+  // oxlint-disable-next-line react/set-state-in-effect
+  useEffect(() => { setPosition({ x: item.canvas_x, y: item.canvas_y }) }, [item.canvas_x, item.canvas_y])
   const update = useMutation({
-    mutationFn: (next: { x: number; y: number }) => api.updateItem(collectionId, item.id, { canvasX: next.x, canvasY: next.y }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['collection', collectionId] }),
+    mutationFn: (change: LayoutChange) => api.updateLayout(collectionId, [{ itemId: item.id, ...change.after }]),
+    onSuccess: (_data, change) => { onCommit(change); void queryClient.invalidateQueries({ queryKey: ['collection', collectionId] }) },
+    onError: (error, change) => { setPosition(change.before); toast.error(error.message) },
   })
 
   const commit = (next: { x: number; y: number }, before = { x: start.current.originX, y: start.current.originY }) => {
     if (next.x === before.x && next.y === before.y) return
-    onCommit({ itemId: item.id, before: { ...before, rotation: item.rotation }, after: { ...next, rotation: item.rotation } })
-    update.mutate(next)
+    update.mutate({ itemId: item.id, before: { ...before, rotation: item.rotation }, after: { ...next, rotation: item.rotation } })
   }
 
   return (
@@ -54,14 +57,15 @@ function CanvasItem({ collectionId, item, siblings, onCommit, onGuideChange }: {
       aria-label={`Move ${item.title}. Use arrow keys or drag.`}
       style={{ transform: `translate(${position.x}px, ${position.y}px) rotate(${item.rotation}deg)` }}
       onPointerDown={(event) => {
+        if (update.isPending || event.button !== 0) return
         event.currentTarget.setPointerCapture(event.pointerId)
         setDragging(true)
         start.current = { x: event.clientX, y: event.clientY, originX: position.x, originY: position.y }
       }}
       onPointerMove={(event) => {
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-        let x = Math.max(0, start.current.originX + event.clientX - start.current.x)
-        let y = Math.max(0, start.current.originY + event.clientY - start.current.y)
+        let x = Math.min(5000, Math.max(0, start.current.originX + event.clientX - start.current.x))
+        let y = Math.min(5000, Math.max(0, start.current.originY + event.clientY - start.current.y))
         const alignedX = siblings.find((other) => other.id !== item.id && Math.abs(other.canvas_x - x) <= 8)
         const alignedY = siblings.find((other) => other.id !== item.id && Math.abs(other.canvas_y - y) <= 8)
         if (alignedX) x = alignedX.canvas_x
@@ -70,18 +74,19 @@ function CanvasItem({ collectionId, item, siblings, onCommit, onGuideChange }: {
         setPosition({ x, y })
       }}
       onPointerUp={(event) => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
         event.currentTarget.releasePointerCapture(event.pointerId)
         setDragging(false)
         onGuideChange(null)
         commit(position)
       }}
-      onPointerCancel={() => { setDragging(false); onGuideChange(null) }}
+      onPointerCancel={() => { setPosition({ x: start.current.originX, y: start.current.originY }); setDragging(false); onGuideChange(null) }}
       onKeyDown={(event) => {
         const moves: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }
         const move = moves[event.key]
-        if (!move) return
+        if (!move || update.isPending) return
         event.preventDefault()
-        const next = { x: Math.max(0, position.x + move[0]), y: Math.max(0, position.y + move[1]) }
+        const next = { x: Math.min(5000, Math.max(0, position.x + move[0])), y: Math.min(5000, Math.max(0, position.y + move[1])) }
         const before = { ...position }
         setPosition(next)
         commit(next, before)
@@ -104,6 +109,14 @@ export function CollectionPage() {
   const [targetCollectionId, setTargetCollectionId] = useState('')
   const [undoStack, setUndoStack] = useState<LayoutChange[][]>([])
   const [redoStack, setRedoStack] = useState<LayoutChange[][]>([])
+  const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const runAction = async (action: () => Promise<void>) => {
+    if (busyRef.current) return
+    busyRef.current = true; setBusy(true)
+    try { await action() } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save changes. Try again.') }
+    finally { busyRef.current = false; setBusy(false) }
+  }
   const [guide, setGuide] = useState<CanvasGuide>(null)
   const { data, isLoading, isError } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), enabled: Number.isFinite(id) })
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections })
@@ -128,7 +141,7 @@ export function CollectionPage() {
       return { previous }
     },
     onSuccess: (item) => {
-      toast.success('Removed from collection', { action: { label: 'Undo', onClick: () => { void api.restoreItem(id, item).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }) } } })
+      toast.success('Removed from collection', { action: { label: 'Undo', onClick: () => { void api.restoreItem(id, item).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }).catch((error: Error) => toast.error(error.message)) } } })
     },
     onError: (error, _item, context) => { if (context?.previous) queryClient.setQueryData(['collection', id], context.previous); toast.error(error.message) },
     onSettled: () => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) },
@@ -140,7 +153,7 @@ export function CollectionPage() {
     setRedoStack([])
   }
   const applyLayout = async (changes: LayoutChange[], side: 'before' | 'after') => {
-    await Promise.all(changes.map((change) => api.updateItem(id, change.itemId, { canvasX: change[side].x, canvasY: change[side].y, rotation: change[side].rotation })))
+    if (changes.length) await api.updateLayout(id, changes.map((change) => ({ itemId: change.itemId, ...change[side] })))
     await queryClient.invalidateQueries({ queryKey: ['collection', id] })
   }
   const undoLayout = async () => {
@@ -163,8 +176,8 @@ export function CollectionPage() {
     const anchors = [[38, 52, -4], [274, 26, 3], [516, 82, -2], [744, 42, 4], [108, 318, 2], [354, 286, -3], [602, 334, 3], [814, 292, -2]] as const
     const changes = items.map((item, index) => {
       const after = mode === 'tidy'
-        ? { x: 36 + (index % 3) * 220, y: 40 + Math.floor(index / 3) * 250, rotation: (index % 3 - 1) * 2 }
-        : (() => { const [x, y, rotation] = anchors[index % anchors.length]; const row = Math.floor(index / anchors.length); return { x: x + (row % 2) * 34, y: y + row * 520, rotation: rotation + (row % 3 - 1) } })()
+        ? { x: 36 + (index % 3) * 220, y: Math.min(5000, 40 + Math.floor(index / 3) * 250), rotation: (index % 3 - 1) * 2 }
+        : (() => { const [x, y, rotation] = anchors[index % anchors.length]; const row = Math.floor(index / anchors.length); return { x: x + (row % 2) * 34, y: Math.min(5000, y + row * 520), rotation: rotation + (row % 3 - 1) } })()
       return { itemId: item.id, before: { x: item.canvas_x, y: item.canvas_y, rotation: item.rotation }, after }
     }).filter((change) => change.before.x !== change.after.x || change.before.y !== change.after.y || change.before.rotation !== change.after.rotation)
     await applyLayout(changes, 'after')
@@ -182,7 +195,7 @@ export function CollectionPage() {
     const result = await api.bulkItems(id, { action: 'delete', itemIds: [...selected] })
     stopSelecting()
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['collection', id] }), queryClient.invalidateQueries({ queryKey: ['collections'] })])
-    toast.success(`${result.items.length} ${result.items.length === 1 ? 'pin' : 'pins'} removed`, { action: { label: 'Undo', onClick: () => { void Promise.all(result.items.map((item) => api.restoreItem(id, item))).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }) } } })
+    toast.success(`${result.items.length} ${result.items.length === 1 ? 'pin' : 'pins'} removed`, { action: { label: 'Undo', onClick: () => { void Promise.all(result.items.map((item) => api.restoreItem(id, item))).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }).catch((error: Error) => toast.error(error.message)) } } })
   }
   const bulkMove = async () => {
     const targetId = Number(targetCollectionId)
@@ -191,7 +204,7 @@ export function CollectionPage() {
     await api.bulkItems(id, { action: 'move', itemIds, targetCollectionId: targetId })
     stopSelecting()
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['collection', id] }), queryClient.invalidateQueries({ queryKey: ['collection', targetId] }), queryClient.invalidateQueries({ queryKey: ['collections'] })])
-    toast.success(`${itemIds.length} ${itemIds.length === 1 ? 'pin' : 'pins'} moved`, { action: { label: 'Undo', onClick: () => { void api.bulkItems(targetId, { action: 'move', itemIds, targetCollectionId: id }).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collection', targetId] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }) } } })
+    toast.success(`${itemIds.length} ${itemIds.length === 1 ? 'pin' : 'pins'} moved`, { action: { label: 'Undo', onClick: () => { void api.bulkItems(targetId, { action: 'move', itemIds, targetCollectionId: id }).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collection', targetId] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }).catch((error: Error) => toast.error(error.message)) } } })
   }
 
   if (isLoading) return <div className="loading-page">Opening collection…</div>
@@ -217,11 +230,11 @@ export function CollectionPage() {
           <Tabs.List className="tab-list"><Tabs.Trigger value="grid"><Grid2X2 size={16} /> Grid</Tabs.Trigger><Tabs.Trigger value="canvas"><LayoutDashboard size={16} /> Canvas</Tabs.Trigger><Tabs.Trigger value="activity"><Clock3 size={16} /> Activity</Tabs.Trigger></Tabs.List>
           <Tabs.Content value="grid">
             <div className="collection-grid-tools">
-              <label><Search size={14} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter this collection" /></label>
+              <label><Search size={14} /><input aria-label="Filter this collection" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter this collection" /></label>
               <button className={`secondary-button ${selecting ? 'active' : ''}`} onClick={() => selecting ? stopSelecting() : setSelecting(true)}>{selecting ? <X size={14} /> : <CheckSquare size={14} />}{selecting ? 'Done' : 'Select'}</button>
             </div>
             {!!tags.length && <div className="collection-tag-filter"><button className={!activeTag ? 'active' : ''} onClick={() => setActiveTag('')}>All</button>{tags.map((tag) => <button className={activeTag === tag ? 'active' : ''} key={tag} onClick={() => setActiveTag(tag)}>{tag}</button>)}</div>}
-            {selecting && <div className="bulk-action-bar"><strong>{selected.size} selected</strong><select aria-label="Move selected pins to collection" value={targetCollectionId} onChange={(event) => setTargetCollectionId(event.target.value)}><option value="">Move to…</option>{collectionsQuery.data?.collections.filter((option) => option.id !== id).map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select><button disabled={!selected.size || !targetCollectionId} onClick={() => void bulkMove()}><MoveRight size={14} /> Move</button><button className="danger" disabled={!selected.size} onClick={() => void bulkDelete()}><Trash2 size={14} /> Delete</button></div>}
+            {selecting && <div className="bulk-action-bar"><strong>{selected.size} selected</strong><select aria-label="Move selected pins to collection" value={targetCollectionId} onChange={(event) => setTargetCollectionId(event.target.value)}><option value="">Move to…</option>{collectionsQuery.data?.collections.filter((option) => option.id !== id).map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkMove)}><MoveRight size={14} /> Move</button><button className="danger" disabled={busy || !selected.size} onClick={() => void runAction(bulkDelete)}><Trash2 size={14} /> Delete</button></div>}
             {filteredItems.length ? <div className={`saved-grid layout-${collection.grid_layout ?? 'gallery'}`}>{filteredItems.map((item) => {
               const selectedItem = selected.has(item.id)
               return <article className={`saved-card ${selectedItem ? 'selected' : ''}`} key={item.id}>
@@ -232,12 +245,12 @@ export function CollectionPage() {
             })}</div> : <div className="empty-state compact"><Search size={24} /><h3>No saves match that filter.</h3><button className="secondary-button" onClick={() => { setFilter(''); setActiveTag('') }}>Clear filters</button></div>}
           </Tabs.Content>
           <Tabs.Content value="canvas">
-            <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag, nudge, align, undo, and remix your saves into a visual story.</span></div><div className="canvas-tools"><button className="canvas-reset" disabled={!undoStack.length} onClick={() => void undoLayout()} title="Undo canvas change"><Undo2 size={14} /> Undo</button><button className="canvas-reset" disabled={!redoStack.length} onClick={() => void redoLayout()} title="Redo canvas change"><Redo2 size={14} /> Redo</button><button className="canvas-reset" onClick={() => void runPresetLayout('remix')}><Shuffle size={14} /> Remix board</button><button className="canvas-reset" onClick={() => void runPresetLayout('tidy')}><RotateCcw size={14} /> Tidy up</button></div></div>
+            <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag, nudge, align, undo, and remix your saves into a visual story.</span></div><div className="canvas-tools"><button className="canvas-reset" disabled={busy || !undoStack.length} onClick={() => void runAction(undoLayout)} title="Undo canvas change"><Undo2 size={14} /> Undo</button><button className="canvas-reset" disabled={busy || !redoStack.length} onClick={() => void runAction(redoLayout)} title="Redo canvas change"><Redo2 size={14} /> Redo</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('remix'))}><Shuffle size={14} /> Remix board</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('tidy'))}><RotateCcw size={14} /> Tidy up</button></div></div>
             <div className="canvas-board">
               <div className="canvas-board-label"><span>MOSAIC BOARD</span><strong>{collection.name}</strong></div>
               {guide?.x !== undefined && <span className="canvas-guide vertical" style={{ left: guide.x }} />}
               {guide?.y !== undefined && <span className="canvas-guide horizontal" style={{ top: guide.y }} />}
-              {items.map((item) => <CanvasItem key={`${item.id}:${item.canvas_x}:${item.canvas_y}:${item.rotation}`} collectionId={id} item={item} siblings={items} onCommit={(change) => recordLayout([change])} onGuideChange={setGuide} />)}
+              {items.map((item) => <CanvasItem key={item.id} collectionId={id} item={item} siblings={items} onCommit={(change) => recordLayout([change])} onGuideChange={setGuide} />)}
             </div>
           </Tabs.Content>
           <Tabs.Content value="activity"><div className="activity-panel"><div><span className="eyebrow">COLLECTION HISTORY</span><h3>What changed here</h3></div><div className="activity-list">{collection.activity?.map((activity) => <div key={activity.id}><span className="activity-mark" /><span><strong>{activity.message}</strong><small>{new Date(`${activity.created_at}Z`).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</small></span></div>)}</div></div></Tabs.Content>

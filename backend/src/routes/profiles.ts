@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
+import { imageUrlSchema } from '../lib/urls.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const profilesRouter = Router()
@@ -9,7 +10,7 @@ export const profilesRouter = Router()
 const profileSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   bio: z.string().trim().max(220).optional(),
-  avatarUrl: z.string().trim().url().or(z.literal('')).optional(),
+  avatarUrl: imageUrlSchema.or(z.literal('')).optional(),
 })
 
 profilesRouter.patch('/me', requireAuth, (req: AuthedRequest, res) => {
@@ -39,10 +40,11 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
 
   const stats = db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM collection_members WHERE user_id = ? AND role = 'owner') AS collection_count,
+      (SELECT COUNT(*) FROM collection_members m JOIN collections c ON c.id = m.collection_id WHERE m.user_id = ? AND m.role = 'owner' AND c.visibility = 'public') AS collection_count,
       (SELECT COUNT(*) FROM items i
         JOIN collection_members m ON m.collection_id = i.collection_id
-        WHERE m.user_id = ? AND m.role = 'owner') AS pin_count,
+        JOIN collections c ON c.id = i.collection_id
+        WHERE m.user_id = ? AND m.role = 'owner' AND c.visibility = 'public') AS pin_count,
       (SELECT COUNT(*) FROM follows WHERE following_id = ?) AS follower_count,
       (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
   `).get(userId, userId, userId, userId) as { collection_count: number; pin_count: number; follower_count: number; following_count: number }

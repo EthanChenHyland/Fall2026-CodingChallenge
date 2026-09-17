@@ -78,7 +78,8 @@ export function AppShell() {
     const listener = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       const typing = target?.matches('input, textarea, select, [contenteditable="true"]')
-      if (typing || event.metaKey || event.ctrlKey || event.altKey) return
+      if (event.key === 'Escape') { setProfileOpen(false); setNotificationsOpen(false) }
+      if (document.querySelector('[role="dialog"]') || typing || event.metaKey || event.ctrlKey || event.altKey) return
       if (event.key === '/') { event.preventDefault(); navigate('/', { state: { focusSearch: true } }) }
       else if (event.key.toLowerCase() === 'n') { event.preventDefault(); navigate('/collections?new=1') }
       else if (event.key.toLowerCase() === 's') { event.preventDefault(); navigate('/capture') }
@@ -125,13 +126,13 @@ export function AppShell() {
             <kbd>/</kbd>
           </button>
           <div className="topbar-actions">
-            {!online && <span className="offline-badge" title="Using cached pages while offline"><WifiOff size={13} /> Offline</span>}
+            {!online && <span className="offline-badge" title="Reconnect to load or save changes"><WifiOff size={13} /> Offline</span>}
             <div className="popover-wrap">
               <button
                 className="notification-button"
                 aria-label={unread ? `${unread} unread notifications` : 'Notifications'}
                 aria-expanded={notificationsOpen}
-                aria-haspopup="menu"
+                aria-controls="notifications-popover"
                 onClick={() => {
                   const next = !notificationsOpen
                   setNotificationsOpen(next)
@@ -143,7 +144,7 @@ export function AppShell() {
                 {unread > 0 && <span>{unread > 9 ? '9+' : unread}</span>}
               </button>
               {notificationsOpen && (
-                <div className="account-popover notification-popover">
+                <div id="notifications-popover" className="account-popover notification-popover">
                   <div className="popover-title"><strong>Updates</strong><span>Shared collections</span></div>
                   <div className="notification-list">
                     {notifications?.notifications.length ? notifications.notifications.map((item) => (
@@ -157,9 +158,9 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}>{initials}</button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}>{initials}</button>
               {profileOpen && (
-                <div className="account-popover profile-popover" role="menu">
+                <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>
                   <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.id}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
                   <button className="popover-action" onClick={() => { setShortcutOpen(true); setProfileOpen(false) }}><HelpCircle size={15} /> Keyboard shortcuts</button>
@@ -171,13 +172,13 @@ export function AppShell() {
             </div>
           </div>
         </header>
-        <div className="page-wrap"><Outlet /></div>
+        <div className="page-wrap"><Outlet key={location.pathname} /></div>
       </main>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
         <NavLink to="/" end><Compass size={21} /><span>Discover</span></NavLink>
         <NavLink to="/explore"><Globe2 size={21} /><span>Explore</span></NavLink>
-        <button onClick={() => navigate('/', { state: { focusSearch: true } })}><Plus size={22} /><span>Save</span></button>
+        <button onClick={() => navigate('/capture')}><Plus size={22} /><span>Save</span></button>
         <NavLink to="/collections"><FolderHeart size={21} /><span>Collections</span></NavLink>
       </nav>
       <ProductCoach key={coachReplay} replay={coachReplay} />

@@ -2,12 +2,15 @@ services:
   - type: web
     name: mosaic-changepp
     runtime: docker
+    plan: starter
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
     maxShutdownDelaySeconds: 10
     numInstances: 1
     envVars:
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       - key: DATABASE_PATH
         value: /data/mosaic.sqlite
       - key: PIXABAY_API_KEY

@@ -5,7 +5,8 @@ import type { AuthedRequest } from '../middleware/auth.js'
 export const exploreRouter = Router()
 
 exploreRouter.get('/', (req: AuthedRequest, res) => {
-  const page = Math.max(1, Number(req.query.page) || 1)
+  const page = Number(req.query.page ?? 1)
+  if (!Number.isSafeInteger(page) || page < 1 || page > 10000) return res.status(400).json({ error: 'Invalid page.' })
   const mode = req.query.mode === 'following' ? 'following' : req.query.mode === 'trending' ? 'trending' : 'all'
   const limit = 24
   const offset = (page - 1) * limit

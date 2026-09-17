@@ -26,7 +26,7 @@ function CollectionCover({ collection }: { collection: Collection }) {
 }
 
 export function CollectionsPage() {
-  const { data, isLoading } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'recent' | 'name' | 'size'>('recent')
@@ -50,8 +50,8 @@ export function CollectionsPage() {
         <Link to="/collections/smart/popular"><Heart size={17} /><span><strong>Most liked</strong><small>Your crowd favorites</small></span><ArrowUpRight size={15} /></Link>
         <Link to="/collections/smart/unsorted"><Inbox size={17} /><span><strong>Unsorted</strong><small>Needs a note or tags</small></span><ArrowUpRight size={15} /></Link>
       </section>
-      {!!data?.collections.length && <div className="library-tools"><label><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a collection" /></label><select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="recent">Recently changed</option><option value="name">Name</option><option value="size">Most saved</option></select></div>}
-      {isLoading ? <div className="collection-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : collections.length ? (
+      {!!data?.collections.length && <div className="library-tools"><label><Search size={15} /><input aria-label="Find a collection" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a collection" /></label><select aria-label="Sort collections" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="recent">Recently changed</option><option value="name">Name</option><option value="size">Most saved</option></select></div>}
+      {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="collection-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : collections.length ? (
         <div className="collection-grid">
           {collections.map((collection) => (
             <Link className="collection-card" to={`/collections/${collection.id}`} key={collection.id}>

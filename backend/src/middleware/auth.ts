@@ -17,7 +17,8 @@ function parseCookies(req: Request) {
     .map((part) => {
       const separator = part.indexOf('=')
       if (separator < 0) return [part, '']
-      return [decodeURIComponent(part.slice(0, separator)), decodeURIComponent(part.slice(separator + 1))]
+      try { return [decodeURIComponent(part.slice(0, separator)), decodeURIComponent(part.slice(separator + 1))] }
+      catch { return ['', ''] }
     })
   return Object.fromEntries(entries) as Record<string, string>
 }
@@ -37,6 +38,7 @@ export function safePasswordEqual(password: string, salt: string, storedHash: st
 }
 
 export function setSession(res: Response, userId: number) {
+  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString())
   const token = crypto.randomBytes(32).toString('base64url')
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(

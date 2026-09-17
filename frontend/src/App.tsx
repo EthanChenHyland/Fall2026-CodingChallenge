@@ -1,7 +1,7 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { MutationCache, QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { Toaster } from 'sonner'
-import { api } from './api'
+import { toast, Toaster } from 'sonner'
+import { api, ApiError } from './api'
 import { AppShell } from './components/AppShell'
 import { BrandMark } from './components/BrandMark'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -17,14 +17,20 @@ import { CapturePage } from './pages/CapturePage'
 import { SmartCollectionPage } from './pages/SmartCollectionPage'
 
 const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => { if (!mutation.options.onError) toast.error(error.message) },
+    onSuccess: () => { void queryClient.invalidateQueries({ predicate: (query) => ['smart-collection', 'pin', 'profile', 'explore', 'profile-connections', 'social-search', 'shared'].includes(String(query.queryKey[0])) }) },
+  }),
   defaultOptions: {
-    queries: { staleTime: 15_000, refetchOnWindowFocus: false },
+    mutations: { networkMode: 'always' },
+    queries: { networkMode: 'always', staleTime: 15_000, refetchOnWindowFocus: false, retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 2 },
   },
 })
 
 function ProtectedApp() {
-  const { data, isLoading } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   if (isLoading) return <div className="app-boot"><BrandMark /><span>Mosaic</span></div>
+  if (!data?.user && error && !(error instanceof ApiError && error.status === 401)) return <main className="empty-state large"><BrandMark /><h1>Connect to Mosaic</h1><p>{error.message}</p><button className="primary-button" onClick={() => void refetch()}>Try again</button></main>
   if (!data?.user) return <AuthPage />
   return <AppShell />
 }

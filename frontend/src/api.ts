@@ -1,13 +1,20 @@
 import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
 
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) { super(message); this.status = status }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!navigator.onLine) throw new ApiError('You are offline. Reconnect and try again.', 0)
   const response = await fetch(path, {
+    signal: AbortSignal.timeout(20_000),
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   })
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string }
-    throw new Error(body.error ?? 'Request failed')
+    throw new ApiError(body.error ?? (response.status === 429 ? 'Too many requests. Please wait and try again.' : 'Request failed. Please try again.'), response.status)
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
@@ -30,8 +37,8 @@ export const api = {
   addPinComment: (id: number, body: string) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
   socialSearch: (query: string) => request<{ people: SocialSearchPerson[]; collections: SocialSearchCollection[] }>(`/api/search/social?q=${encodeURIComponent(query)}`),
-  search: (query = '', page = 1) =>
-    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
+  search: (query = '', page = 1, source = '') =>
+    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}`),
   profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
   profileConnections: (id: number, kind: 'followers' | 'following') => request<{ kind: string; people: ProfileConnection[] }>(`/api/profiles/${id}/connections?kind=${kind}`),
   updateProfile: (body: { name?: string; bio?: string; avatarUrl?: string }) => request<{ user: User }>('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(body) }),
@@ -59,7 +66,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  saveImage: (collectionId: number, image: CatalogImage) =>
+  saveImage: (collectionId: number, image: CatalogImage, note = '') =>
     request<{ item: SavedItem }>(`/api/collections/${collectionId}/items`, {
       method: 'POST',
       body: JSON.stringify({
@@ -69,6 +76,7 @@ export const api = {
         sourceCreator: image.creator,
         title: image.title,
         tags: image.tags,
+        note,
       }),
     }),
   updateItem: (collectionId: number, itemId: number, body: Record<string, unknown>) =>
@@ -81,19 +89,10 @@ export const api = {
   restoreItem: (collectionId: number, item: SavedItem) =>
     request<{ item: SavedItem }>(`/api/collections/${collectionId}/items/restore`, {
       method: 'POST',
-      body: JSON.stringify({
-        sourceId: item.source_id,
-        imageUrl: item.image_url,
-        sourcePage: item.source_page,
-        sourceCreator: item.source_creator,
-        title: item.title,
-        note: item.note,
-        tags: item.tags ?? '',
-        canvasX: item.canvas_x,
-        canvasY: item.canvas_y,
-        rotation: item.rotation,
-      }),
+      body: JSON.stringify({ itemId: item.id }),
     }),
+  updateLayout: (collectionId: number, positions: Array<{ itemId: number; x: number; y: number; rotation: number }>) =>
+    request<void>(`/api/collections/${collectionId}/layout`, { method: 'PATCH', body: JSON.stringify({ positions }) }),
   bulkItems: (collectionId: number, body: { action: 'delete' | 'move'; itemIds: number[]; targetCollectionId?: number }) =>
     request<{ items: SavedItem[] }>(`/api/collections/${collectionId}/items/bulk`, {
       method: 'POST',

@@ -143,15 +143,6 @@ test('organization tools persist tags, board style, smart views, bulk moves, and
   const deleted = await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'delete', itemIds: [second.body.item.id] }).expect(200)
   const removed = deleted.body.items[0]
   await owner.post(`/api/collections/${sourceId}/items/restore`).send({
-    sourceId: removed.source_id,
-    imageUrl: removed.image_url,
-    sourcePage: removed.source_page,
-    sourceCreator: removed.source_creator,
-    title: removed.title,
-    note: removed.note,
-    tags: removed.tags,
-    canvasX: removed.canvas_x,
-    canvasY: removed.canvas_y,
-    rotation: removed.rotation,
+    itemId: removed.id,
   }).expect(201)
 })

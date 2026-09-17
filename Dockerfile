@@ -18,10 +18,11 @@ ENV PORT=3001
 ENV DATABASE_PATH=/data/mosaic.sqlite
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
-RUN npm ci --omit=dev
+COPY frontend/package.json frontend/package.json
+RUN npm ci --omit=dev --workspace=backend
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/frontend/dist ./frontend/dist
 RUN mkdir -p /data
 VOLUME ["/data"]
 EXPOSE 3001
-CMD ["npm", "start"]
+CMD ["node", "backend/dist/server.js"]

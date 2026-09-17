@@ -21,9 +21,9 @@ export function DiscoverPage() {
   const effectiveQuery = debouncedQuery || (activeTopic === 'All' ? '' : activeTopic)
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['search', effectiveQuery],
-    queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => lastPage.nextPage,
+    queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source),
+    initialPageParam: { page: 1, source: '' },
+    getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
   })
 
   const results = useMemo(() => {
@@ -53,17 +53,6 @@ export function DiscoverPage() {
   }, [location.state])
 
   useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.key === '/' && document.activeElement?.tagName !== 'INPUT') {
-        event.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', listener)
-    return () => window.removeEventListener('keydown', listener)
-  }, [])
-
-  useEffect(() => {
     const target = loadMoreRef.current
     if (!target || !hasNextPage) return
     const observer = new IntersectionObserver((entries) => {
@@ -78,7 +67,7 @@ export function DiscoverPage() {
     : firstPage?.source === 'wikimedia'
       ? 'Wikimedia Commons'
       : firstPage?.fallback
-        ? 'Offline fallback'
+        ? 'Catalog fallback'
         : 'Mosaic picks'
 
   return (
@@ -112,7 +101,7 @@ export function DiscoverPage() {
         <>
           <div className="masonry-grid">{results.map((image) => <ImageCard key={image.id} image={image} />)}</div>
           <div className="discovery-loader" ref={loadMoreRef} aria-live="polite">
-            {isFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more ideas…</> : hasNextPage ? 'Keep scrolling for more' : effectiveQuery ? 'You reached the end of these results.' : null}
+            {isFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more ideas…</> : hasNextPage ? <button className="secondary-button" onClick={() => void fetchNextPage()}>Load more</button> : effectiveQuery ? 'You reached the end of these results.' : null}
           </div>
         </>
       ) : (
