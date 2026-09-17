@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, SavedItem } from './types'
+import type { CatalogImage, Collection, NotificationItem, SavedItem, User } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -14,6 +14,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  me: () => request<{ user: User }>('/api/auth/me'),
+  login: (body: { email: string; password: string }) =>
+    request<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  register: (body: { name: string; email: string; password: string }) =>
+    request<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   search: (query = '') =>
     request<{ results: CatalogImage[] }>(`/api/search?q=${encodeURIComponent(query)}`),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
@@ -51,6 +58,17 @@ export const api = {
     request<void>(`/api/collections/${collectionId}/items/${itemId}`, { method: 'DELETE' }),
   shareCollection: (id: number) =>
     request<{ token: string }>(`/api/collections/${id}/share`, { method: 'POST' }),
+  disableShare: (id: number) =>
+    request<void>(`/api/collections/${id}/share`, { method: 'DELETE' }),
+  addCollaborator: (id: number, email: string) =>
+    request<{ collection: Collection }>(`/api/collections/${id}/collaborators`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  removeCollaborator: (id: number, userId: number) =>
+    request<void>(`/api/collections/${id}/collaborators/${userId}`, { method: 'DELETE' }),
+  notifications: () => request<{ notifications: NotificationItem[] }>('/api/notifications'),
+  markNotificationsRead: () => request<void>('/api/notifications/read', { method: 'POST' }),
   sharedCollection: (token: string) =>
     request<{ collection: Collection }>(`/api/shared/${encodeURIComponent(token)}`),
 }

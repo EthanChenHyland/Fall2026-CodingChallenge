@@ -1,10 +1,10 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Plus, X } from 'lucide-react'
+import { Check, Copy, Link2, Lock, Plus, Trash2, UserPlus, Users, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
-import type { CatalogImage, SavedItem } from '../types'
+import type { CatalogImage, Collection, SavedItem } from '../types'
 
 export function CreateCollectionDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -113,6 +113,94 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
           <label className="field-label">Note<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} placeholder="Why did you save this?" /></label>
           <button className="primary-button full" disabled={!title.trim() || update.isPending} onClick={() => update.mutate()}>Save changes</button>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
+export function ShareCollectionDialog({ collection, trigger }: { collection: Collection; trigger: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const queryClient = useQueryClient()
+  const isOwner = collection.role === 'owner'
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
+    queryClient.invalidateQueries({ queryKey: ['collections'] })
+  }
+  const share = useMutation({
+    mutationFn: () => api.shareCollection(collection.id),
+    onSuccess: ({ token }) => {
+      refresh()
+      navigator.clipboard.writeText(`${window.location.origin}/shared/${token}`).catch(() => undefined)
+      toast.success('Public link copied')
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  const disableShare = useMutation({
+    mutationFn: () => api.disableShare(collection.id),
+    onSuccess: () => { refresh(); toast.success('Public link disabled') },
+    onError: (error) => toast.error(error.message),
+  })
+  const invite = useMutation({
+    mutationFn: () => api.addCollaborator(collection.id, email),
+    onSuccess: () => { setEmail(''); refresh(); toast.success('Editor added') },
+    onError: (error) => toast.error(error.message),
+  })
+  const remove = useMutation({
+    mutationFn: (userId: number) => api.removeCollaborator(collection.id, userId),
+    onSuccess: () => { refresh(); toast.success('Editor removed') },
+    onError: (error) => toast.error(error.message),
+  })
+  const shareUrl = collection.share_token ? `${window.location.origin}/shared/${collection.share_token}` : ''
+
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay" />
+        <Dialog.Content className="dialog-card share-dialog">
+          <div className="dialog-head">
+            <div><span className="eyebrow">SHARE & COLLABORATE</span><Dialog.Title>Bring people into the board.</Dialog.Title></div>
+            <Dialog.Close className="icon-button"><X size={19} /></Dialog.Close>
+          </div>
+          <Dialog.Description className="muted">Public links are view-only. Account collaborators can save, edit, remove, and rearrange images with you.</Dialog.Description>
+
+          <section className="share-section">
+            <div className="share-section-title"><span className="share-icon"><Link2 size={16} /></span><div><strong>Public link</strong><span>Anyone with the URL can view.</span></div></div>
+            {collection.share_token ? (
+              <div className="share-link-row">
+                <span className="share-url">{shareUrl.replace(/^https?:\/\//, '')}</span>
+                <button className="secondary-button" onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied') }}><Copy size={15} /> Copy</button>
+                {isOwner && <button className="text-danger-button" onClick={() => disableShare.mutate()} disabled={disableShare.isPending}>Disable</button>}
+              </div>
+            ) : isOwner ? (
+              <button className="secondary-button" onClick={() => share.mutate()} disabled={share.isPending}><Link2 size={15} /> {share.isPending ? 'Creating…' : 'Create view-only link'}</button>
+            ) : (
+              <div className="owner-only-note"><Lock size={14} /> Only the owner can create a public link.</div>
+            )}
+          </section>
+
+          <section className="share-section">
+            <div className="share-section-title"><span className="share-icon"><Users size={16} /></span><div><strong>People with access</strong><span>Editors can change this collection.</span></div></div>
+            <div className="collaborator-list">
+              {collection.collaborators?.map((person) => (
+                <div className="collaborator-row" key={person.id}>
+                  <span className="collaborator-avatar">{person.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                  <span><strong>{person.name}</strong><small>{person.email}</small></span>
+                  <span className="role-pill">{person.role}</span>
+                  {isOwner && person.role === 'editor' && <button aria-label={`Remove ${person.name}`} className="remove-collaborator" onClick={() => remove.mutate(person.id)}><Trash2 size={15} /></button>}
+                </div>
+              ))}
+            </div>
+            {isOwner && (
+              <div className="invite-row">
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Collaborator account email" onKeyDown={(event) => { if (event.key === 'Enter' && email.trim()) invite.mutate() }} />
+                <button className="primary-button" disabled={!email.trim() || invite.isPending} onClick={() => invite.mutate()}><UserPlus size={15} /> {invite.isPending ? 'Adding…' : 'Add editor'}</button>
+              </div>
+            )}
+            {isOwner && <p className="invite-hint">Try <strong>sam@mosaic.local</strong> with the seeded demo account.</p>}
+          </section>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

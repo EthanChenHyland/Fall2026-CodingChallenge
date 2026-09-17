@@ -1,7 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { Sparkles } from 'lucide-react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { api } from './api'
 import { AppShell } from './components/AppShell'
+import { AuthPage } from './pages/AuthPage'
 import { CollectionPage } from './pages/CollectionPage'
 import { CollectionsPage } from './pages/CollectionsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
@@ -13,12 +16,19 @@ const queryClient = new QueryClient({
   },
 })
 
+function ProtectedApp() {
+  const { data, isLoading } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
+  if (isLoading) return <div className="app-boot"><span className="brand-mark"><Sparkles size={18} /></span><span>Mosaic</span></div>
+  if (!data?.user) return <AuthPage />
+  return <AppShell />
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route element={<AppShell />}>
+          <Route element={<ProtectedApp />}>
             <Route path="/" element={<DiscoverPage />} />
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/collections/:id" element={<CollectionPage />} />

@@ -1,11 +1,11 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Copy, Grid2X2, LayoutDashboard, MoreHorizontal, Pencil, Share2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Grid2X2, LayoutDashboard, Pencil, Share2, Trash2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
-import { EditItemDialog } from '../components/Dialogs'
+import { EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
 import type { SavedItem } from '../types'
 
 function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedItem }) {
@@ -61,16 +61,6 @@ export function CollectionPage() {
       toast.success('Removed from collection')
     },
   })
-  const share = useMutation({
-    mutationFn: () => api.shareCollection(id),
-    onSuccess: async ({ token }) => {
-      const url = `${window.location.origin}/shared/${token}`
-      await navigator.clipboard.writeText(url).catch(() => undefined)
-      queryClient.invalidateQueries({ queryKey: ['collection', id] })
-      toast.success('Share link copied')
-    },
-  })
-
   if (isLoading) return <div className="loading-page">Opening collection…</div>
   if (isError || !data) return <div className="empty-state"><h3>We couldn’t find this collection.</h3><Link to="/collections">Back to collections</Link></div>
 
@@ -88,18 +78,15 @@ export function CollectionPage() {
           <span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span>
         </div>
         <div className="hero-actions">
-          <button className="secondary-button" onClick={() => share.mutate()}><Share2 size={16} /> Share</button>
-          <button className="icon-button" aria-label="More options"><MoreHorizontal size={19} /></button>
+          <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Share</button>} />
+          <span className="collaborator-count"><Users size={15} /> {collection.collaborators?.length ?? 1}</span>
         </div>
       </section>
 
       {collection.share_token && (
         <div className="share-strip">
           <span><span className="status-dot" /> Anyone with the link can view this collection.</span>
-          <button onClick={() => {
-            navigator.clipboard.writeText(`${window.location.origin}/shared/${collection.share_token}`)
-            toast.success('Link copied')
-          }}><Copy size={15} /> Copy link</button>
+          <ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} />
         </div>
       )}
 
