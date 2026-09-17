@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Link2, Lock, Plus, Trash2, UserPlus, Users, X } from 'lucide-react'
+import { Check, Copy, Link2, Lock, Plus, Trash2, UploadCloud, UserPlus, Users, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
@@ -274,6 +274,19 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
   const [title, setTitle] = useState('')
   const [uploading, setUploading] = useState(false)
   const queryClient = useQueryClient()
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const uploaded = await uploadImage(file)
+      setImageUrl(uploaded.imageUrl)
+      if (!title) setTitle(uploaded.originalName)
+      toast.success('Image uploaded')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
   const save = useMutation({
     mutationFn: () => api.saveImage(collectionId, {
       id: `manual-${Date.now()}`,
@@ -304,7 +317,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
         <Dialog.Content className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">ADD YOUR OWN PIN</span><Dialog.Title>Save something from anywhere.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           {imageUrl && <img className="edit-image" src={imageUrl} alt="Preview" />}
-          {cloudUploadsConfigured() && <label className="field-label upload-field">Choose image file<input type="file" accept="image/*" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setUploading(true); try { const uploaded = await uploadImage(file); setImageUrl(uploaded.imageUrl); if (!title) setTitle(uploaded.originalName); toast.success('Image uploaded') } catch (error) { toast.error(error instanceof Error ? error.message : 'Upload failed') } finally { setUploading(false) } }} /></label>}
+          {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : 'Drop an image here'}</strong><span>or choose one from your computer</span><label className="secondary-button upload-browse">Browse<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
           <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
           <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
