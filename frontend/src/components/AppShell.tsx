@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, FolderHeart, LogOut, Plus, Search, Sparkles } from 'lucide-react'
+import { Bell, Compass, FolderHeart, LogOut, Plus, Search, Sparkles, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -91,6 +91,7 @@ export function AppShell() {
               {profileOpen && (
                 <div className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>
+                  <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.id}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
                   <button className="popover-action" onClick={() => logout.mutate()}><LogOut size={15} /> Sign out</button>
                 </div>
               )}
