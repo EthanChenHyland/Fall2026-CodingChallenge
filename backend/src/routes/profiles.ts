@@ -43,7 +43,7 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
       (SELECT COUNT(*) FROM items i
         JOIN collection_members m ON m.collection_id = i.collection_id
         WHERE m.user_id = ? AND m.role = 'owner') AS pin_count
-  `).get(userId, userId)
+  `).get(userId, userId) as { collection_count: number; pin_count: number }
 
   const collections = db.prepare(`
     SELECT c.id, c.name, c.description, c.visibility, c.share_token, c.created_at, c.updated_at,
