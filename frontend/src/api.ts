@@ -27,6 +27,7 @@ export const api = {
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
   pinComments: (id: number) => request<{ comments: PinComment[] }>(`/api/pins/${id}/comments`),
   addPinComment: (id: number, body: string) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
+  deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
   socialSearch: (query: string) => request<{ people: SocialSearchPerson[]; collections: SocialSearchCollection[] }>(`/api/search/social?q=${encodeURIComponent(query)}`),
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),

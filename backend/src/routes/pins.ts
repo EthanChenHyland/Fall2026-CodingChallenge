@@ -42,16 +42,17 @@ pinsRouter.delete('/:id/like', requireAuth, (req: AuthedRequest, res) => {
 })
 
 
-pinsRouter.get('/:id/comments', (req, res) => {
+pinsRouter.get('/:id/comments', (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
-  const visible = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
+  const visible = db.prepare(`SELECT i.id, i.collection_id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId) as { id: number; collection_id: number } | undefined
   if (!visible) return res.status(404).json({ error: 'Pin not found.' })
+  const canModerate = req.user ? membership(visible.collection_id, req.user.id)?.role === 'owner' : false
   const comments = db.prepare(`
     SELECT c.id, c.item_id, c.body, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
     FROM comments c JOIN users u ON u.id = c.user_id
     WHERE c.item_id = ? ORDER BY c.id ASC
-  `).all(pinId)
-  return res.json({ comments })
+  `).all(pinId) as Array<Record<string, unknown> & { user_id: number }>
+  return res.json({ comments: comments.map((comment) => ({ ...comment, can_delete: canModerate || req.user?.id === comment.user_id })) })
 })
 
 const commentSchema = z.object({ body: z.string().trim().min(1).max(500) })
@@ -81,4 +82,20 @@ pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
     FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?
   `).get(result.lastInsertRowid)
   return res.status(201).json({ comment })
+})
+
+
+pinsRouter.delete('/:id/comments/:commentId', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  const commentId = Number(req.params.commentId)
+  const comment = db.prepare(`
+    SELECT cm.id, cm.user_id, i.collection_id
+    FROM comments cm JOIN items i ON i.id = cm.item_id
+    WHERE cm.id = ? AND cm.item_id = ?
+  `).get(commentId, pinId) as { id: number; user_id: number; collection_id: number } | undefined
+  if (!comment) return res.status(404).json({ error: 'Comment not found.' })
+  const ownsCollection = membership(comment.collection_id, req.user!.id)?.role === 'owner'
+  if (comment.user_id !== req.user!.id && !ownsCollection) return res.status(403).json({ error: 'You cannot remove that comment.' })
+  db.prepare('DELETE FROM comments WHERE id = ?').run(commentId)
+  return res.status(204).end()
 })

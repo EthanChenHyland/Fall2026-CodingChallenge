@@ -51,6 +51,7 @@ export type PinComment = {
   user_id: number
   user_name: string
   user_avatar: string
+  can_delete: boolean
 }
 
 
