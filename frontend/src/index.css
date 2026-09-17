@@ -527,3 +527,27 @@ img { display: block; max-width: 100%; }
 
 .pin-card-social { display: flex; gap: 8px; color: #8e877e !important; }
 .pin-card-social > span { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; }
+
+.field-label select { width: 100%; border: 1px solid #d7d1c6; background: #fffefb; border-radius: 10px; padding: 11px 12px; outline: none; color: var(--ink); }
+.field-label select:focus { border-color: #9f7c83; box-shadow: 0 0 0 3px rgba(126,48,64,.08); }
+.capture-page { display: grid; grid-template-columns: minmax(0, .85fr) minmax(420px, 1.15fr); gap: clamp(42px, 7vw, 110px); align-items: start; max-width: 1100px; margin: 0 auto; padding-top: 18px; }
+.capture-intro { position: sticky; top: 110px; padding-top: 26px; }
+.capture-intro h1 { margin: 15px 0 18px; font-family: Georgia, serif; font-size: clamp(52px, 6vw, 82px); line-height: .96; font-weight: 400; letter-spacing: -.045em; }
+.capture-intro h1 em { color: var(--accent); font-weight: 400; }
+.capture-intro p { max-width: 360px; color: var(--muted); font-family: Georgia, serif; font-size: 16px; line-height: 1.5; }
+.capture-card { border: 1px solid var(--line); border-radius: 20px; background: #faf8f3; box-shadow: var(--shadow); padding: 22px; }
+.capture-preview, .capture-placeholder { width: 100%; min-height: 250px; border-radius: 14px; overflow: hidden; background: #e9e4da; }
+.capture-preview img { width: 100%; max-height: 420px; object-fit: contain; background: #e6e1d8; }
+.capture-placeholder { display: grid; place-items: center; align-content: center; gap: 8px; color: var(--muted); border: 1px dashed #cbc4b9; }
+.capture-placeholder span { font-size: 10px; }
+.capture-upload { margin: 12px 0 2px; width: 100%; }
+.capture-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.capture-no-collections { margin: 15px 0; padding: 13px; border: 1px dashed var(--line); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.capture-no-collections p { margin: 0; color: var(--muted); font-size: 10px; }
+
+@media (max-width: 800px) {
+  .capture-page { grid-template-columns: 1fr; gap: 28px; padding-top: 0; }
+  .capture-intro { position: static; padding-top: 0; }
+  .capture-intro h1 { font-size: 52px; }
+  .capture-card { padding: 16px; }
+}
