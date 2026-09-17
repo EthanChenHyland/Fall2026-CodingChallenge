@@ -6,6 +6,7 @@ export const exploreRouter = Router()
 
 exploreRouter.get('/', (req: AuthedRequest, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
+  const mode = req.query.mode === 'following' ? 'following' : 'all'
   const limit = 24
   const offset = (page - 1) * limit
   const pins = db.prepare(`
@@ -16,9 +17,12 @@ exploreRouter.get('/', (req: AuthedRequest, res) => {
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
     JOIN users u ON u.id = m.user_id
     WHERE c.visibility = 'public' AND c.share_token IS NOT NULL
+      AND (? = 'all' OR EXISTS (
+        SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.following_id = u.id
+      ))
     ORDER BY c.updated_at DESC, i.id DESC
     LIMIT ? OFFSET ?
-  `).all(limit + 1, offset)
+  `).all(mode, req.user?.id ?? -1, limit + 1, offset)
   const hasMore = pins.length > limit
   return res.json({ pins: hasMore ? pins.slice(0, limit) : pins, nextPage: hasMore ? page + 1 : null })
 })

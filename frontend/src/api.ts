@@ -21,7 +21,7 @@ export const api = {
     request<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
-  explore: (page = 1) => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}`),
+  explore: (page = 1, mode: 'all' | 'following' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
