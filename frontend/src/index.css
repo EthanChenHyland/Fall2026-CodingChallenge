@@ -551,3 +551,7 @@ img { display: block; max-width: 100%; }
   .capture-intro h1 { font-size: 52px; }
   .capture-card { padding: 16px; }
 }
+
+.crash-page { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 12px; padding: 28px; text-align: center; background: var(--paper); }
+.crash-page h1 { max-width: 680px; margin: 6px 0 0; font-family: Georgia, serif; font-size: clamp(38px, 6vw, 68px); font-weight: 400; letter-spacing: -.04em; }
+.crash-page p { margin: 0 0 8px; color: var(--muted); }
