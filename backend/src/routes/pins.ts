@@ -27,6 +27,33 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
 })
 
 
+
+pinsRouter.get('/:id/related', (req, res) => {
+  const pinId = Number(req.params.id)
+  const current = db.prepare(`
+    SELECT i.collection_id, owner.user_id AS owner_id
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
+    WHERE i.id = ? AND c.visibility = 'public' AND c.share_token IS NOT NULL
+  `).get(pinId) as { collection_id: number; owner_id: number } | undefined
+  if (!current) return res.status(404).json({ error: 'Pin not found.' })
+
+  const pins = db.prepare(`
+    SELECT i.*, c.name AS collection_name, c.share_token,
+      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
+    JOIN users u ON u.id = m.user_id
+    WHERE i.id != ? AND c.visibility = 'public' AND c.share_token IS NOT NULL
+    ORDER BY CASE WHEN i.collection_id = ? THEN 0 WHEN u.id = ? THEN 1 ELSE 2 END,
+      c.updated_at DESC, i.id DESC
+    LIMIT 8
+  `).all(pinId, current.collection_id, current.owner_id)
+  return res.json({ pins })
+})
+
 pinsRouter.post('/:id/like', requireAuth, (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
   const pin = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
