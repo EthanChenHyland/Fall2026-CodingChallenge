@@ -8,6 +8,8 @@ services:
     maxShutdownDelaySeconds: 10
     numInstances: 1
     envVars:
+      - key: DATABASE_PATH
+        value: /data/mosaic.sqlite
       - key: PIXABAY_API_KEY
         sync: false
       - key: VITE_CLOUDINARY_CLOUD_NAME
