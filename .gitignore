@@ -7,3 +7,6 @@ dist/
 backend/data/*.sqlite
 backend/data/*.sqlite-shm
 backend/data/*.sqlite-wal
+
+test-results/
+playwright-report/
