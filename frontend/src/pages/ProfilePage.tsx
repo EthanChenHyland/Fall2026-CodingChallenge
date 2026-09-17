@@ -3,6 +3,7 @@ import { ArrowUpRight, FolderHeart } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EditProfileDialog } from '../components/EditProfileDialog'
+import { ConnectionsDialog } from '../components/ConnectionsDialog'
 
 export function ProfilePage() {
   const queryClient = useQueryClient()
@@ -25,7 +26,7 @@ export function ProfilePage() {
           <span className="eyebrow">MOSAIC PROFILE</span>
           <h1>{profile.name}</h1>
           <p>{profile.bio || 'Collecting a few good things at a time.'}</p>
-          <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span><span><strong>{profile.follower_count}</strong> followers</span><span><strong>{profile.following_count}</strong> following</span></div>
+          <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span><ConnectionsDialog profileId={profile.id} kind="followers" count={profile.follower_count} /><ConnectionsDialog profileId={profile.id} kind="following" count={profile.following_count} /></div>
           <div className="profile-actions">{profile.is_self ? <EditProfileDialog profile={profile} /> : <button className={profile.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={follow.isPending} onClick={() => follow.mutate()}>{profile.followed_by_me ? 'Following' : 'Follow'}</button>}</div>
         </div>
       </section>
