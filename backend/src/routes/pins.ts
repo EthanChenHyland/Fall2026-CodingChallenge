@@ -56,9 +56,22 @@ pinsRouter.get('/:id/related', (req, res) => {
 
 pinsRouter.post('/:id/like', requireAuth, (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
-  const pin = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
+  const pin = db.prepare(`
+    SELECT i.id, i.title, i.collection_id, owner.user_id AS owner_id
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
+    WHERE i.id = ? AND c.visibility = 'public'
+  `).get(pinId) as { id: number; title: string; collection_id: number; owner_id: number } | undefined
   if (!pin) return res.status(404).json({ error: 'Pin not found.' })
-  db.prepare('INSERT OR IGNORE INTO item_likes (item_id, user_id) VALUES (?, ?)').run(pinId, req.user!.id)
+  const result = db.prepare('INSERT OR IGNORE INTO item_likes (item_id, user_id) VALUES (?, ?)').run(pinId, req.user!.id)
+  if (result.changes && pin.owner_id !== req.user!.id) {
+    db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(
+      pin.owner_id,
+      pin.collection_id,
+      `${req.user!.name} liked “${pin.title}”`,
+    )
+  }
   return res.status(204).end()
 })
 
