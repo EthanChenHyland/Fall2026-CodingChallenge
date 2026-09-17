@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { catalog } from '../catalog.js'
+import { db } from '../db.js'
+import type { AuthedRequest } from '../middleware/auth.js'
 
 export const searchRouter = Router()
 
@@ -157,6 +159,43 @@ async function searchWikimedia(query: string, page: number): Promise<SearchRespo
     nextPage: page < MAX_PAGE && body.continue?.gsroffset != null ? page + 1 : undefined,
   }
 }
+
+
+searchRouter.get('/social', (req: AuthedRequest, res) => {
+  const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 80)
+  if (query.length < 2) return res.json({ people: [], collections: [] })
+  const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`
+
+  const people = db.prepare(`
+    SELECT u.id, u.name, u.bio, u.avatar_url,
+      (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.id) AS follower_count,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM follows mine WHERE mine.follower_id = ? AND mine.following_id = u.id
+      ) THEN 1 ELSE 0 END AS followed_by_me
+    FROM users u
+    WHERE LOWER(u.name) LIKE ? ESCAPE '\\' OR LOWER(u.bio) LIKE ? ESCAPE '\\'
+    ORDER BY follower_count DESC, u.name ASC
+    LIMIT 6
+  `).all(req.user?.id ?? -1, like, like)
+
+  const collections = db.prepare(`
+    SELECT c.id, c.name, c.description, c.share_token, c.updated_at,
+      COUNT(i.id) AS item_count,
+      (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url,
+      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+    FROM collections c
+    JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN items i ON i.collection_id = c.id
+    WHERE c.visibility = 'public' AND c.share_token IS NOT NULL
+      AND (LOWER(c.name) LIKE ? ESCAPE '\\' OR LOWER(c.description) LIKE ? ESCAPE '\\')
+    GROUP BY c.id
+    ORDER BY c.updated_at DESC
+    LIMIT 6
+  `).all(like, like)
+
+  return res.json({ people, collections })
+})
 
 searchRouter.get('/', async (req, res) => {
   const query = String(req.query.q ?? '').trim().toLowerCase()

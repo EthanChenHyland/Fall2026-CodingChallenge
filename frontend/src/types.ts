@@ -52,6 +52,30 @@ export type PinComment = {
   user_avatar: string
 }
 
+
+
+export type SocialSearchPerson = {
+  id: number
+  name: string
+  bio: string
+  avatar_url: string
+  follower_count: number
+  followed_by_me: number | boolean
+}
+
+export type SocialSearchCollection = {
+  id: number
+  name: string
+  description: string
+  share_token: string
+  updated_at: string
+  item_count: number
+  cover_url: string | null
+  owner_id: number
+  owner_name: string
+  owner_avatar: string
+}
+
 export type ActivityItem = {
   id: number
   collection_id: number
