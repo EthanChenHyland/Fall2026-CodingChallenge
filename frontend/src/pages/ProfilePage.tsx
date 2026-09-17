@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, FolderHeart } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
+import { EditProfileDialog } from '../components/EditProfileDialog'
 
 export function ProfilePage() {
   const { id: rawId } = useParams()
@@ -23,6 +24,7 @@ export function ProfilePage() {
           <h1>{profile.name}</h1>
           <p>{profile.bio || 'Collecting a few good things at a time.'}</p>
           <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span></div>
+          {profile.is_self && <div className="profile-actions"><EditProfileDialog profile={profile} /></div>}
         </div>
       </section>
 

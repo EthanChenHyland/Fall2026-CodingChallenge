@@ -410,3 +410,4 @@ img { display: block; max-width: 100%; }
 .profile-stats strong { color: var(--ink); font-size: 14px; }
 .profile-section-head { margin-top: 0; }
 @media (max-width: 700px) { .profile-hero { grid-template-columns: 82px 1fr; gap: 18px; padding-bottom: 32px; margin-bottom: 32px; } .profile-avatar { width: 82px; height: 82px; font-size: 22px; } .profile-copy h1 { font-size: 38px; } .profile-copy > p { font-size: 12px; } .profile-stats { gap: 14px; margin-top: 12px; } }
+.profile-actions { display: flex; gap: 8px; margin-top: 18px; }
