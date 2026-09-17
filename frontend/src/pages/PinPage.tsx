@@ -1,20 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Bookmark, ExternalLink, FolderHeart, Heart, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Bookmark, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
-import { SaveImageDialog } from '../components/Dialogs'
+import { EditItemDialog, SaveImageDialog } from '../components/Dialogs'
 import type { CatalogImage } from '../types'
 
 export function PinPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [comment, setComment] = useState('')
+  const [removeArmed, setRemoveArmed] = useState(false)
   const { id: rawId } = useParams()
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
   const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin', id] }) })
   const comments = useQuery({ queryKey: ['pin-comments', id], queryFn: () => api.pinComments(id), enabled: Number.isInteger(id) })
   const addComment = useMutation({ mutationFn: () => api.addPinComment(id, comment), onSuccess: () => { setComment(''); queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) } })
+  const removePin = useMutation({ mutationFn: () => api.deleteItem(data!.pin.collection_id, id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['collections'] }); queryClient.invalidateQueries({ queryKey: ['explore'] }); navigate(`/collections/${data!.pin.collection_id}`) } })
   if (isLoading) return <div className="loading-page">Opening pin…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That pin is not available.</h3><Link className="primary-button" to="/explore">Explore public pins</Link></div>
 
@@ -36,6 +39,8 @@ export function PinPage() {
           <div className="pin-detail-actions">
             <SaveImageDialog image={image} trigger={<button className="primary-button"><Bookmark size={16} /> Save</button>} />
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}
+            {pin.can_edit && <EditItemDialog collectionId={pin.collection_id} item={pin} trigger={<button className="secondary-button"><Pencil size={15} /> Edit</button>} />}
+            {pin.can_edit && <button className={removeArmed ? 'danger-button' : 'secondary-button'} disabled={removePin.isPending} onClick={() => removeArmed ? removePin.mutate() : setRemoveArmed(true)} onBlur={() => setRemoveArmed(false)}><Trash2 size={15} /> {removeArmed ? 'Click again to remove' : 'Remove'}</button>}
           </div>
         </div>
       </article>
