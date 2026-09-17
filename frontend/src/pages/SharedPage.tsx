@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, UserRound } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
@@ -17,14 +17,15 @@ export function SharedPage() {
 
   const collection = data.collection
   return (
-    <div className="shared-shell">
-      <header className="shared-header"><Link to="/"><BrandMark compact /><strong>Mosaic</strong></Link><span>Shared collection</span></header>
+    <div className={`shared-shell theme-${collection.theme ?? 'paper'}`}>
+      <header className="shared-header"><Link to="/"><BrandMark compact /><strong>Mosaic</strong></Link><Link className="shared-join-link" to="/">Make your own <ArrowUpRight size={14} /></Link></header>
       <main className="shared-main">
         <Link className="back-link" to="/"><ArrowLeft size={16} /> Explore Mosaic</Link>
-        <section className="shared-title"><span className="eyebrow">SHARED WITH YOU</span><h1>{collection.name}</h1><p>{collection.description}</p></section>
+        <section className="shared-title"><span className="eyebrow">SHARED COLLECTION</span><h1>{collection.name}</h1><p>{collection.description}</p><div className="shared-byline"><span className="shared-owner-avatar">{collection.owner_avatar ? <img src={collection.owner_avatar} alt="" /> : <UserRound size={15} />}</span><span><strong>{collection.owner_name ?? 'Mosaic curator'}</strong><small>{collection.item_count} {collection.item_count === 1 ? 'save' : 'saves'} · view only</small></span></div></section>
         <div className="shared-grid">
-          {collection.items?.map((item) => <figure key={item.id}><img src={item.image_url} alt={item.title} loading="lazy" decoding="async" /><figcaption><strong>{item.title}</strong>{item.note && <span>{item.note}</span>}</figcaption></figure>)}
+          {collection.items?.map((item) => <figure key={item.id}><img src={item.image_url} alt={item.title} loading="lazy" decoding="async" /><figcaption><strong>{item.title}</strong>{item.note && <span>{item.note}</span>}{item.tags && <small>{item.tags}</small>}</figcaption></figure>)}
         </div>
+        <section className="shared-cta"><BrandMark /><div><strong>Keep your own visual memory.</strong><span>Discover, organize, remix, and share with Mosaic.</span></div><Link className="primary-button" to="/">Open Mosaic <ArrowUpRight size={14} /></Link></section>
       </main>
     </div>
   )

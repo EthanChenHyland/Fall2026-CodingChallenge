@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, For You/Following/Trending feeds, people/board search, public profiles, follows, likes/comments, related pins, URL/file/PWA capture, collections, a draggable Canvas, public sharing, account collaboration, notifications, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, social feeds, profiles, follows, likes/comments, Quick Save, smart collections, tags/filtering, bulk organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -36,15 +36,16 @@ The login screen includes a one-click demo login. You can also use:
 
 Suggested walkthrough:
 1. Discover an image and use one-click Save. Mosaic remembers the last collection; the small arrow still lets you choose another.
-2. Open Collections to see automatic four-image covers. Enter a collection, choose Edit, and select a lead cover image plus its crop focus.
-3. Edit or remove an item, then open Canvas, drag an image, and hit Remix board to generate a new visual composition.
-4. Open Activity to see collection history.
-5. Open Share to toggle Private/Public access or add sam@mosaic.local as an editor.
-6. Open Explore and switch between For You, Following, and Trending; the seeded Sam Rivera account makes the Following feed immediately useful.
-7. Open a public pin to Like, Comment, Share, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
-8. Search from Discover to see live web images plus matching Mosaic people/boards. Search results and related-image trails load additional pages as you scroll.
-9. Use Add pin or Quick Capture to save an image URL. With Cloudinary configured, drag/drop or upload a local image file instead.
-10. Check Notifications after shared edits, follows, likes, or comments.
+2. Open Collections and try the Recently saved / Most liked / Unsorted smart views, then open a normal collection.
+3. Filter that collection by title, note, or tag. Use Select to bulk move/delete pins, with Undo available after destructive actions.
+4. Choose Edit to set the cover/crop plus a restrained board theme and Gallery/Compact/Masonry layout.
+5. Open Canvas, drag until an alignment guide appears, then try Undo, Redo, Remix, and Tidy.
+6. Open Activity, then Share to create a polished view-only URL or add sam@mosaic.local as an editor.
+7. Open Explore and switch between For You, Following, and Trending; the seeded Sam Rivera account makes the Following feed immediately useful.
+8. Open a public pin to Like, Comment, Share, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
+9. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
+10. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
+11. Check Notifications after shared edits, follows, likes, or comments.
 
 PRODUCTION / HOSTING
 - npm run build

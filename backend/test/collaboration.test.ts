@@ -103,3 +103,55 @@ test('collection covers can use a saved item and custom focus', async () => {
   assert.equal(updated.body.collection.cover_url, image.imageUrl)
   assert.deepEqual(updated.body.collection.cover_urls, [image.imageUrl])
 })
+
+test('organization tools persist tags, board style, smart views, bulk moves, and restore', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const source = await owner.post('/api/collections').send({ name: 'Organization source' }).expect(201)
+  const target = await owner.post('/api/collections').send({ name: 'Organization target' }).expect(201)
+  const sourceId = source.body.collection.id as number
+  const targetId = target.body.collection.id as number
+
+  const first = await owner.post(`/api/collections/${sourceId}/items`).send({
+    sourceId: `org-${randomUUID()}`,
+    imageUrl: 'https://example.com/one.jpg',
+    sourcePage: 'https://example.com/one',
+    sourceCreator: 'Test',
+    title: 'Tagged reference',
+    tags: ['architecture', 'blue'],
+  }).expect(201)
+  const second = await owner.post(`/api/collections/${sourceId}/items`).send({
+    sourceId: `org-${randomUUID()}`,
+    imageUrl: 'https://example.com/two.jpg',
+    sourcePage: 'https://example.com/two',
+    sourceCreator: 'Test',
+    title: 'Loose reference',
+  }).expect(201)
+
+  const styled = await owner.patch(`/api/collections/${sourceId}`).send({ theme: 'sage', gridLayout: 'compact' }).expect(200)
+  assert.equal(styled.body.collection.theme, 'sage')
+  assert.equal(styled.body.collection.grid_layout, 'compact')
+  assert.equal(styled.body.collection.items.find((item: { id: number }) => item.id === first.body.item.id).tags, 'architecture, blue')
+
+  const unsorted = await owner.get('/api/collections/smart/unsorted').expect(200)
+  assert.ok(unsorted.body.items.some((item: { id: number }) => item.id === second.body.item.id))
+
+  await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'move', itemIds: [first.body.item.id], targetCollectionId: targetId }).expect(200)
+  const moved = await owner.get(`/api/collections/${targetId}`).expect(200)
+  assert.ok(moved.body.collection.items.some((item: { id: number }) => item.id === first.body.item.id))
+
+  const deleted = await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'delete', itemIds: [second.body.item.id] }).expect(200)
+  const removed = deleted.body.items[0]
+  await owner.post(`/api/collections/${sourceId}/items/restore`).send({
+    sourceId: removed.source_id,
+    imageUrl: removed.image_url,
+    sourcePage: removed.source_page,
+    sourceCreator: removed.source_creator,
+    title: removed.title,
+    note: removed.note,
+    tags: removed.tags,
+    canvasX: removed.canvas_x,
+    canvasY: removed.canvas_y,
+    rotation: removed.rotation,
+  }).expect(201)
+})

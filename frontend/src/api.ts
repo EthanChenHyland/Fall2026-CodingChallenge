@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
+import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -38,6 +38,7 @@ export const api = {
   followProfile: (id: number) => request<void>(`/api/profiles/${id}/follow`, { method: 'POST' }),
   unfollowProfile: (id: number) => request<void>(`/api/profiles/${id}/follow`, { method: 'DELETE' }),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
+  smartCollection: (view: 'recent' | 'popular' | 'unsorted') => request<{ view: string; items: SmartSavedItem[] }>(`/api/collections/smart/${view}`),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   createCollection: (body: { name: string; description?: string }) =>
     request<{ collection: Collection }>('/api/collections', {
@@ -50,6 +51,8 @@ export const api = {
       coverItemId?: number | null
       coverFocusX?: number
       coverFocusY?: number
+      theme?: 'paper' | 'sage' | 'clay' | 'slate'
+      gridLayout?: 'gallery' | 'compact' | 'masonry'
     },
   ) =>
     request<{ collection: Collection }>(`/api/collections/${id}`, {
@@ -65,6 +68,7 @@ export const api = {
         sourcePage: image.pageUrl,
         sourceCreator: image.creator,
         title: image.title,
+        tags: image.tags,
       }),
     }),
   updateItem: (collectionId: number, itemId: number, body: Record<string, unknown>) =>
@@ -74,6 +78,27 @@ export const api = {
     }),
   deleteItem: (collectionId: number, itemId: number) =>
     request<void>(`/api/collections/${collectionId}/items/${itemId}`, { method: 'DELETE' }),
+  restoreItem: (collectionId: number, item: SavedItem) =>
+    request<{ item: SavedItem }>(`/api/collections/${collectionId}/items/restore`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceId: item.source_id,
+        imageUrl: item.image_url,
+        sourcePage: item.source_page,
+        sourceCreator: item.source_creator,
+        title: item.title,
+        note: item.note,
+        tags: item.tags ?? '',
+        canvasX: item.canvas_x,
+        canvasY: item.canvas_y,
+        rotation: item.rotation,
+      }),
+    }),
+  bulkItems: (collectionId: number, body: { action: 'delete' | 'move'; itemIds: number[]; targetCollectionId?: number }) =>
+    request<{ items: SavedItem[] }>(`/api/collections/${collectionId}/items/bulk`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   shareCollection: (id: number) =>
     request<{ token: string }>(`/api/collections/${id}/share`, { method: 'POST' }),
   disableShare: (id: number) =>

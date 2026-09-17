@@ -8,26 +8,31 @@ import { rememberCollection } from '../lib/recentCollection'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 import type { CatalogImage, Collection, SavedItem } from '../types'
 
-export function CreateCollectionDialog({ trigger }: { trigger: ReactNode }) {
-  const [open, setOpen] = useState(false)
+export function CreateCollectionDialog({ trigger, open: controlledOpen, onOpenChange }: { trigger?: ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const queryClient = useQueryClient()
+  const changeOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
   const create = useMutation({
     mutationFn: () => api.createCollection({ name, description }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collections'] })
       setName('')
       setDescription('')
-      setOpen(false)
+      changeOpen(false)
       toast.success('Collection created')
     },
     onError: (error) => toast.error(error.message),
   })
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+    <Dialog.Root open={open} onOpenChange={changeOpen}>
+      {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className="dialog-card">
@@ -120,16 +125,17 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(item.title)
   const [note, setNote] = useState(item.note)
+  const [tags, setTags] = useState(item.tags ?? '')
   const queryClient = useQueryClient()
   const update = useMutation({
-    mutationFn: () => api.updateItem(collectionId, item.id, { title, note }),
+    mutationFn: () => api.updateItem(collectionId, item.id, { title, note, tags }),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['collection', collectionId] })
       const previous = queryClient.getQueryData<{ collection: Collection }>(['collection', collectionId])
       queryClient.setQueryData<{ collection: Collection }>(['collection', collectionId], (current) => current ? ({
         collection: {
           ...current.collection,
-          items: current.collection.items?.map((saved) => saved.id === item.id ? { ...saved, title, note } : saved),
+          items: current.collection.items?.map((saved) => saved.id === item.id ? { ...saved, title, note, tags } : saved),
         },
       }) : current)
       return { previous }
@@ -155,6 +161,7 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
           <img className="edit-image" src={item.image_url} alt="" />
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
           <label className="field-label">Note<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} placeholder="Why did you save this?" /></label>
+          <label className="field-label">Tags <span className="field-optional">comma separated</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="architecture, blue, reference" /></label>
           <button className="primary-button full" disabled={!title.trim() || update.isPending} onClick={() => update.mutate()}>Save changes</button>
         </Dialog.Content>
       </Dialog.Portal>
@@ -169,14 +176,34 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
   const [coverItemId, setCoverItemId] = useState<number | null>(collection.cover_item_id ?? null)
   const [coverFocusX, setCoverFocusX] = useState(collection.cover_focus_x ?? 50)
   const [coverFocusY, setCoverFocusY] = useState(collection.cover_focus_y ?? 50)
+  const [theme, setTheme] = useState<NonNullable<Collection['theme']>>(collection.theme ?? 'paper')
+  const [gridLayout, setGridLayout] = useState<NonNullable<Collection['grid_layout']>>(collection.grid_layout ?? 'gallery')
   const queryClient = useQueryClient()
   const update = useMutation({
-    mutationFn: () => api.updateCollection(collection.id, { name, description, coverItemId, coverFocusX, coverFocusY }),
+    mutationFn: () => api.updateCollection(collection.id, { name, description, coverItemId, coverFocusX, coverFocusY, theme, gridLayout }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
       queryClient.invalidateQueries({ queryKey: ['collections'] })
       setOpen(false)
-      toast.success('Collection updated')
+      toast.success('Collection updated', {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void api.updateCollection(collection.id, {
+              name: collection.name,
+              description: collection.description,
+              coverItemId: collection.cover_item_id ?? null,
+              coverFocusX: collection.cover_focus_x ?? 50,
+              coverFocusY: collection.cover_focus_y ?? 50,
+              theme: collection.theme ?? 'paper',
+              gridLayout: collection.grid_layout ?? 'gallery',
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
+              queryClient.invalidateQueries({ queryKey: ['collections'] })
+            })
+          },
+        },
+      })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -189,6 +216,15 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
           <div className="dialog-head"><div><span className="eyebrow">COLLECTION DETAILS</span><Dialog.Title>Shape the board.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           <label className="field-label">Name<input value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="field-label">Description<textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+          <section className="collection-style-editor">
+            <div className="cover-editor-head"><strong>Board style</strong><span>A little personality, without changing the content.</span></div>
+            <div className="theme-picker" aria-label="Collection background">
+              {(['paper', 'sage', 'clay', 'slate'] as const).map((option) => <button type="button" key={option} className={`theme-swatch theme-${option} ${theme === option ? 'active' : ''}`} aria-label={`${option} theme`} aria-pressed={theme === option} onClick={() => setTheme(option)}><span />{option}</button>)}
+            </div>
+            <div className="layout-picker" aria-label="Collection grid layout">
+              {(['gallery', 'compact', 'masonry'] as const).map((option) => <button type="button" key={option} className={gridLayout === option ? 'active' : ''} aria-pressed={gridLayout === option} onClick={() => setGridLayout(option)}>{option}</button>)}
+            </div>
+          </section>
           {!!collection.items?.length && (
             <section className="cover-editor">
               <div className="cover-editor-head"><strong>Collection cover</strong><span>Choose a lead image or use the automatic four-image mosaic.</span></div>
@@ -202,8 +238,8 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
               </div>
               {coverItemId != null && (
                 <div className="cover-focus-controls">
-                  <label>Horizontal focus <input type="range" min="0" max="100" value={coverFocusX} onChange={(event) => setCoverFocusX(Number(event.target.value))} /></label>
-                  <label>Vertical focus <input type="range" min="0" max="100" value={coverFocusY} onChange={(event) => setCoverFocusY(Number(event.target.value))} /></label>
+                  <label>Horizontal focus <input aria-label="Cover horizontal focus" type="range" min="0" max="100" value={coverFocusX} onChange={(event) => setCoverFocusX(Number(event.target.value))} /></label>
+                  <label>Vertical focus <input aria-label="Cover vertical focus" type="range" min="0" max="100" value={coverFocusY} onChange={(event) => setCoverFocusY(Number(event.target.value))} /></label>
                 </div>
               )}
             </section>
@@ -309,6 +345,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
   const [imageUrl, setImageUrl] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [title, setTitle] = useState('')
+  const [tags, setTags] = useState('')
   const [uploading, setUploading] = useState(false)
   const queryClient = useQueryClient()
   const handleUpload = async (file: File) => {
@@ -331,7 +368,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
       creator: 'Added by you',
       imageUrl,
       pageUrl: sourceUrl || imageUrl,
-      tags: ['manual'],
+      tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 8),
       width: 1,
       height: 1,
     }),
@@ -342,6 +379,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
       setImageUrl('')
       setSourceUrl('')
       setTitle('')
+      setTags('')
       toast.success('Pin added')
     },
     onError: (error) => toast.error(error.message),
@@ -357,6 +395,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
           {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : 'Drop an image here'}</strong><span>or choose one from your computer</span><label className="secondary-button upload-browse">Browse<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
           <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
+          <label className="field-label">Tags <span className="field-optional">optional</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="interior, type, reference" /></label>
           <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
           <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
         </Dialog.Content>

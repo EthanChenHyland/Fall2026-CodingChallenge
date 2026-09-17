@@ -14,6 +14,7 @@ import { SharedPage } from './pages/SharedPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PinPage } from './pages/PinPage'
 import { CapturePage } from './pages/CapturePage'
+import { SmartCollectionPage } from './pages/SmartCollectionPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/" element={<DiscoverPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/collections" element={<CollectionsPage />} />
+            <Route path="/collections/smart/:mode" element={<SmartCollectionPage />} />
             <Route path="/collections/:id" element={<CollectionPage />} />
             <Route path="/people/:id" element={<ProfilePage />} />
             <Route path="/pin/:id" element={<PinPage />} />

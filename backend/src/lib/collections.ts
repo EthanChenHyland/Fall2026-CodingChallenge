@@ -39,7 +39,14 @@ export function getCollection(id: number, userId?: number) {
   const row = db.prepare(`${collectionSelect} WHERE c.id = ? GROUP BY c.id`).get(id) as Record<string, unknown> | undefined
   const collection = row ? normalizeCollectionRow(row) : undefined
   if (!collection) return null
-  const items = db.prepare('SELECT * FROM items WHERE collection_id = ? ORDER BY id DESC').all(id)
+  const items = db.prepare(`
+    SELECT i.*,
+      (SELECT COUNT(*) FROM item_likes likes WHERE likes.item_id = i.id) AS like_count,
+      (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
+    FROM items i
+    WHERE i.collection_id = ?
+    ORDER BY i.id DESC
+  `).all(id)
   const activity = db.prepare('SELECT * FROM activity WHERE collection_id = ? ORDER BY id DESC LIMIT 20').all(id)
   const collaborators = db.prepare(`
     SELECT u.id, u.name, u.email, m.role

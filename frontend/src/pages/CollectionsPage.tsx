@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, FolderHeart, Plus, Search } from 'lucide-react'
+import { ArrowUpRight, Clock3, FolderHeart, Heart, Inbox, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { CreateCollectionDialog } from '../components/Dialogs'
 import type { Collection } from '../types'
@@ -27,6 +27,7 @@ function CollectionCover({ collection }: { collection: Collection }) {
 
 export function CollectionsPage() {
   const { data, isLoading } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
+  const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'recent' | 'name' | 'size'>('recent')
   const collections = useMemo(() => {
@@ -39,6 +40,15 @@ export function CollectionsPage() {
       <section className="page-title-row">
         <div><span className="eyebrow">YOUR LIBRARY</span><h1>Collections</h1><p>Loose thoughts become useful when they have somewhere to live.</p></div>
         <CreateCollectionDialog trigger={<button className="primary-button"><Plus size={17} /> New collection</button>} />
+      </section>
+      <CreateCollectionDialog
+        open={searchParams.get('new') === '1'}
+        onOpenChange={(open) => { if (!open && searchParams.has('new')) { const next = new URLSearchParams(searchParams); next.delete('new'); setSearchParams(next, { replace: true }) } }}
+      />
+      <section className="smart-view-row" aria-label="Smart collections">
+        <Link to="/collections/smart/recent"><Clock3 size={17} /><span><strong>Recently saved</strong><small>Newest across every board</small></span><ArrowUpRight size={15} /></Link>
+        <Link to="/collections/smart/popular"><Heart size={17} /><span><strong>Most liked</strong><small>Your crowd favorites</small></span><ArrowUpRight size={15} /></Link>
+        <Link to="/collections/smart/unsorted"><Inbox size={17} /><span><strong>Unsorted</strong><small>Needs a note or tags</small></span><ArrowUpRight size={15} /></Link>
       </section>
       {!!data?.collections.length && <div className="library-tools"><label><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a collection" /></label><select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="recent">Recently changed</option><option value="name">Name</option><option value="size">Most saved</option></select></div>}
       {isLoading ? <div className="collection-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : collections.length ? (

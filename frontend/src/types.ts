@@ -18,10 +18,17 @@ export type SavedItem = {
   source_creator: string
   title: string
   note: string
+  tags: string
   canvas_x: number
   canvas_y: number
   rotation: number
   created_at: string
+  like_count?: number
+  comment_count?: number
+}
+
+export type SmartSavedItem = SavedItem & {
+  collection_name: string
 }
 
 
@@ -152,6 +159,11 @@ export type Collection = {
   cover_item_id?: number | null
   cover_focus_x?: number
   cover_focus_y?: number
+  theme?: 'paper' | 'sage' | 'clay' | 'slate'
+  grid_layout?: 'gallery' | 'compact' | 'masonry'
+  owner_id?: number
+  owner_name?: string
+  owner_avatar?: string
   role?: 'owner' | 'editor' | null
   items?: SavedItem[]
   activity?: ActivityItem[]

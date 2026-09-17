@@ -122,6 +122,9 @@ ensureColumn('users', 'avatar_url', "TEXT NOT NULL DEFAULT ''")
 ensureColumn('collections', 'cover_item_id', 'INTEGER')
 ensureColumn('collections', 'cover_focus_x', 'REAL NOT NULL DEFAULT 50')
 ensureColumn('collections', 'cover_focus_y', 'REAL NOT NULL DEFAULT 50')
+ensureColumn('collections', 'theme', "TEXT NOT NULL DEFAULT 'paper'")
+ensureColumn('collections', 'grid_layout', "TEXT NOT NULL DEFAULT 'gallery'")
+ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
 
 function hashPassword(password: string, salt: string) {
   return crypto.scryptSync(password, salt, 64).toString('hex')
@@ -272,6 +275,9 @@ const samMaterialsId = ensureDemoCollection(
   samUserId,
   'Sam Rivera',
 )
+
+const backfillCatalogTags = db.prepare("UPDATE items SET tags = ? WHERE source_id = ? AND TRIM(tags) = ''")
+for (const image of catalog) backfillCatalogTags.run(image.tags.join(', '), image.id)
 
 db.prepare("INSERT OR IGNORE INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')").run(museumId, samUserId)
 db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(demoUserId, samUserId)
