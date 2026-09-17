@@ -72,3 +72,34 @@ test('public share tokens are read-only and revocable', async () => {
   await owner.delete(`/api/collections/${collectionId}/share`).expect(204)
   await request(app).get(`/api/shared/${token}`).expect(404)
 })
+
+test('collection covers can use a saved item and custom focus', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const created = await owner.post('/api/collections').send({ name: 'Cover test board' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const search = await owner.get('/api/search').expect(200)
+  const image = search.body.results[0]
+  const saved = await owner
+    .post(`/api/collections/${collectionId}/items`)
+    .send({
+      sourceId: image.id,
+      imageUrl: image.imageUrl,
+      sourcePage: image.pageUrl,
+      sourceCreator: image.creator,
+      title: image.title,
+    })
+    .expect(201)
+
+  const itemId = saved.body.item.id as number
+  const updated = await owner
+    .patch(`/api/collections/${collectionId}`)
+    .send({ coverItemId: itemId, coverFocusX: 35, coverFocusY: 68 })
+    .expect(200)
+
+  assert.equal(updated.body.collection.cover_item_id, itemId)
+  assert.equal(updated.body.collection.cover_focus_x, 35)
+  assert.equal(updated.body.collection.cover_focus_y, 68)
+  assert.equal(updated.body.collection.cover_url, image.imageUrl)
+  assert.deepEqual(updated.body.collection.cover_urls, [image.imageUrl])
+})

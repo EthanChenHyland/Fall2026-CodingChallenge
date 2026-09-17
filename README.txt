@@ -35,15 +35,16 @@ The login screen includes a one-click demo login. You can also use:
 - Collaborator: sam@mosaic.local / demo1234
 
 Suggested walkthrough:
-1. Discover an image and save it to a collection.
-2. Open Collections and enter a collection.
+1. Discover an image and use one-click Save. Mosaic remembers the last collection; the small arrow still lets you choose another.
+2. Open Collections to see automatic four-image covers. Enter a collection, choose Edit, and select a lead cover image plus its crop focus.
 3. Edit or remove an item, then open Canvas, drag an image, and hit Remix board to generate a new visual composition.
 4. Open Activity to see collection history.
 5. Open Share to toggle Private/Public access or add sam@mosaic.local as an editor.
-6. Open Explore and switch between For You, Following, and Trending; open a pin and curator profile, then try Follow, Like, Comment, and Share.
-7. Search from Discover to see both live web images and matching Mosaic people/boards.
-8. Use Add pin or Quick Capture to save an image URL. With Cloudinary configured, drag/drop or upload a local image file instead.
-9. Check Notifications after shared edits, follows, likes, or comments.
+6. Open Explore and switch between For You, Following, and Trending; the seeded Sam Rivera account makes the Following feed immediately useful.
+7. Open a public pin to Like, Comment, Share, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
+8. Search from Discover to see live web images plus matching Mosaic people/boards. Search results and related-image trails load additional pages as you scroll.
+9. Use Add pin or Quick Capture to save an image URL. With Cloudinary configured, drag/drop or upload a local image file instead.
+10. Check Notifications after shared edits, follows, likes, or comments.
 
 PRODUCTION / HOSTING
 - npm run build

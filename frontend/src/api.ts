@@ -46,7 +46,11 @@ export const api = {
     }),
   updateCollection: (
     id: number,
-    body: Partial<Pick<Collection, 'name' | 'description' | 'visibility'>>,
+    body: Partial<Pick<Collection, 'name' | 'description' | 'visibility'>> & {
+      coverItemId?: number | null
+      coverFocusX?: number
+      coverFocusY?: number
+    },
   ) =>
     request<{ collection: Collection }>(`/api/collections/${id}`, {
       method: 'PATCH',

@@ -4,13 +4,40 @@ import { membership, type AuthedRequest } from '../middleware/auth.js'
 export const collectionSelect = `
   SELECT c.*,
     COUNT(DISTINCT i.id) AS item_count,
-    (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url
+    COALESCE(
+      (SELECT image_url FROM items WHERE id = c.cover_item_id AND collection_id = c.id),
+      (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1)
+    ) AS cover_url,
+    (
+      SELECT json_group_array(image_url)
+      FROM (
+        SELECT image_url
+        FROM items AS cover_items
+        WHERE cover_items.collection_id = c.id
+        ORDER BY CASE WHEN cover_items.id = c.cover_item_id THEN 0 ELSE 1 END, cover_items.id DESC
+        LIMIT 4
+      )
+    ) AS cover_urls_json
   FROM collections c
   LEFT JOIN items i ON i.collection_id = c.id
 `
 
+export function normalizeCollectionRow(row: Record<string, unknown>) {
+  const raw = typeof row.cover_urls_json === 'string' ? row.cover_urls_json : '[]'
+  let coverUrls: string[] = []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) coverUrls = parsed.filter((value): value is string => typeof value === 'string')
+  } catch {
+    coverUrls = row.cover_url && typeof row.cover_url === 'string' ? [row.cover_url] : []
+  }
+  const { cover_urls_json: _coverUrlsJson, ...clean } = row
+  return { ...clean, cover_urls: coverUrls }
+}
+
 export function getCollection(id: number, userId?: number) {
-  const collection = db.prepare(`${collectionSelect} WHERE c.id = ? GROUP BY c.id`).get(id) as Record<string, unknown> | undefined
+  const row = db.prepare(`${collectionSelect} WHERE c.id = ? GROUP BY c.id`).get(id) as Record<string, unknown> | undefined
+  const collection = row ? normalizeCollectionRow(row) : undefined
   if (!collection) return null
   const items = db.prepare('SELECT * FROM items WHERE collection_id = ? ORDER BY id DESC').all(id)
   const activity = db.prepare('SELECT * FROM activity WHERE collection_id = ? ORDER BY id DESC LIMIT 20').all(id)

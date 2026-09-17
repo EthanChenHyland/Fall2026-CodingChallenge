@@ -148,6 +148,10 @@ export type Collection = {
   updated_at: string
   item_count: number
   cover_url: string | null
+  cover_urls?: string[]
+  cover_item_id?: number | null
+  cover_focus_x?: number
+  cover_focus_y?: number
   role?: 'owner' | 'editor' | null
   items?: SavedItem[]
   activity?: ActivityItem[]

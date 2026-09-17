@@ -4,6 +4,7 @@ import { Check, Copy, Link2, Lock, Plus, Trash2, UploadCloud, UserPlus, Users, X
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { rememberCollection } from '../lib/recentCollection'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 import type { CatalogImage, Collection, SavedItem } from '../types'
 
@@ -57,18 +58,32 @@ export function SaveImageDialog({ image, trigger }: { image: CatalogImage; trigg
       const previous = queryClient.getQueryData<{ collections: Collection[] }>(['collections'])
       queryClient.setQueryData<{ collections: Collection[] }>(['collections'], (current) => current ? ({
         collections: current.collections.map((collection) => collection.id === collectionId
-          ? { ...collection, item_count: collection.item_count + 1, cover_url: image.imageUrl }
+          ? {
+              ...collection,
+              item_count: collection.item_count + 1,
+              cover_url: collection.cover_item_id ? collection.cover_url : image.imageUrl,
+              cover_urls: collection.cover_item_id && collection.cover_url
+                ? [collection.cover_url, image.imageUrl, ...(collection.cover_urls ?? []).filter((url) => url !== image.imageUrl && url !== collection.cover_url)].slice(0, 4)
+                : [image.imageUrl, ...(collection.cover_urls ?? []).filter((url) => url !== image.imageUrl)].slice(0, 4),
+            }
           : collection),
       }) : current)
       return { previous }
     },
     onSuccess: (_, collectionId) => {
+      rememberCollection(collectionId)
       queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
       setOpen(false)
       toast.success('Saved to collection')
     },
     onError: (error, _collectionId, context) => {
       if (context?.previous) queryClient.setQueryData(['collections'], context.previous)
+      if (error.message.includes('already in this collection')) {
+        rememberCollection(_collectionId)
+        setOpen(false)
+        toast.info('Already saved to that collection')
+        return
+      }
       toast.error(error.message)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['collections'] }),
@@ -151,9 +166,12 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(collection.name)
   const [description, setDescription] = useState(collection.description)
+  const [coverItemId, setCoverItemId] = useState<number | null>(collection.cover_item_id ?? null)
+  const [coverFocusX, setCoverFocusX] = useState(collection.cover_focus_x ?? 50)
+  const [coverFocusY, setCoverFocusY] = useState(collection.cover_focus_y ?? 50)
   const queryClient = useQueryClient()
   const update = useMutation({
-    mutationFn: () => api.updateCollection(collection.id, { name, description }),
+    mutationFn: () => api.updateCollection(collection.id, { name, description, coverItemId, coverFocusX, coverFocusY }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
       queryClient.invalidateQueries({ queryKey: ['collections'] })
@@ -171,6 +189,25 @@ export function EditCollectionDialog({ collection, trigger }: { collection: Coll
           <div className="dialog-head"><div><span className="eyebrow">COLLECTION DETAILS</span><Dialog.Title>Shape the board.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           <label className="field-label">Name<input value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="field-label">Description<textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+          {!!collection.items?.length && (
+            <section className="cover-editor">
+              <div className="cover-editor-head"><strong>Collection cover</strong><span>Choose a lead image or use the automatic four-image mosaic.</span></div>
+              <div className="cover-picker">
+                <button className={coverItemId == null ? 'active' : ''} onClick={() => setCoverItemId(null)} type="button"><span className="cover-auto-grid"><i /><i /><i /><i /></span><small>Auto</small></button>
+                {collection.items.slice(0, 8).map((item) => (
+                  <button className={coverItemId === item.id ? 'active' : ''} onClick={() => setCoverItemId(item.id)} type="button" key={item.id} title={item.title}>
+                    <img src={item.image_url} alt="" loading="lazy" decoding="async" />
+                  </button>
+                ))}
+              </div>
+              {coverItemId != null && (
+                <div className="cover-focus-controls">
+                  <label>Horizontal focus <input type="range" min="0" max="100" value={coverFocusX} onChange={(event) => setCoverFocusX(Number(event.target.value))} /></label>
+                  <label>Vertical focus <input type="range" min="0" max="100" value={coverFocusY} onChange={(event) => setCoverFocusY(Number(event.target.value))} /></label>
+                </div>
+              )}
+            </section>
+          )}
           <button className="primary-button full" disabled={!name.trim() || update.isPending} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save collection'}</button>
         </Dialog.Content>
       </Dialog.Portal>

@@ -1,7 +1,7 @@
-import { Bookmark, ExternalLink } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import type { CatalogImage } from '../types'
 import { ImageDetailDialog } from './ImageDetailDialog'
-import { SaveImageDialog } from './Dialogs'
+import { QuickSaveControls } from './QuickSaveControls'
 
 export function ImageCard({ image }: { image: CatalogImage }) {
   return (
@@ -10,7 +10,7 @@ export function ImageCard({ image }: { image: CatalogImage }) {
         <ImageDetailDialog image={image} />
         <div className="image-hover">
           <a className="round-action" href={image.pageUrl} target="_blank" rel="noreferrer" aria-label="Open source"><ExternalLink size={17} /></a>
-          <SaveImageDialog image={image} trigger={<button className="save-button"><Bookmark size={16} /> Save</button>} />
+          <QuickSaveControls image={image} />
         </div>
       </div>
       <div className="image-meta"><strong>{image.title}</strong><span>{image.tags.slice(0, 2).join(' · ')}</span></div>

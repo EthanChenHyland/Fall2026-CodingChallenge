@@ -4,6 +4,26 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { CreateCollectionDialog } from '../components/Dialogs'
+import type { Collection } from '../types'
+
+function CollectionCover({ collection }: { collection: Collection }) {
+  const images = collection.cover_urls?.length ? collection.cover_urls : collection.cover_url ? [collection.cover_url] : []
+  if (!images.length) return <div className="blank-cover"><FolderHeart size={28} /><span>Ready for a first save</span></div>
+  return (
+    <div className={`collection-cover-mosaic count-${Math.min(images.length, 4)}`}>
+      {images.slice(0, 4).map((url, index) => (
+        <img
+          key={`${url}-${index}`}
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          style={index === 0 ? { objectPosition: `${collection.cover_focus_x ?? 50}% ${collection.cover_focus_y ?? 50}%` } : undefined}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function CollectionsPage() {
   const { data, isLoading } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
@@ -25,7 +45,7 @@ export function CollectionsPage() {
         <div className="collection-grid">
           {collections.map((collection) => (
             <Link className="collection-card" to={`/collections/${collection.id}`} key={collection.id}>
-              <div className="collection-cover">{collection.cover_url ? <img src={collection.cover_url} alt="" /> : <div className="blank-cover"><FolderHeart size={28} /><span>Ready for a first save</span></div>}<span className="open-badge"><ArrowUpRight size={16} /></span></div>
+              <div className="collection-cover"><CollectionCover collection={collection} /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
               <div className="collection-card-copy"><div><h3>{collection.name}</h3><p>{collection.description || 'No description yet.'}</p></div><span>{collection.item_count} saved</span></div>
             </Link>
           ))}

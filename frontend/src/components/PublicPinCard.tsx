@@ -6,7 +6,7 @@ export function PublicPinCard({ pin }: { pin: PublicPin }) {
   return (
     <article className="image-card public-pin-card">
       <Link className="image-frame public-pin-image" to={`/pin/${pin.id}`} aria-label={`Open ${pin.title}`}>
-        <img src={pin.image_url} alt={pin.title} loading="lazy" />
+        <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
         <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
       </Link>
       <div className="image-meta public-pin-meta">

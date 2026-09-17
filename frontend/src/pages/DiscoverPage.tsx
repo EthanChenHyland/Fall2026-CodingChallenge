@@ -19,7 +19,7 @@ export function DiscoverPage() {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const effectiveQuery = debouncedQuery || (activeTopic === 'All' ? '' : activeTopic)
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['search', effectiveQuery],
     queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam),
     initialPageParam: 1,
@@ -107,7 +107,7 @@ export function DiscoverPage() {
       {isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
       ) : isError ? (
-        <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your saved collections are still available. Try again in a moment.</p></div>
+        <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your collections are safe. Retry the search or browse a saved topic.</p><div className="empty-actions"><button className="primary-button" onClick={() => void refetch()}>Try again</button><button className="secondary-button" onClick={() => { setActiveTopic('Architecture'); setQuery(''); setDebouncedQuery('') }}>Browse architecture</button></div></div>
       ) : results.length ? (
         <>
           <div className="masonry-grid">{results.map((image) => <ImageCard key={image.id} image={image} />)}</div>
@@ -116,7 +116,7 @@ export function DiscoverPage() {
           </div>
         </>
       ) : (
-        <div className="empty-state"><Search size={28} /><h3>Nothing here yet.</h3><p>Try a broader search or one of the topics above.</p></div>
+        <div className="empty-state"><Search size={28} /><h3>No matches for that one.</h3><p>Try a broader phrase, or jump back into a visual trail.</p><div className="empty-topic-actions">{['Travel', 'Interior', 'Nature'].map((topic) => <button key={topic} onClick={() => { setActiveTopic(topic); setQuery(''); setDebouncedQuery('') }}>{topic}</button>)}</div></div>
       )}
     </>
   )

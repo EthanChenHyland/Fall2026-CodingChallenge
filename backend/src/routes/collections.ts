@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
-import { actor, collectionSelect, getCollection, logActivity } from '../lib/collections.js'
+import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
 import {
   requireAuth,
   requireMembership,
@@ -39,17 +39,31 @@ const inviteSchema = z.object({
 })
 
 collectionsRouter.get('/', (req: AuthedRequest, res) => {
-  const collections = db.prepare(`
+  const rows = db.prepare(`
     SELECT c.*,
       member.role AS role,
       COUNT(DISTINCT i.id) AS item_count,
-      (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url
+      COALESCE(
+        (SELECT image_url FROM items WHERE id = c.cover_item_id AND collection_id = c.id),
+        (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1)
+      ) AS cover_url,
+      (
+        SELECT json_group_array(image_url)
+        FROM (
+          SELECT image_url
+          FROM items AS cover_items
+          WHERE cover_items.collection_id = c.id
+          ORDER BY CASE WHEN cover_items.id = c.cover_item_id THEN 0 ELSE 1 END, cover_items.id DESC
+          LIMIT 4
+        )
+      ) AS cover_urls_json
     FROM collections c
     LEFT JOIN items i ON i.collection_id = c.id
     JOIN collection_members member ON member.collection_id = c.id AND member.user_id = ?
     GROUP BY c.id
     ORDER BY c.updated_at DESC
-  `).all(req.user!.id)
+  `).all(req.user!.id) as Array<Record<string, unknown>>
+  const collections = rows.map(normalizeCollectionRow)
   res.json({ collections })
 })
 
@@ -77,16 +91,30 @@ collectionsRouter.get('/:id', requireMembership, (req: AuthedRequest, res) => {
 collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => {
   const id = Number(req.params.id)
   const existing = getCollection(id, req.user!.id) as Record<string, unknown>
-  const schema = collectionSchema.partial().extend({ visibility: z.enum(['private', 'public']).optional() })
+  const schema = collectionSchema.partial().extend({
+    visibility: z.enum(['private', 'public']).optional(),
+    coverItemId: z.number().int().positive().nullable().optional(),
+    coverFocusX: z.number().min(0).max(100).optional(),
+    coverFocusY: z.number().min(0).max(100).optional(),
+  })
   const parsed = schema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid collection update.' })
   if (parsed.data.visibility && res.locals.membership.role !== 'owner') {
     return res.status(403).json({ error: 'Only the owner can change collection visibility.' })
   }
+  if (parsed.data.coverItemId != null) {
+    const coverItem = db.prepare('SELECT id FROM items WHERE id = ? AND collection_id = ?').get(parsed.data.coverItemId, id)
+    if (!coverItem) return res.status(400).json({ error: 'Choose an image from this collection for the cover.' })
+  }
   const next = { ...existing, ...parsed.data }
+  const coverItemId = parsed.data.coverItemId === undefined ? existing.cover_item_id : parsed.data.coverItemId
+  const coverFocusX = parsed.data.coverFocusX ?? Number(existing.cover_focus_x ?? 50)
+  const coverFocusY = parsed.data.coverFocusY ?? Number(existing.cover_focus_y ?? 50)
   db.prepare(`
-    UPDATE collections SET name = ?, description = ?, visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).run(next.name, next.description, next.visibility, id)
+    UPDATE collections
+    SET name = ?, description = ?, visibility = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(next.name, next.description, next.visibility, coverItemId, coverFocusX, coverFocusY, id)
   logActivity(id, `${actor(req)} updated collection details`, req.user!.id)
   res.json({ collection: getCollection(id, req.user!.id) })
 })
@@ -146,7 +174,7 @@ collectionsRouter.delete('/:id/items/:itemId', requireMembership, (req: AuthedRe
   const item = db.prepare('SELECT title FROM items WHERE id = ? AND collection_id = ?').get(Number(req.params.itemId), collectionId) as { title: string } | undefined
   if (!item) return res.status(404).json({ error: 'Saved image not found.' })
   db.prepare('DELETE FROM items WHERE id = ? AND collection_id = ?').run(Number(req.params.itemId), collectionId)
-  db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+  db.prepare('UPDATE collections SET cover_item_id = CASE WHEN cover_item_id = ? THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(req.params.itemId), collectionId)
   logActivity(collectionId, `${actor(req)} removed “${item.title}”`, req.user!.id)
   res.status(204).end()
 })

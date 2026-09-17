@@ -11,6 +11,7 @@ import type { Collection, SavedItem } from '../types'
 function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedItem }) {
   const queryClient = useQueryClient()
   const [position, setPosition] = useState({ x: item.canvas_x, y: item.canvas_y })
+  const [dragging, setDragging] = useState(false)
   const start = useRef({ x: 0, y: 0, originX: 0, originY: 0 })
   const update = useMutation({
     mutationFn: (next: { x: number; y: number }) =>
@@ -20,13 +21,14 @@ function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedI
 
   return (
     <div
-      className="canvas-item"
+      className={`canvas-item ${dragging ? 'dragging' : ''}`}
       role="group"
       tabIndex={0}
       aria-label={`Move ${item.title}. Use arrow keys or drag.`}
       style={{ transform: `translate(${position.x}px, ${position.y}px) rotate(${item.rotation}deg)` }}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId)
+        setDragging(true)
         start.current = { x: event.clientX, y: event.clientY, originX: position.x, originY: position.y }
       }}
       onPointerMove={(event) => {
@@ -38,8 +40,10 @@ function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedI
       }}
       onPointerUp={(event) => {
         event.currentTarget.releasePointerCapture(event.pointerId)
+        setDragging(false)
         update.mutate(position)
       }}
+      onPointerCancel={() => setDragging(false)}
       onKeyDown={(event) => {
         const moves: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }
         const move = moves[event.key]
@@ -50,7 +54,7 @@ function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedI
         update.mutate(next)
       }}
     >
-      <img src={item.image_url} alt={item.title} draggable={false} loading="lazy" />
+      <img src={item.image_url} alt={item.title} draggable={false} loading="lazy" decoding="async" />
       <strong>{item.title}</strong>
       {item.note && <span>{item.note}</span>}
     </div>
@@ -160,7 +164,7 @@ export function CollectionPage() {
             <div className="saved-grid">
               {items.map((item) => (
                 <article className="saved-card" key={item.id}>
-                  <img src={item.image_url} alt={item.title} loading="lazy" />
+                  <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" />
                   <div className="saved-card-copy">
                     <div><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}</div>
                     <div className="item-actions">
@@ -197,7 +201,7 @@ export function CollectionPage() {
           </Tabs.Content>
         </Tabs.Root>
       ) : (
-        <div className="empty-state large"><Grid2X2 size={32} /><h3>This collection is waiting for something good.</h3><p>Head to Discover and save your first image.</p><Link className="primary-button" to="/">Discover ideas</Link></div>
+        <div className="empty-state large"><Grid2X2 size={32} /><h3>This collection is waiting for something good.</h3><p>Find something on the web, or capture your own reference.</p><div className="empty-actions"><Link className="primary-button" to="/">Discover ideas</Link><Link className="secondary-button" to="/capture"><ImagePlus size={15} /> Quick capture</Link></div></div>
       )}
     </>
   )

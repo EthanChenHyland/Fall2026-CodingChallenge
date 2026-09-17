@@ -1,14 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { Bookmark, ExternalLink, X } from 'lucide-react'
+import { ExternalLink, X } from 'lucide-react'
 import type { CatalogImage } from '../types'
-import { SaveImageDialog } from './Dialogs'
+import { QuickSaveControls } from './QuickSaveControls'
 
 export function ImageDetailDialog({ image }: { image: CatalogImage }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
         <button className="image-open-button" aria-label={`Open ${image.title}`}>
-          <img src={image.imageUrl} alt={image.title} loading="lazy" />
+          <img src={image.imageUrl} alt={image.title} loading="lazy" decoding="async" />
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -18,7 +18,7 @@ export function ImageDetailDialog({ image }: { image: CatalogImage }) {
           <Dialog.Description className="sr-only">Image details and saving options for {image.title}.</Dialog.Description>
           <Dialog.Close className="icon-button pin-detail-close" aria-label="Close image details"><X size={19} /></Dialog.Close>
           <div className="pin-detail-media">
-            <img src={image.imageUrl} alt={image.title} />
+            <img src={image.imageUrl} alt={image.title} decoding="async" />
           </div>
           <div className="pin-detail-copy">
             <span className="eyebrow">FOUND ON THE WEB</span>
@@ -28,7 +28,7 @@ export function ImageDetailDialog({ image }: { image: CatalogImage }) {
               {image.tags.slice(0, 5).map((tag) => <span key={tag}>{tag}</span>)}
             </div>
             <div className="pin-detail-actions">
-              <SaveImageDialog image={image} trigger={<button className="primary-button"><Bookmark size={16} /> Save to collection</button>} />
+              <QuickSaveControls image={image} />
               <a className="secondary-button" href={image.pageUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} /> View source</a>
             </div>
             <div className="pin-detail-note">
