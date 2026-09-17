@@ -411,3 +411,18 @@ img { display: block; max-width: 100%; }
 .profile-section-head { margin-top: 0; }
 @media (max-width: 700px) { .profile-hero { grid-template-columns: 82px 1fr; gap: 18px; padding-bottom: 32px; margin-bottom: 32px; } .profile-avatar { width: 82px; height: 82px; font-size: 22px; } .profile-copy h1 { font-size: 38px; } .profile-copy > p { font-size: 12px; } .profile-stats { gap: 14px; margin-top: 12px; } }
 .profile-actions { display: flex; gap: 8px; margin-top: 18px; }
+
+.pin-page-card { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(340px, .75fr); max-width: 1040px; margin: 30px auto 0; overflow: hidden; border: 1px solid var(--line); border-radius: 24px; background: var(--white); box-shadow: 0 22px 65px rgba(44,38,30,.08); }
+.pin-page-media { min-height: 620px; background: #e8e2d8; display: grid; place-items: center; }
+.pin-page-media img { width: 100%; height: 100%; max-height: 760px; object-fit: cover; }
+.pin-page-copy { padding: 52px 44px; display: flex; flex-direction: column; align-items: flex-start; }
+.pin-page-copy h1 { margin: 15px 0 10px; font-family: Georgia, serif; font-size: 46px; line-height: 1.02; font-weight: 400; letter-spacing: -.035em; }
+.pin-page-note { color: var(--muted); line-height: 1.55; margin: 0 0 28px; }
+.pin-owner, .pin-board-link { width: 100%; display: flex; gap: 11px; align-items: center; padding: 13px 0; border-top: 1px solid var(--line); }
+.pin-owner-avatar { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--ink); color: white; font-weight: 700; }
+.pin-owner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pin-owner > span:last-child, .pin-board-link > span { display: grid; gap: 3px; }
+.pin-owner strong, .pin-board-link strong { font-size: 12px; }
+.pin-owner small, .pin-board-link small { color: var(--muted); font-size: 9px; }
+.pin-page-copy .pin-detail-actions { margin-top: auto; padding-top: 30px; }
+@media (max-width: 780px) { .pin-page-card { grid-template-columns: 1fr; margin-top: 20px; border-radius: 18px; } .pin-page-media { min-height: 0; } .pin-page-media img { max-height: none; } .pin-page-copy { padding: 28px 22px 34px; } .pin-page-copy h1 { font-size: 36px; } }
