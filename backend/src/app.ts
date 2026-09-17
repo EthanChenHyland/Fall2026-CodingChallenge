@@ -4,6 +4,7 @@ import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
 import { notificationsRouter } from './routes/notifications.js'
+import { profilesRouter } from './routes/profiles.js'
 import { searchRouter } from './routes/search.js'
 import { sharedRouter } from './routes/shared.js'
 
@@ -18,6 +19,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/search', searchRouter)
 app.use('/api/collections', collectionsRouter)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/profiles', profilesRouter)
 app.use('/api/shared', sharedRouter)
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }))
