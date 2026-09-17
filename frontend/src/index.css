@@ -426,3 +426,11 @@ img { display: block; max-width: 100%; }
 .pin-owner small, .pin-board-link small { color: var(--muted); font-size: 9px; }
 .pin-page-copy .pin-detail-actions { margin-top: auto; padding-top: 30px; }
 @media (max-width: 780px) { .pin-page-card { grid-template-columns: 1fr; margin-top: 20px; border-radius: 18px; } .pin-page-media { min-height: 0; } .pin-page-media img { max-height: none; } .pin-page-copy { padding: 28px 22px 34px; } .pin-page-copy h1 { font-size: 36px; } }
+.public-pin-image { display: block; min-height: 180px; }
+.public-pin-image img { width: 100%; height: auto; min-height: 180px; object-fit: cover; }
+.pin-open-badge { position: absolute; right: 10px; bottom: 10px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.92); opacity: 0; transform: translateY(4px); transition: .2s ease; }
+.public-pin-card:hover .pin-open-badge { opacity: 1; transform: translateY(0); }
+.public-pin-meta { gap: 3px; }
+.pin-mini-owner { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin-top: 4px; color: var(--muted); }
+.pin-mini-owner img, .pin-mini-owner i { width: 19px; height: 19px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: #d9d2c7; font-style: normal; font-size: 8px; }
+.pin-mini-owner b { font-size: 9px; font-weight: 650; }
