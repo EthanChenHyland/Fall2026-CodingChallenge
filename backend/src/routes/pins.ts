@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { db } from '../db.js'
 import { membership, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
@@ -37,4 +38,33 @@ pinsRouter.delete('/:id/like', requireAuth, (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
   db.prepare('DELETE FROM item_likes WHERE item_id = ? AND user_id = ?').run(pinId, req.user!.id)
   return res.status(204).end()
+})
+
+
+pinsRouter.get('/:id/comments', (req, res) => {
+  const pinId = Number(req.params.id)
+  const visible = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
+  if (!visible) return res.status(404).json({ error: 'Pin not found.' })
+  const comments = db.prepare(`
+    SELECT c.id, c.item_id, c.body, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+    FROM comments c JOIN users u ON u.id = c.user_id
+    WHERE c.item_id = ? ORDER BY c.id ASC
+  `).all(pinId)
+  return res.json({ comments })
+})
+
+const commentSchema = z.object({ body: z.string().trim().min(1).max(500) })
+
+pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  const parsed = commentSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Write something before posting.' })
+  const visible = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
+  if (!visible) return res.status(404).json({ error: 'Pin not found.' })
+  const result = db.prepare('INSERT INTO comments (item_id, user_id, body) VALUES (?, ?, ?)').run(pinId, req.user!.id, parsed.data.body)
+  const comment = db.prepare(`
+    SELECT c.id, c.item_id, c.body, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+    FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?
+  `).get(result.lastInsertRowid)
+  return res.status(201).json({ comment })
 })
