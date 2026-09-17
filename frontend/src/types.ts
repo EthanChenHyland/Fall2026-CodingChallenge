@@ -35,6 +35,8 @@ export type User = {
   id: number
   name: string
   email: string
+  bio: string
+  avatar_url: string
   created_at: string
 }
 

@@ -35,7 +35,7 @@ authRouter.post('/register', (req, res) => {
   `).run(parsed.data.name, parsed.data.email, passwordHash(parsed.data.password, salt), salt)
   const userId = Number(result.lastInsertRowid)
   setSession(res, userId)
-  const user = db.prepare('SELECT id, name, email, created_at FROM users WHERE id = ?').get(userId)
+  const user = db.prepare('SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(userId)
   return res.status(201).json({ user })
 })
 
@@ -50,11 +50,11 @@ authRouter.post('/login', (req, res) => {
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString())
   setSession(res, account.id)
-  return res.json({ user: { id: account.id, name: account.name, email: account.email, created_at: account.created_at } })
+  return res.json({ user: { id: account.id, name: account.name, email: account.email, bio: account.bio, avatar_url: account.avatar_url, created_at: account.created_at } })
 })
 
 authRouter.post('/demo', (_req, res) => {
-  const user = db.prepare("SELECT id, name, email, created_at FROM users WHERE email = 'demo@mosaic.local'").get() as User
+  const user = db.prepare("SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE email = 'demo@mosaic.local'").get() as User
   setSession(res, user.id)
   return res.json({ user })
 })

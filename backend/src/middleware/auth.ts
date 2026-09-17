@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { db } from '../db.js'
 
-export type User = { id: number; name: string; email: string; created_at: string }
+export type User = { id: number; name: string; email: string; bio: string; avatar_url: string; created_at: string }
 export type AuthedRequest = Request & { user?: User }
 export type Membership = { role: 'owner' | 'editor' }
 
@@ -63,7 +63,7 @@ export function loadUser(req: AuthedRequest, _res: Response, next: NextFunction)
   const token = parseCookies(req)[SESSION_COOKIE]
   if (!token) return next()
   const row = db.prepare(`
-    SELECT u.id, u.name, u.email, u.created_at
+    SELECT u.id, u.name, u.email, u.bio, u.avatar_url, u.created_at
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ?
