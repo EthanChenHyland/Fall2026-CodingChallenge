@@ -464,3 +464,5 @@ img { display: block; max-width: 100%; }
 @media (max-width: 700px) { .library-tools { margin-top: -10px; } .library-tools label { max-width: none; } .library-tools select { max-width: 135px; } }
 
 .field-optional { color: var(--muted); font-size: 9px; font-weight: 500; }
+
+.upload-field input[type="file"] { padding: 9px 0; border: 0; background: transparent; font-size: 10px; }

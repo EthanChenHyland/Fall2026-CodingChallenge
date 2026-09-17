@@ -4,6 +4,7 @@ import { Check, Copy, Link2, Lock, Plus, Trash2, UserPlus, Users, X } from 'luci
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 import type { CatalogImage, Collection, SavedItem } from '../types'
 
 export function CreateCollectionDialog({ trigger }: { trigger: ReactNode }) {
@@ -271,6 +272,7 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
   const [imageUrl, setImageUrl] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [title, setTitle] = useState('')
+  const [uploading, setUploading] = useState(false)
   const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: () => api.saveImage(collectionId, {
@@ -302,10 +304,11 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
         <Dialog.Content className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">ADD YOUR OWN PIN</span><Dialog.Title>Save something from anywhere.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           {imageUrl && <img className="edit-image" src={imageUrl} alt="Preview" />}
+          {cloudUploadsConfigured() && <label className="field-label upload-field">Choose image file<input type="file" accept="image/*" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setUploading(true); try { const uploaded = await uploadImage(file); setImageUrl(uploaded.imageUrl); if (!title) setTitle(uploaded.originalName); toast.success('Image uploaded') } catch (error) { toast.error(error instanceof Error ? error.message : 'Upload failed') } finally { setUploading(false) } }} /></label>}
           <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
           <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
-          <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
+          <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
