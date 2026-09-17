@@ -265,3 +265,49 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
     </Dialog.Root>
   )
 }
+
+export function AddPinDialog({ collectionId, trigger }: { collectionId: number; trigger: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [title, setTitle] = useState('')
+  const queryClient = useQueryClient()
+  const save = useMutation({
+    mutationFn: () => api.saveImage(collectionId, {
+      id: `manual-${Date.now()}`,
+      title,
+      creator: 'Added by you',
+      imageUrl,
+      pageUrl: sourceUrl || imageUrl,
+      tags: ['manual'],
+      width: 1,
+      height: 1,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
+      setOpen(false)
+      setImageUrl('')
+      setSourceUrl('')
+      setTitle('')
+      toast.success('Pin added')
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay" />
+        <Dialog.Content className="dialog-card">
+          <div className="dialog-head"><div><span className="eyebrow">ADD YOUR OWN PIN</span><Dialog.Title>Save something from anywhere.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
+          {imageUrl && <img className="edit-image" src={imageUrl} alt="Preview" />}
+          <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
+          <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
+          <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
+          <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}

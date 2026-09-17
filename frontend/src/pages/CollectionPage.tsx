@@ -1,11 +1,11 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Clock3, Grid2X2, LayoutDashboard, Pencil, RotateCcw, Share2, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Clock3, Grid2X2, ImagePlus, LayoutDashboard, Pencil, RotateCcw, Share2, Trash2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
-import { EditCollectionDialog, EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
+import { AddPinDialog, EditCollectionDialog, EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
 import type { Collection, SavedItem } from '../types'
 
 function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedItem }) {
@@ -117,6 +117,7 @@ export function CollectionPage() {
           <span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span>
         </div>
         <div className="hero-actions">
+          <AddPinDialog collectionId={id} trigger={<button className="primary-button"><ImagePlus size={16} /> Add pin</button>} />
           {collection.role === 'owner' && <EditCollectionDialog collection={collection} trigger={<button className="secondary-button"><Pencil size={16} /> Edit</button>} />}
           <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Share</button>} />
           <span className="collaborator-count"><Users size={15} /> {collection.collaborators?.length ?? 1}</span>

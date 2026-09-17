@@ -462,3 +462,5 @@ img { display: block; max-width: 100%; }
 .library-tools input { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 11px; }
 .library-tools select { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 0 13px; color: var(--muted); font: inherit; font-size: 10px; }
 @media (max-width: 700px) { .library-tools { margin-top: -10px; } .library-tools label { max-width: none; } .library-tools select { max-width: 135px; } }
+
+.field-optional { color: var(--muted); font-size: 9px; font-weight: 500; }
