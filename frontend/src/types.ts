@@ -39,6 +39,7 @@ export type PinDetail = PublicPin & {
   visibility: 'private' | 'public'
   like_count: number
   liked_by_me: boolean
+  can_edit: boolean
 }
 
 

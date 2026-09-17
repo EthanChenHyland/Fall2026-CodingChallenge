@@ -20,9 +20,10 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
     WHERE i.id = ?
   `).get(pinId) as Record<string, unknown> | undefined
   if (!pin) return res.status(404).json({ error: 'Pin not found.' })
-  const canView = pin.visibility === 'public' || (req.user && membership(Number(pin.collection_id), req.user.id))
+  const pinMembership = req.user ? membership(Number(pin.collection_id), req.user.id) : undefined
+  const canView = pin.visibility === 'public' || pinMembership
   if (!canView) return res.status(404).json({ error: 'Pin not found.' })
-  return res.json({ pin: { ...pin, liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false } })
+  return res.json({ pin: { ...pin, can_edit: Boolean(pinMembership), liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false } })
 })
 
 
