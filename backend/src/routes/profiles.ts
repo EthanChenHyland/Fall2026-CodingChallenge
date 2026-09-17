@@ -42,8 +42,10 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
       (SELECT COUNT(*) FROM collection_members WHERE user_id = ? AND role = 'owner') AS collection_count,
       (SELECT COUNT(*) FROM items i
         JOIN collection_members m ON m.collection_id = i.collection_id
-        WHERE m.user_id = ? AND m.role = 'owner') AS pin_count
-  `).get(userId, userId) as { collection_count: number; pin_count: number }
+        WHERE m.user_id = ? AND m.role = 'owner') AS pin_count,
+      (SELECT COUNT(*) FROM follows WHERE following_id = ?) AS follower_count,
+      (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
+  `).get(userId, userId, userId, userId) as { collection_count: number; pin_count: number; follower_count: number; following_count: number }
 
   const collections = db.prepare(`
     SELECT c.id, c.name, c.description, c.visibility, c.share_token, c.created_at, c.updated_at,
@@ -58,7 +60,27 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
   `).all(userId)
 
   return res.json({
-    profile: { ...profile, ...stats, is_self: req.user?.id === userId },
+    profile: {
+      ...profile,
+      ...stats,
+      is_self: req.user?.id === userId,
+      followed_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(req.user.id, userId)) : false,
+    },
     collections,
   })
+})
+
+
+profilesRouter.post('/:id/follow', requireAuth, (req: AuthedRequest, res) => {
+  const userId = Number(req.params.id)
+  if (!Number.isInteger(userId) || userId === req.user!.id) return res.status(400).json({ error: 'You cannot follow that profile.' })
+  if (!db.prepare('SELECT id FROM users WHERE id = ?').get(userId)) return res.status(404).json({ error: 'Profile not found.' })
+  db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(req.user!.id, userId)
+  return res.status(204).end()
+})
+
+profilesRouter.delete('/:id/follow', requireAuth, (req: AuthedRequest, res) => {
+  const userId = Number(req.params.id)
+  db.prepare('DELETE FROM follows WHERE follower_id = ? AND following_id = ?').run(req.user!.id, userId)
+  return res.status(204).end()
 })
