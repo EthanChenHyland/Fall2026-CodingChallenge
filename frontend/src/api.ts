@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, NotificationItem, SavedItem, User } from './types'
+import type { CatalogImage, Collection, NotificationItem, PublicProfile, SavedItem, User } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -23,6 +23,7 @@ export const api = {
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   search: (query = '', page = 1) =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}`),
+  profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   createCollection: (body: { name: string; description?: string }) =>

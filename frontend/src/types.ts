@@ -40,6 +40,18 @@ export type User = {
   created_at: string
 }
 
+
+export type PublicProfile = {
+  id: number
+  name: string
+  bio: string
+  avatar_url: string
+  created_at: string
+  collection_count: number
+  pin_count: number
+  is_self: boolean
+}
+
 export type Collaborator = {
   id: number
   name: string
