@@ -22,8 +22,8 @@ test('owner can add an editor while editor permissions stay scoped', async () =>
   const editor = request.agent(app)
 
   assert.equal((await owner.post('/api/auth/demo')).status, 200)
-  const ownerCollections = await owner.get('/api/collections').expect(200)
-  const collectionId = ownerCollections.body.collections[0].id as number
+  const created = await owner.post('/api/collections').send({ name: 'Collaboration test board' }).expect(201)
+  const collectionId = created.body.collection.id as number
 
   await owner
     .post(`/api/collections/${collectionId}/collaborators`)
