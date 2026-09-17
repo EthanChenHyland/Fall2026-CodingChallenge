@@ -55,7 +55,7 @@ export function AppShell() {
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
             <Sparkles size={18} /> Mosaic
           </button>
-          <button className="topbar-search" onClick={() => navigate('/')}>
+          <button className="topbar-search" onClick={() => navigate('/', { state: { focusSearch: true } })}>
             <Search size={17} />
             <span>{location.pathname === '/' ? 'Search ideas' : 'Find something to save'}</span>
             <kbd>/</kbd>
