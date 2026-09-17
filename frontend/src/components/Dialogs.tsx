@@ -31,7 +31,7 @@ export function CreateCollectionDialog({ trigger }: { trigger: ReactNode }) {
         <Dialog.Content className="dialog-card">
           <div className="dialog-head">
             <div><span className="eyebrow">NEW COLLECTION</span><Dialog.Title>Start a new mood.</Dialog.Title></div>
-            <Dialog.Close className="icon-button"><X size={19} /></Dialog.Close>
+            <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
           </div>
           <Dialog.Description className="muted">Give it a name now. You can shape it as you collect.</Dialog.Description>
           <label className="field-label">Name<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Late night Tokyo" /></label>
@@ -51,13 +51,26 @@ export function SaveImageDialog({ image, trigger }: { image: CatalogImage; trigg
   const { data } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const save = useMutation({
     mutationFn: (collectionId: number) => api.saveImage(collectionId, image),
+    onMutate: async (collectionId) => {
+      await queryClient.cancelQueries({ queryKey: ['collections'] })
+      const previous = queryClient.getQueryData<{ collections: Collection[] }>(['collections'])
+      queryClient.setQueryData<{ collections: Collection[] }>(['collections'], (current) => current ? ({
+        collections: current.collections.map((collection) => collection.id === collectionId
+          ? { ...collection, item_count: collection.item_count + 1, cover_url: image.imageUrl }
+          : collection),
+      }) : current)
+      return { previous }
+    },
     onSuccess: (_, collectionId) => {
-      queryClient.invalidateQueries({ queryKey: ['collections'] })
       queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
       setOpen(false)
       toast.success('Saved to collection')
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error, _collectionId, context) => {
+      if (context?.previous) queryClient.setQueryData(['collections'], context.previous)
+      toast.error(error.message)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['collections'] }),
   })
 
   return (
@@ -68,7 +81,7 @@ export function SaveImageDialog({ image, trigger }: { image: CatalogImage; trigg
         <Dialog.Content className="dialog-card compact">
           <div className="dialog-head">
             <div><span className="eyebrow">SAVE IMAGE</span><Dialog.Title>Choose a collection</Dialog.Title></div>
-            <Dialog.Close className="icon-button"><X size={19} /></Dialog.Close>
+            <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
           </div>
           <div className="save-preview"><img src={image.imageUrl} alt="" /><div><strong>{image.title}</strong><span>{image.creator}</span></div></div>
           <div className="collection-choice-list">
@@ -94,12 +107,26 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
   const queryClient = useQueryClient()
   const update = useMutation({
     mutationFn: () => api.updateItem(collectionId, item.id, { title, note }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['collection', collectionId] })
+      const previous = queryClient.getQueryData<{ collection: Collection }>(['collection', collectionId])
+      queryClient.setQueryData<{ collection: Collection }>(['collection', collectionId], (current) => current ? ({
+        collection: {
+          ...current.collection,
+          items: current.collection.items?.map((saved) => saved.id === item.id ? { ...saved, title, note } : saved),
+        },
+      }) : current)
+      return { previous }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
       setOpen(false)
       toast.success('Saved changes')
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(['collection', collectionId], context.previous)
+      toast.error(error.message)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['collection', collectionId] }),
   })
 
   return (
@@ -108,7 +135,7 @@ export function EditItemDialog({ collectionId, item, trigger }: { collectionId: 
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className="dialog-card">
-          <div className="dialog-head"><Dialog.Title>Edit saved image</Dialog.Title><Dialog.Close className="icon-button"><X size={19} /></Dialog.Close></div>
+          <div className="dialog-head"><Dialog.Title>Edit saved image</Dialog.Title><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
           <img className="edit-image" src={item.image_url} alt="" />
           <label className="field-label">Title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
           <label className="field-label">Note<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} placeholder="Why did you save this?" /></label>
@@ -162,23 +189,24 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
         <Dialog.Content className="dialog-card share-dialog">
           <div className="dialog-head">
             <div><span className="eyebrow">SHARE & COLLABORATE</span><Dialog.Title>Bring people into the board.</Dialog.Title></div>
-            <Dialog.Close className="icon-button"><X size={19} /></Dialog.Close>
+            <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
           </div>
           <Dialog.Description className="muted">Public links are view-only. Account collaborators can save, edit, remove, and rearrange images with you.</Dialog.Description>
 
           <section className="share-section">
-            <div className="share-section-title"><span className="share-icon"><Link2 size={16} /></span><div><strong>Public link</strong><span>Anyone with the URL can view.</span></div></div>
+            <div className="share-section-title"><span className="share-icon"><Link2 size={16} /></span><div><strong>Collection privacy</strong><span>Private by default. Public collections get a view-only URL.</span></div></div>
+            {isOwner ? (
+              <div className="privacy-toggle" aria-label="Collection privacy">
+                <button className={!collection.share_token ? 'active' : ''} onClick={() => collection.share_token && disableShare.mutate()} disabled={disableShare.isPending}><Lock size={14} /> Private</button>
+                <button className={collection.share_token ? 'active' : ''} onClick={() => !collection.share_token && share.mutate()} disabled={share.isPending}><Link2 size={14} /> Public</button>
+              </div>
+            ) : <div className="owner-only-note"><Lock size={14} /> Only the owner can change collection privacy.</div>}
             {collection.share_token ? (
               <div className="share-link-row">
                 <span className="share-url">{shareUrl.replace(/^https?:\/\//, '')}</span>
                 <button className="secondary-button" onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied') }}><Copy size={15} /> Copy</button>
-                {isOwner && <button className="text-danger-button" onClick={() => disableShare.mutate()} disabled={disableShare.isPending}>Disable</button>}
               </div>
-            ) : isOwner ? (
-              <button className="secondary-button" onClick={() => share.mutate()} disabled={share.isPending}><Link2 size={15} /> {share.isPending ? 'Creating…' : 'Create view-only link'}</button>
-            ) : (
-              <div className="owner-only-note"><Lock size={14} /> Only the owner can create a public link.</div>
-            )}
+            ) : <p className="privacy-note">Only collaborators can open this collection while it is private.</p>}
           </section>
 
           <section className="share-section">

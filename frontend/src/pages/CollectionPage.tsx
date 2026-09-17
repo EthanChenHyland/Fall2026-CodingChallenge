@@ -1,12 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Grid2X2, LayoutDashboard, Pencil, Share2, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Clock3, Grid2X2, LayoutDashboard, Pencil, RotateCcw, Share2, Trash2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
-import type { SavedItem } from '../types'
+import type { Collection, SavedItem } from '../types'
 
 function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedItem }) {
   const queryClient = useQueryClient()
@@ -21,6 +21,9 @@ function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedI
   return (
     <div
       className="canvas-item"
+      role="group"
+      tabIndex={0}
+      aria-label={`Move ${item.title}. Use arrow keys or drag.`}
       style={{ transform: `translate(${position.x}px, ${position.y}px) rotate(${item.rotation}deg)` }}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -29,16 +32,25 @@ function CanvasItem({ collectionId, item }: { collectionId: number; item: SavedI
       onPointerMove={(event) => {
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
         setPosition({
-          x: start.current.originX + event.clientX - start.current.x,
-          y: start.current.originY + event.clientY - start.current.y,
+          x: Math.max(0, start.current.originX + event.clientX - start.current.x),
+          y: Math.max(0, start.current.originY + event.clientY - start.current.y),
         })
       }}
       onPointerUp={(event) => {
         event.currentTarget.releasePointerCapture(event.pointerId)
         update.mutate(position)
       }}
+      onKeyDown={(event) => {
+        const moves: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }
+        const move = moves[event.key]
+        if (!move) return
+        event.preventDefault()
+        const next = { x: Math.max(0, position.x + move[0]), y: Math.max(0, position.y + move[1]) }
+        setPosition(next)
+        update.mutate(next)
+      }}
     >
-      <img src={item.image_url} alt={item.title} draggable={false} />
+      <img src={item.image_url} alt={item.title} draggable={false} loading="lazy" />
       <strong>{item.title}</strong>
       {item.note && <span>{item.note}</span>}
     </div>
@@ -55,10 +67,28 @@ export function CollectionPage() {
   })
   const remove = useMutation({
     mutationFn: (itemId: number) => api.deleteItem(id, itemId),
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: ['collection', id] })
+      const previous = queryClient.getQueryData<{ collection: Collection }>(['collection', id])
+      queryClient.setQueryData<{ collection: Collection }>(['collection', id], (current) => current ? ({
+        collection: {
+          ...current.collection,
+          item_count: Math.max(0, current.collection.item_count - 1),
+          items: current.collection.items?.filter((item) => item.id !== itemId),
+        },
+      }) : current)
+      return { previous }
+    },
     onSuccess: () => {
+      toast.success('Removed from collection')
+    },
+    onError: (error, _itemId, context) => {
+      if (context?.previous) queryClient.setQueryData(['collection', id], context.previous)
+      toast.error(error.message)
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['collection', id] })
       queryClient.invalidateQueries({ queryKey: ['collections'] })
-      toast.success('Removed from collection')
     },
   })
   if (isLoading) return <div className="loading-page">Opening collection…</div>
@@ -66,6 +96,15 @@ export function CollectionPage() {
 
   const collection = data.collection
   const items = collection.items ?? []
+  const resetLayout = async () => {
+    await Promise.all(items.map((item, index) => api.updateItem(id, item.id, {
+      canvasX: 36 + (index % 3) * 220,
+      canvasY: 40 + Math.floor(index / 3) * 250,
+      rotation: (index % 3 - 1) * 2,
+    })))
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success('Canvas layout reset')
+  }
 
   return (
     <>
@@ -95,12 +134,13 @@ export function CollectionPage() {
           <Tabs.List className="tab-list">
             <Tabs.Trigger value="grid"><Grid2X2 size={16} /> Grid</Tabs.Trigger>
             <Tabs.Trigger value="canvas"><LayoutDashboard size={16} /> Canvas <span className="new-pill">NEW</span></Tabs.Trigger>
+            <Tabs.Trigger value="activity"><Clock3 size={16} /> Activity</Tabs.Trigger>
           </Tabs.List>
           <Tabs.Content value="grid">
             <div className="saved-grid">
               {items.map((item) => (
                 <article className="saved-card" key={item.id}>
-                  <img src={item.image_url} alt={item.title} />
+                  <img src={item.image_url} alt={item.title} loading="lazy" />
                   <div className="saved-card-copy">
                     <div><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}</div>
                     <div className="item-actions">
@@ -113,8 +153,18 @@ export function CollectionPage() {
             </div>
           </Tabs.Content>
           <Tabs.Content value="canvas">
-            <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag saved images around to turn this collection into a visual board.</span></div><span>Positions save automatically</span></div>
+            <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag saved images around to turn this collection into a visual board.</span></div><button className="canvas-reset" onClick={resetLayout}><RotateCcw size={14} /> Reset layout</button></div>
             <div className="canvas-board">{items.map((item) => <CanvasItem key={item.id} collectionId={id} item={item} />)}</div>
+          </Tabs.Content>
+          <Tabs.Content value="activity">
+            <div className="activity-panel">
+              <div><span className="eyebrow">COLLECTION HISTORY</span><h3>What changed here</h3></div>
+              <div className="activity-list">
+                {collection.activity?.map((activity) => (
+                  <div key={activity.id}><span className="activity-mark" /><span><strong>{activity.message}</strong><small>{new Date(`${activity.created_at}Z`).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</small></span></div>
+                ))}
+              </div>
+            </div>
           </Tabs.Content>
         </Tabs.Root>
       ) : (

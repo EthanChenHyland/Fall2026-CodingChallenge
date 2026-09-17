@@ -22,7 +22,7 @@ export function SharedPage() {
         <Link className="back-link" to="/"><ArrowLeft size={16} /> Explore Mosaic</Link>
         <section className="shared-title"><span className="eyebrow">SHARED WITH YOU</span><h1>{collection.name}</h1><p>{collection.description}</p></section>
         <div className="shared-grid">
-          {collection.items?.map((item) => <figure key={item.id}><img src={item.image_url} alt={item.title} /><figcaption><strong>{item.title}</strong>{item.note && <span>{item.note}</span>}</figcaption></figure>)}
+          {collection.items?.map((item) => <figure key={item.id}><img src={item.image_url} alt={item.title} loading="lazy" /><figcaption><strong>{item.title}</strong>{item.note && <span>{item.note}</span>}</figcaption></figure>)}
         </div>
       </main>
     </div>

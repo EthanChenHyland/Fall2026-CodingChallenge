@@ -102,7 +102,7 @@ export function AppShell() {
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
         <NavLink to="/" end><Compass size={21} /><span>Discover</span></NavLink>
-        <button onClick={() => navigate('/')}><Plus size={22} /><span>Save</span></button>
+        <button onClick={() => navigate('/', { state: { focusSearch: true } })}><Plus size={22} /><span>Save</span></button>
         <NavLink to="/collections"><FolderHeart size={21} /><span>Collections</span></NavLink>
       </nav>
     </div>

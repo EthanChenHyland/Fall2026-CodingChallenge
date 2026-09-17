@@ -22,7 +22,7 @@ export const api = {
   demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   search: (query = '') =>
-    request<{ results: CatalogImage[] }>(`/api/search?q=${encodeURIComponent(query)}`),
+    request<{ results: CatalogImage[]; source: 'local' | 'pixabay'; fallback?: boolean; cached?: boolean }>(`/api/search?q=${encodeURIComponent(query)}`),
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   createCollection: (body: { name: string; description?: string }) =>
