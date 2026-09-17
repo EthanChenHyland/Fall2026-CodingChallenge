@@ -36,7 +36,7 @@ export function ConnectionsDialog({ profileId, kind, count }: { profileId: numbe
                   <span className="connection-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : <UserRound size={18} />}</span>
                   <span><strong>{person.name}</strong><small>{person.bio || 'Mosaic curator'}</small></span>
                 </Link>
-                {person.id !== profileId && <button className="mini-follow" disabled={follow.isPending} onClick={() => follow.mutate({ person, next: !Boolean(person.followed_by_me) })}>{person.followed_by_me ? 'Following' : 'Follow'}</button>}
+                {person.id !== profileId && <button className="mini-follow" disabled={follow.isPending} onClick={() => follow.mutate({ person, next: !person.followed_by_me })}>{person.followed_by_me ? 'Following' : 'Follow'}</button>}
               </div>
             )) : <div className="popover-empty">No people here yet.</div>}
           </div>
