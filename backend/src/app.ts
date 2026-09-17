@@ -1,5 +1,7 @@
 import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
@@ -27,6 +29,15 @@ app.use('/api/profiles', profilesRouter)
 app.use('/api/shared', sharedRouter)
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }))
+
+if (process.env.NODE_ENV === 'production') {
+  const frontendDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../frontend/dist')
+  app.use(express.static(frontendDist))
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next()
+    return res.sendFile(resolve(frontendDist, 'index.html'))
+  })
+}
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err)
