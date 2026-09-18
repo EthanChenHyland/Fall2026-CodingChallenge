@@ -9,7 +9,7 @@ export function ImageCard({ image }: { image: CatalogImage }) {
       <div className="image-frame" style={{ aspectRatio: `${image.width}/${image.height}` }}>
         <ImageDetailDialog image={image} />
         <div className="image-hover">
-          <a className="round-action" href={image.pageUrl} target="_blank" rel="noreferrer" aria-label="Open source"><ExternalLink size={17} /></a>
+          <a className="round-action" href={image.pageUrl} target="_blank" rel="noopener noreferrer" aria-label="Open source"><ExternalLink size={17} /></a>
           <QuickSaveControls image={image} />
         </div>
       </div>

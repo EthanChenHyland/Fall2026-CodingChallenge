@@ -29,7 +29,7 @@ export function ImageDetailDialog({ image }: { image: CatalogImage }) {
             </div>
             <div className="pin-detail-actions">
               <QuickSaveControls image={image} />
-              <a className="secondary-button" href={image.pageUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} /> View source</a>
+              <a className="secondary-button" href={image.pageUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> View source</a>
             </div>
             <div className="pin-detail-note">
               <span>IMAGE SIZE</span>
