@@ -1,5 +1,5 @@
 const CACHE = 'mosaic-shell-__BUILD_ID__'
-const SHELL = ['/', '/favicon.svg', '/manifest.webmanifest', /* BUILD_ASSETS */]
+const SHELL = ['/', '/mosaic-favicon.svg', '/manifest.webmanifest', /* BUILD_ASSETS */]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)))
