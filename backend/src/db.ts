@@ -107,6 +107,13 @@ db.exec(`
     CHECK (follower_id != following_id)
   );
 
+  CREATE TABLE IF NOT EXISTS collection_follows (
+    follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, collection_id)
+  );
+
   CREATE TABLE IF NOT EXISTS item_likes (
     item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -163,6 +170,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_members_user ON collection_members(user_id);
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_collection_follows_collection ON collection_follows(collection_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_item_likes_item ON item_likes(item_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comments_item ON comments(item_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_conversations_user_a ON conversations(user_a_id, updated_at DESC);

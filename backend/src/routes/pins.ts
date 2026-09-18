@@ -13,13 +13,17 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
     SELECT i.*, c.name AS collection_name, c.description AS collection_description,
       c.visibility, c.share_token,
       u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
-      (SELECT COUNT(*) FROM item_likes WHERE item_id = i.id) AS like_count
+      (SELECT COUNT(*) FROM item_likes WHERE item_id = i.id) AS like_count,
+      (SELECT COUNT(*) FROM collection_follows cf WHERE cf.collection_id = c.id) AS collection_follower_count,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM collection_follows cf WHERE cf.collection_id = c.id AND cf.follower_id = ?
+      ) THEN 1 ELSE 0 END AS collection_followed_by_me
     FROM items i
     JOIN collections c ON c.id = i.collection_id
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
     JOIN users u ON u.id = m.user_id
     WHERE i.id = ?
-  `).get(pinId) as Record<string, unknown> | undefined
+  `).get(req.user?.id ?? -1, pinId) as Record<string, unknown> | undefined
   if (!pin) return res.status(404).json({ error: 'Pin not found.' })
   const pinMembership = req.user ? membership(Number(pin.collection_id), req.user.id) : undefined
   const canView = pin.visibility === 'public' || pinMembership

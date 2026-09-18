@@ -23,6 +23,11 @@ export function PinPage() {
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
   const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin', id] }) })
+  const followCollection = useMutation({
+    mutationFn: () => data?.pin.collection_followed_by_me ? api.unfollowCollection(data.pin.collection_id) : api.followCollection(data!.pin.collection_id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['pin', id] }); void queryClient.invalidateQueries({ queryKey: ['explore'] }); toast.success(data?.pin.collection_followed_by_me ? 'Collection unfollowed' : 'Collection followed') },
+    onError: (error: Error) => toast.error(error.message),
+  })
   const comments = useQuery({ queryKey: ['pin-comments', id], queryFn: () => api.pinComments(id), enabled: data?.pin.visibility === 'public' })
   const commentThreads = useMemo(() => {
     const all = comments.data?.comments ?? []
@@ -115,7 +120,7 @@ export function PinPage() {
           <h1>{pin.title}</h1>
           {pin.note && <p className="pin-page-note">{pin.note}</p>}
           <Link className="pin-owner" to={`/people/${pin.owner_id}`}><span className="pin-owner-avatar">{pin.owner_avatar ? <img src={pin.owner_avatar} alt="" /> : pin.owner_name.slice(0, 1)}</span><span><strong>{pin.owner_name}</strong><small>Curator</small></span></Link>
-          <Link className="pin-board-link" to={pin.share_token ? `/shared/${pin.share_token}` : `/collections/${pin.collection_id}`}><FolderHeart size={16} /><span><strong>{pin.collection_name}</strong><small>{pin.collection_description || 'Public collection'}</small></span></Link>
+          <div className="pin-board-row"><Link className="pin-board-link" to={pin.share_token ? `/shared/${pin.share_token}` : `/collections/${pin.collection_id}`}><FolderHeart size={16} /><span><strong>{pin.collection_name}</strong><small>{pin.collection_description || 'Public collection'} · {pin.collection_follower_count} {pin.collection_follower_count === 1 ? 'follower' : 'followers'}</small></span></Link>{pin.visibility === 'public' && !pin.can_edit && <button className={pin.collection_followed_by_me ? 'secondary-button pin-board-follow' : 'primary-button pin-board-follow'} disabled={followCollection.isPending} onClick={() => followCollection.mutate()}>{pin.collection_followed_by_me ? 'Following' : 'Follow'}</button>}</div>
           {pin.visibility === 'public' && <div className="pin-social-row"><button className={`pin-like-button ${pin.liked_by_me ? 'active' : ''}`} disabled={like.isPending} onClick={() => like.mutate()}><Heart size={17} fill={pin.liked_by_me ? 'currentColor' : 'none'} /> {pin.like_count} {pin.like_count === 1 ? 'like' : 'likes'}</button></div>}
           {pin.visibility === 'public' && <section className="pin-comments">
             <div className="pin-comments-title"><MessageCircle size={16} /><strong>Conversation</strong><span>{comments.data?.comments.length ?? 0}</span></div>

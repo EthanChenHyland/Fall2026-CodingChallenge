@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search with personalized and related-query recommendations, personalized public-pin recommendations, social feeds, multi-select Explore saving, profiles, follows, direct messages, likes/threaded comments with @mentions, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search with personalized and related-query recommendations, personalized public-pin recommendations, social feeds, profile and collection follows, multi-select Explore saving, profiles, direct messages, likes/threaded comments with @mentions, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+

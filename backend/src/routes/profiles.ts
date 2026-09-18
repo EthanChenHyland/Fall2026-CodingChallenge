@@ -57,14 +57,18 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
   const collections = db.prepare(`
     SELECT c.id, c.name, c.description, c.visibility, c.audience, c.share_token, c.created_at, c.updated_at,
       COUNT(i.id) AS item_count,
-      (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url
+      (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url,
+      (SELECT COUNT(*) FROM collection_follows cf WHERE cf.collection_id = c.id) AS follower_count,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM collection_follows cf WHERE cf.collection_id = c.id AND cf.follower_id = ?
+      ) THEN 1 ELSE 0 END AS followed_by_me
     FROM collections c
     JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
     LEFT JOIN items i ON i.collection_id = c.id
     WHERE c.audience IN ${visibleAudiences} AND c.share_token IS NOT NULL
     GROUP BY c.id
     ORDER BY c.updated_at DESC
-  `).all(userId)
+  `).all(req.user?.id ?? -1, userId)
 
   return res.json({
     profile: {

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, FolderHeart, MessageCircle } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { api } from '../api'
 import { EditProfileDialog } from '../components/EditProfileDialog'
 import { ConnectionsDialog } from '../components/ConnectionsDialog'
@@ -11,6 +12,11 @@ export function ProfilePage() {
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['profile', id], queryFn: () => api.profile(id), enabled: Number.isInteger(id) })
   const follow = useMutation({ mutationFn: () => data?.profile.followed_by_me ? api.unfollowProfile(id) : api.followProfile(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', id] }) })
+  const followCollection = useMutation({
+    mutationFn: ({ collectionId, followed }: { collectionId: number; followed: boolean }) => followed ? api.unfollowCollection(collectionId) : api.followCollection(collectionId),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['profile', id] }); void queryClient.invalidateQueries({ queryKey: ['explore'] }) },
+    onError: (error: Error) => toast.error(error.message),
+  })
 
   if (isLoading) return <div className="loading-page">Opening profile…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That profile is not available.</h3><Link className="primary-button" to="/">Back to Mosaic</Link></div>
@@ -35,10 +41,13 @@ export function ProfilePage() {
       {collections.length ? (
         <div className="collection-grid">
           {collections.map((collection) => (
-            <Link className="collection-card" to={`/shared/${collection.share_token}`} key={collection.id}>
-              <div className="collection-cover">{collection.cover_url ? <img src={collection.cover_url} alt="" /> : <div className="blank-cover"><FolderHeart size={28} /></div>}<span className="open-badge"><ArrowUpRight size={16} /></span></div>
-              <div className="collection-card-copy"><div><h3>{collection.name}</h3><p>{collection.description || 'A Mosaic collection.'}</p>{collection.audience === 'followers' && <small className="followers-only-label">Followers only</small>}</div><span>{collection.item_count} saved</span></div>
-            </Link>
+            <article className="collection-card profile-collection-card" key={collection.id}>
+              <Link to={`/shared/${collection.share_token}`} aria-label={`Open ${collection.name}`}>
+                <div className="collection-cover">{collection.cover_url ? <img src={collection.cover_url} alt="" /> : <div className="blank-cover"><FolderHeart size={28} /></div>}<span className="open-badge"><ArrowUpRight size={16} /></span></div>
+              </Link>
+              <div className="collection-card-copy"><div><Link to={`/shared/${collection.share_token}`}><h3>{collection.name}</h3></Link><p>{collection.description || 'A Mosaic collection.'}</p>{collection.audience === 'followers' && <small className="followers-only-label">Followers only</small>}</div><span>{collection.item_count} saved</span></div>
+              <div className="collection-follow-row"><span>{collection.follower_count ?? 0} {(collection.follower_count ?? 0) === 1 ? 'follower' : 'followers'}</span>{!profile.is_self && collection.audience === 'public' && <button className={collection.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={followCollection.isPending} onClick={() => followCollection.mutate({ collectionId: collection.id, followed: Boolean(collection.followed_by_me) })}>{collection.followed_by_me ? 'Following board' : 'Follow board'}</button>}</div>
+            </article>
           ))}
         </div>
       ) : <div className="empty-state"><FolderHeart size={28} /><h3>No visible collections yet.</h3></div>}

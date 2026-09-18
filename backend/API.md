@@ -36,6 +36,9 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 
 ## Collections
 
+- `POST /api/collections/:id/follow` — follow a public collection independently of its owner; the owner is notified once.
+- `DELETE /api/collections/:id/follow` — unfollow a collection. Following feed membership updates immediately.
+
 - `GET /api/collections` — list collections the current account owns or edits.
 - `POST /api/collections` — create a collection owned by the current account.
 - `GET /api/collections/:id` — get a collection, items, activity, and collaborators.

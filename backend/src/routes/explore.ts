@@ -72,11 +72,13 @@ exploreRouter.get('/', (req: AuthedRequest, res) => {
     WHERE c.visibility = 'public' AND c.share_token IS NOT NULL
       AND (? != 'following' OR EXISTS (
         SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.following_id = u.id
+      ) OR EXISTS (
+        SELECT 1 FROM collection_follows cf WHERE cf.follower_id = ? AND cf.collection_id = c.id
       ))
     ORDER BY CASE WHEN ? = 'trending' THEN (like_count * 3 + comment_count * 2) ELSE 0 END DESC,
       c.updated_at DESC, i.id DESC
     LIMIT ? OFFSET ?
-  `).all(mode, req.user?.id ?? -1, mode, limit + 1, offset)
+  `).all(mode, req.user?.id ?? -1, req.user?.id ?? -1, mode, limit + 1, offset)
   const hasMore = pins.length > limit
   return res.json({ pins: hasMore ? pins.slice(0, limit) : pins, nextPage: hasMore ? page + 1 : null })
 })

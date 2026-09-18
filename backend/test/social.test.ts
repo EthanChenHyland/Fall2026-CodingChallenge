@@ -40,6 +40,32 @@ test('following feed is driven by the social graph', async () => {
   assert.ok(following.body.pins.some((pin: { owner_id: number }) => pin.owner_id === curator.id))
 })
 
+test('public collections can be followed independently and feed Following', async () => {
+  const viewer = await makeCurator('Board Follower')
+  const curator = await makeCurator('Board Owner')
+  const created = await curator.agent.post('/api/collections').send({ name: 'Material walks', description: 'A board worth following.' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const search = await curator.agent.get('/api/search?q=concrete').expect(200)
+  const result = search.body.results[0]
+  await curator.agent.post(`/api/collections/${collectionId}/items`).send({ sourceId: result.id, imageUrl: result.imageUrl, sourcePage: result.pageUrl, sourceCreator: result.creator, title: 'Board-follow test pin' }).expect(201)
+  await curator.agent.post(`/api/collections/${collectionId}/share`).expect(200)
+
+  const before = await viewer.agent.get('/api/explore?mode=following').expect(200)
+  assert.ok(!before.body.pins.some((pin: { collection_id: number }) => pin.collection_id === collectionId))
+  await viewer.agent.post(`/api/collections/${collectionId}/follow`).expect(204)
+
+  const profile = await viewer.agent.get(`/api/profiles/${curator.id}`).expect(200)
+  const board = profile.body.collections.find((collection: { id: number }) => collection.id === collectionId)
+  assert.equal(board.follower_count, 1)
+  assert.equal(Boolean(board.followed_by_me), true)
+
+  const following = await viewer.agent.get('/api/explore?mode=following').expect(200)
+  assert.ok(following.body.pins.some((pin: { collection_id: number }) => pin.collection_id === collectionId))
+  await viewer.agent.delete(`/api/collections/${collectionId}/follow`).expect(204)
+  const after = await viewer.agent.get('/api/explore?mode=following').expect(200)
+  assert.ok(!after.body.pins.some((pin: { collection_id: number }) => pin.collection_id === collectionId))
+})
+
 test('followers-only collections require a follower relationship', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)

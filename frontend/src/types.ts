@@ -58,6 +58,8 @@ export type PinDetail = PublicPin & {
   like_count: number
   liked_by_me: boolean
   can_edit: boolean
+  collection_follower_count: number
+  collection_followed_by_me: boolean | number
 }
 
 
@@ -202,6 +204,8 @@ export type Collection = {
   owner_name?: string
   owner_avatar?: string
   role?: 'owner' | 'editor' | null
+  follower_count?: number
+  followed_by_me?: boolean | number
   items?: SavedItem[]
   sections?: CollectionSection[]
   activity?: ActivityItem[]

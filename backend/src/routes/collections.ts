@@ -113,6 +113,36 @@ collectionsRouter.post('/', (req: AuthedRequest, res) => {
   res.status(201).json({ collection: getCollection(id, req.user!.id) })
 })
 
+collectionsRouter.post('/:id/follow', (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  if (!Number.isSafeInteger(collectionId) || collectionId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
+  const collection = db.prepare(`
+    SELECT c.id, c.name, owner.user_id AS owner_id
+    FROM collections c
+    JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
+    WHERE c.id = ? AND c.visibility = 'public' AND c.share_token IS NOT NULL
+  `).get(collectionId) as { id: number; name: string; owner_id: number } | undefined
+  if (!collection) return res.status(404).json({ error: 'Collection not found.' })
+  if (collection.owner_id === req.user!.id) return res.status(400).json({ error: 'You already own this collection.' })
+  db.transaction(() => {
+    const result = db.prepare('INSERT OR IGNORE INTO collection_follows (follower_id, collection_id) VALUES (?, ?)').run(req.user!.id, collectionId)
+    if (result.changes) {
+      db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(
+        collection.owner_id,
+        collectionId,
+        `${req.user!.name} followed “${collection.name}”`,
+      )
+    }
+  })()
+  return res.status(204).end()
+})
+
+collectionsRouter.delete('/:id/follow', (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  db.prepare('DELETE FROM collection_follows WHERE follower_id = ? AND collection_id = ?').run(req.user!.id, collectionId)
+  return res.status(204).end()
+})
+
 collectionsRouter.get('/:id', requireMembership, (req: AuthedRequest, res) => {
   res.json({ collection: getCollection(Number(req.params.id), req.user!.id) })
 })
