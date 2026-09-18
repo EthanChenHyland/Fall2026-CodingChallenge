@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CheckSquare, Clock3, Copy, FolderPlus, Grid2X2, ImagePlus, LayoutDashboard, ListTree, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckSquare, Clock3, Copy, Download, FolderPlus, Grid2X2, ImagePlus, LayoutDashboard, ListTree, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -263,6 +263,20 @@ export function CollectionPage() {
     </article>
   }
 
+  const exportCollection = async () => {
+    try {
+      const payload = await api.exportCollection(id)
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${collection?.name ?? 'mosaic-collection'}`.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() + '.mosaic.json'
+      link.click()
+      URL.revokeObjectURL(url)
+      toast.success('Collection exported')
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not export collection.') }
+  }
+
   if (isLoading) return <div className="loading-page">Opening collection…</div>
   if (isError || !collection) return <div className="empty-state"><h3>We couldn’t find this collection.</h3><Link to="/collections">Back to collections</Link></div>
 
@@ -275,6 +289,7 @@ export function CollectionPage() {
           <AddPinDialog collectionId={id} trigger={<button className="primary-button"><ImagePlus size={16} /> Add pin</button>} />
           {collection.role === 'owner' && <EditCollectionDialog collection={collection} trigger={<button className="secondary-button"><Pencil size={16} /> Edit</button>} />}
           <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Share</button>} />
+          <button className="secondary-button" onClick={() => void exportCollection()}><Download size={16} /> Export</button>
           <span className="collaborator-count"><Users size={15} /> {collection.collaborators?.length ?? 1}</span>
         </div>
       </section>

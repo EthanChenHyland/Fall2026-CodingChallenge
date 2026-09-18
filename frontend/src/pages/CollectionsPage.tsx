@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Clock3, FolderHeart, Heart, Inbox, Plus, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowUpRight, Clock3, FolderHeart, Heart, Inbox, Plus, Search, Upload } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { api } from '../api'
 import { CreateCollectionDialog } from '../components/Dialogs'
 import type { Collection } from '../types'
@@ -26,10 +27,23 @@ function CollectionCover({ collection }: { collection: Collection }) {
 }
 
 export function CollectionsPage() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const importInput = useRef<HTMLInputElement>(null)
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'recent' | 'name' | 'size'>('recent')
+  const importCollection = useMutation({
+    mutationFn: api.importCollection,
+    onSuccess: ({ collection }) => { void queryClient.invalidateQueries({ queryKey: ['collections'] }); toast.success('Collection imported privately'); navigate(`/collections/${collection.id}`) },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const chooseImport = async (file?: File) => {
+    if (!file) return
+    try { importCollection.mutate(JSON.parse(await file.text()) as unknown) }
+    catch { toast.error('Choose a valid Mosaic JSON export.') }
+  }
   const collections = useMemo(() => {
     const filtered = (data?.collections ?? []).filter((collection) => `${collection.name} ${collection.description}`.toLowerCase().includes(query.trim().toLowerCase()))
     return [...filtered].sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'size' ? b.item_count - a.item_count : b.updated_at.localeCompare(a.updated_at))
@@ -39,7 +53,7 @@ export function CollectionsPage() {
     <>
       <section className="page-title-row">
         <div><span className="eyebrow">YOUR LIBRARY</span><h1>Collections</h1><p>Loose thoughts become useful when they have somewhere to live.</p></div>
-        <CreateCollectionDialog trigger={<button className="primary-button"><Plus size={17} /> New collection</button>} />
+        <div className="page-title-actions"><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={(event) => { void chooseImport(event.target.files?.[0]); event.currentTarget.value = '' }} /><button className="secondary-button" disabled={importCollection.isPending} onClick={() => importInput.current?.click()}><Upload size={17} /> Import</button><CreateCollectionDialog trigger={<button className="primary-button"><Plus size={17} /> New collection</button>} /></div>
       </section>
       <CreateCollectionDialog
         open={searchParams.get('new') === '1'}

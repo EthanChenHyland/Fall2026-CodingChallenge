@@ -47,6 +47,34 @@ const inviteSchema = z.object({
 
 const sectionSchema = z.object({ name: z.string().trim().min(1).max(80) })
 
+const collectionImportSchema = z.object({
+  format: z.literal('mosaic.collection'),
+  version: z.literal(1),
+  collection: z.object({
+    name: z.string().trim().min(1).max(80),
+    description: z.string().trim().max(280).default(''),
+    theme: z.enum(['paper', 'sage', 'clay', 'slate']).default('paper'),
+    gridLayout: z.enum(['gallery', 'compact', 'masonry']).default('gallery'),
+    coverFocusX: z.number().finite().min(0).max(100).default(50),
+    coverFocusY: z.number().finite().min(0).max(100).default(50),
+    coverSourceId: z.string().max(200).nullable().default(null),
+  }),
+  sections: z.array(z.object({ key: z.string().min(1).max(80), name: z.string().trim().min(1).max(80), position: z.number().int().min(0).max(1000) })).max(100),
+  items: z.array(z.object({
+    sourceId: z.string().min(1).max(200),
+    imageUrl: imageUrlSchema,
+    sourcePage: sourceUrlSchema.default(''),
+    sourceCreator: z.string().max(120).default(''),
+    title: z.string().trim().min(1).max(120),
+    note: z.string().trim().max(500).default(''),
+    tags: z.string().trim().max(240).default(''),
+    sectionKey: z.string().max(80).nullable().default(null),
+    canvasX: z.number().finite().min(0).max(5000).default(40),
+    canvasY: z.number().finite().min(0).max(5000).default(40),
+    rotation: z.number().finite().min(-12).max(12).default(0),
+  })).max(300),
+})
+
 collectionsRouter.get('/', (req: AuthedRequest, res) => {
   const rows = db.prepare(`
     SELECT c.*,
@@ -114,6 +142,44 @@ collectionsRouter.post('/', (req: AuthedRequest, res) => {
   res.status(201).json({ collection: getCollection(id, req.user!.id) })
 })
 
+collectionsRouter.post('/import', (req: AuthedRequest, res) => {
+  const parsed = collectionImportSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'That collection export is invalid or unsupported.' })
+  const payload = parsed.data
+  const sectionKeys = new Set(payload.sections.map((section) => section.key))
+  if (sectionKeys.size !== payload.sections.length || payload.items.some((item) => item.sectionKey && !sectionKeys.has(item.sectionKey))) {
+    return res.status(400).json({ error: 'That collection export has invalid section references.' })
+  }
+  const sourceIds = new Set(payload.items.map((item) => item.sourceId))
+  if (sourceIds.size !== payload.items.length) return res.status(400).json({ error: 'That collection export contains duplicate pins.' })
+
+  const collectionId = db.transaction(() => {
+    const created = db.prepare(`
+      INSERT INTO collections (name, description, visibility, audience, share_token, cover_focus_x, cover_focus_y, theme, grid_layout)
+      VALUES (?, ?, 'private', 'private', NULL, ?, ?, ?, ?)
+    `).run(payload.collection.name, payload.collection.description, payload.collection.coverFocusX, payload.collection.coverFocusY, payload.collection.theme, payload.collection.gridLayout)
+    const id = Number(created.lastInsertRowid)
+    db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(id, req.user!.id)
+    const sectionIds = new Map<string, number>()
+    const insertSection = db.prepare('INSERT INTO collection_sections (collection_id, name, position) VALUES (?, ?, ?)')
+    for (const section of payload.sections) sectionIds.set(section.key, Number(insertSection.run(id, section.name, section.position).lastInsertRowid))
+    const insertItem = db.prepare(`
+      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, section_id, canvas_x, canvas_y, rotation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const item of payload.items) {
+      insertItem.run(id, item.sourceId, item.imageUrl, item.sourcePage, item.sourceCreator, item.title, item.note, item.tags, item.sectionKey ? sectionIds.get(item.sectionKey) ?? null : null, item.canvasX, item.canvasY, item.rotation)
+    }
+    if (payload.collection.coverSourceId) {
+      const cover = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(id, payload.collection.coverSourceId) as { id: number } | undefined
+      if (cover) db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ?').run(cover.id, id)
+    }
+    logActivity(id, `${actor(req)} imported this collection`, req.user!.id)
+    return id
+  })()
+  return res.status(201).json({ collection: getCollection(collectionId, req.user!.id) })
+})
+
 collectionsRouter.post('/:id/follow', (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   if (!Number.isSafeInteger(collectionId) || collectionId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
@@ -146,6 +212,44 @@ collectionsRouter.delete('/:id/follow', (req: AuthedRequest, res) => {
 
 collectionsRouter.get('/:id', requireMembership, (req: AuthedRequest, res) => {
   res.json({ collection: getCollection(Number(req.params.id), req.user!.id) })
+})
+
+collectionsRouter.get('/:id/export', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const collection = getCollection(collectionId, req.user!.id) as Record<string, unknown> & { items?: Array<Record<string, unknown>>; sections?: Array<Record<string, unknown>> }
+  if (!collection) return res.status(404).json({ error: 'Collection not found.' })
+  const sectionKeyById = new Map((collection.sections ?? []).map((section) => [Number(section.id), `section-${section.id}`]))
+  const coverSourceId = collection.cover_item_id
+    ? String((collection.items ?? []).find((item) => Number(item.id) === Number(collection.cover_item_id))?.source_id ?? '') || null
+    : null
+  return res.json({
+    format: 'mosaic.collection',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    collection: {
+      name: collection.name,
+      description: collection.description,
+      theme: collection.theme ?? 'paper',
+      gridLayout: collection.grid_layout ?? 'gallery',
+      coverFocusX: Number(collection.cover_focus_x ?? 50),
+      coverFocusY: Number(collection.cover_focus_y ?? 50),
+      coverSourceId,
+    },
+    sections: (collection.sections ?? []).map((section) => ({ key: sectionKeyById.get(Number(section.id)), name: section.name, position: Number(section.position ?? 0) })),
+    items: (collection.items ?? []).map((item) => ({
+      sourceId: item.source_id,
+      imageUrl: item.image_url,
+      sourcePage: item.source_page,
+      sourceCreator: item.source_creator,
+      title: item.title,
+      note: item.note,
+      tags: item.tags,
+      sectionKey: item.section_id ? sectionKeyById.get(Number(item.section_id)) ?? null : null,
+      canvasX: Number(item.canvas_x ?? 40),
+      canvasY: Number(item.canvas_y ?? 40),
+      rotation: Number(item.rotation ?? 0),
+    })),
+  })
 })
 
 collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => {

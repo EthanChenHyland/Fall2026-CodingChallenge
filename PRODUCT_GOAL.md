@@ -12,6 +12,7 @@ A first-time reviewer should be able to understand the product without instructi
 - [x] Optional provider upgrades: Pixabay search and Cloudinary uploads from environment variables.
 - [x] Creation loop: web discovery, URL pins, file upload, PWA Quick Capture/share target.
 - [x] Collection loop: create, rename, describe, save, edit, remove, search, sort, board sections, bulk move/copy/organize, privacy toggle, public link.
+- [x] Portable collections: member-only JSON export preserves organization and Canvas layout; imports always create a new private owner-only board.
 - [x] Signature interaction: persisted tactile Canvas with drag/keyboard movement plus one-click remix and tidy compositions.
 - [x] Collaboration: account-based editors, scoped permissions, activity history, notifications, optimistic UI with rollback.
 - [x] Social layer: public profiles, profile and collection follows, follower/following browser, private direct messages with unread state and public-pin previews, Pin → DM sharing, single and multi-select save-to-collection from public feeds with privacy-safe repin lineage, save from messages, For You/Following/Trending feeds with followed-board activity, personalized “Because you saved…” recommendations, follower-only collections, likes, threaded comment replies, @mentions, moderation, related pins.
@@ -34,4 +35,4 @@ A first-time reviewer should be able to understand the product without instructi
 
 ## Post-challenge stretch, not required for deployment
 
-Optional future directions that should only be added if they improve the product rather than the feature count: OAuth, richer comment replies, video pins, collection export/import, dynamic social-preview metadata, and a PostgreSQL storage adapter for multi-instance hosting.
+Optional future directions that should only be added if they improve the product rather than the feature count: OAuth, richer comment replies, video pins, dynamic social-preview metadata, and a PostgreSQL storage adapter for multi-instance hosting.

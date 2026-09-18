@@ -128,6 +128,55 @@ test('collection covers can use a saved item and custom focus', async () => {
   assert.deepEqual(updated.body.collection.cover_urls, [image.imageUrl])
 })
 
+test('collection export and import preserve organization and layout while importing privately', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const created = await owner.post('/api/collections').send({ name: 'Portable board', description: 'Export me.' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const search = await owner.get('/api/search').expect(200)
+  const image = search.body.results[1]
+  const saved = await owner.post(`/api/collections/${collectionId}/items`).send({
+    sourceId: `portable-${randomUUID()}`,
+    imageUrl: image.imageUrl,
+    sourcePage: image.pageUrl,
+    sourceCreator: image.creator,
+    title: 'Portable pin',
+    note: 'Keep this note.',
+    tags: ['texture', 'reference'],
+  }).expect(201)
+  const itemId = saved.body.item.id as number
+  const section = await owner.post(`/api/collections/${collectionId}/sections`).send({ name: 'Materials' }).expect(201)
+  const sectionId = section.body.section.id as number
+  await owner.post(`/api/collections/${collectionId}/items/bulk`).send({ action: 'section', itemIds: [itemId], sectionId }).expect(200)
+  await owner.patch(`/api/collections/${collectionId}/items/${itemId}`).send({ canvasX: 412, canvasY: 288, rotation: 4 }).expect(200)
+  await owner.patch(`/api/collections/${collectionId}`).send({ coverItemId: itemId, coverFocusX: 31, coverFocusY: 72, theme: 'sage', gridLayout: 'masonry' }).expect(200)
+
+  const exported = await owner.get(`/api/collections/${collectionId}/export`).expect(200)
+  assert.equal(exported.body.format, 'mosaic.collection')
+  assert.equal(exported.body.version, 1)
+  assert.equal(exported.body.sections[0].name, 'Materials')
+  assert.equal(exported.body.items[0].sectionKey, exported.body.sections[0].key)
+
+  const imported = await owner.post('/api/collections/import').send(exported.body).expect(201)
+  const importedCollection = imported.body.collection
+  assert.notEqual(importedCollection.id, collectionId)
+  assert.equal(importedCollection.name, 'Portable board')
+  assert.equal(importedCollection.visibility, 'private')
+  assert.equal(importedCollection.audience, 'private')
+  assert.equal(importedCollection.share_token, null)
+  assert.equal(importedCollection.theme, 'sage')
+  assert.equal(importedCollection.grid_layout, 'masonry')
+  assert.equal(importedCollection.sections[0].name, 'Materials')
+  assert.equal(importedCollection.items[0].section_id, importedCollection.sections[0].id)
+  assert.equal(importedCollection.items[0].note, 'Keep this note.')
+  assert.equal(importedCollection.items[0].tags, 'texture, reference')
+  assert.equal(importedCollection.items[0].canvas_x, 412)
+  assert.equal(importedCollection.items[0].canvas_y, 288)
+  assert.equal(importedCollection.items[0].rotation, 4)
+  assert.equal(importedCollection.cover_item_id, importedCollection.items[0].id)
+  assert.equal(importedCollection.collaborators.length, 1)
+})
+
 test('organization tools persist tags, board style, smart views, bulk moves, and restore', async () => {
   const owner = request.agent(app)
   await owner.post('/api/auth/demo').expect(200)

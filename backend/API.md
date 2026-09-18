@@ -45,6 +45,8 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `GET /api/collections` — list collections the current account owns or edits.
 - `POST /api/collections` — create a collection owned by the current account.
 - `GET /api/collections/:id` — get a collection, items, activity, and collaborators.
+- `GET /api/collections/:id/export` — member-only portable Mosaic JSON export preserving board metadata, sections, notes/tags, Canvas placement, and cover choice while excluding collaborators, share tokens, and social metadata.
+- `POST /api/collections/import` — import a supported Mosaic JSON export as a new private collection owned only by the signed-in user.
 - `PATCH /api/collections/:id` — edit collection metadata; only owners can change private/followers/public audience.
 - `DELETE /api/collections/:id` — owner-only collection deletion.
 - `POST /api/collections/:id/items` — save an image with optional note atomically; images require HTTPS or an existing local media URL. Pixabay images are copied to persistent media.
