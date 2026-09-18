@@ -69,10 +69,10 @@ messagesRouter.post('/:id', (req: AuthedRequest, res) => {
   const conversationId = Number(req.params.id)
   if (!Number.isSafeInteger(conversationId)) return res.status(400).json({ error: 'Invalid conversation.' })
   if (!conversationFor(conversationId, req.user!.id)) return res.status(404).json({ error: 'Conversation not found.' })
-  const parsed = z.object({ body: z.string().trim().min(1).max(1200), pinId: z.number().int().positive().optional() }).safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Write a message between 1 and 1,200 characters.' })
-  if (parsed.data.pinId && !db.prepare("SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'").get(parsed.data.pinId)) {
-    return res.status(400).json({ error: 'Only public pins can be sent in messages.' })
+  const parsed = z.object({ body: z.string().trim().max(1200).default(''), pinId: z.number().int().positive().optional() }).safeParse(req.body)
+  if (!parsed.success || (!parsed.data.body && !parsed.data.pinId)) return res.status(400).json({ error: 'Write a message or attach a pin.' })
+  if (parsed.data.pinId && !db.prepare("SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public' AND c.share_token IS NOT NULL").get(parsed.data.pinId)) {
+    return res.status(400).json({ error: 'That pin is no longer available to share.' })
   }
   const message = db.transaction(() => {
     const result = db.prepare('INSERT INTO messages (conversation_id, sender_id, body, pin_id) VALUES (?, ?, ?, ?)').run(conversationId, req.user!.id, parsed.data.body, parsed.data.pinId ?? null)

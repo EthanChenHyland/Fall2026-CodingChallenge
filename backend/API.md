@@ -95,7 +95,7 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 - `GET /api/messages` — list the signed-in user's one-to-one conversations, latest message preview, and unread count.
 - `POST /api/messages/with/:userId` — create or resume a conversation with another Mosaic account.
 - `GET /api/messages/:id` — load a conversation and its persisted message history; participants only.
-- `POST /api/messages/:id` — send a message up to 1,200 characters; participants only. An optional `pinId` may attach a currently public pin, which is returned with title/image metadata for a tappable conversation preview.
+- `POST /api/messages/:id` — send a message up to 1,200 characters; participants only. An optional `pinId` may attach a currently public, shareable pin. The text may be empty when a pin is attached, and the pin is returned with title/image metadata for a tappable conversation preview.
 - `POST /api/messages/:id/read` — mark incoming messages in the conversation as read.
 
 All private collection routes require a valid session and membership. Editors may change saved content and Canvas placement. Owner-only actions include deletion, public sharing, visibility, and collaborator management.

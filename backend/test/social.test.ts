@@ -353,6 +353,43 @@ test('direct messages stay private and unread state clears on read', async () =>
   assert.equal(demoInbox.body.conversations.find((entry: { id: number }) => entry.id === conversationId).unread_count, 1)
 })
 
+test('pin messages support optional notes while rejecting unavailable attachments', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const recipient = await makeCurator('Pin Message Recipient')
+  const conversation = await demo.post(`/api/messages/with/${recipient.id}`).expect(200)
+  const conversationId = conversation.body.conversationId as number
+
+  const explore = await recipient.agent.get('/api/explore').expect(200)
+  const publicPin = explore.body.pins.find((pin: { owner_name: string }) => pin.owner_name === 'Demo Curator') as { id: number; title: string }
+  assert.ok(publicPin)
+
+  const custom = await demo.post(`/api/messages/${conversationId}`).send({ body: 'This texture feels like your board.', pinId: publicPin.id }).expect(201)
+  assert.equal(custom.body.message.body, 'This texture feels like your board.')
+  assert.equal(custom.body.message.pin_id, publicPin.id)
+  assert.equal(custom.body.message.pin_title, publicPin.title)
+
+  const pinOnly = await demo.post(`/api/messages/${conversationId}`).send({ body: '', pinId: publicPin.id }).expect(201)
+  assert.equal(pinOnly.body.message.body, '')
+  assert.equal(pinOnly.body.message.pin_id, publicPin.id)
+  await demo.post(`/api/messages/${conversationId}`).send({ body: '' }).expect(400)
+
+  const privateCollection = await demo.post('/api/collections').send({ name: 'Private DM source' }).expect(201)
+  const privatePin = await demo.post(`/api/collections/${privateCollection.body.collection.id}/items`).send({
+    sourceId: `private-dm-${randomUUID()}`,
+    imageUrl: 'https://example.com/private-dm.jpg',
+    sourcePage: 'https://example.com/private-dm',
+    sourceCreator: 'Test',
+    title: 'Private attachment',
+  }).expect(201)
+  await demo.post(`/api/messages/${conversationId}`).send({ body: 'Should fail', pinId: privatePin.body.item.id }).expect(400)
+  await demo.post(`/api/messages/${conversationId}`).send({ body: 'Should fail', pinId: 999999999 }).expect(400)
+
+  const thread = await recipient.agent.get(`/api/messages/${conversationId}`).expect(200)
+  assert.ok(thread.body.messages.some((message: { body: string; pin_id: number }) => message.body === 'This texture feels like your board.' && message.pin_id === publicPin.id))
+  assert.ok(thread.body.messages.some((message: { body: string; pin_id: number }) => message.body === '' && message.pin_id === publicPin.id))
+})
+
 test('likes and comment moderation stay consistent', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)
