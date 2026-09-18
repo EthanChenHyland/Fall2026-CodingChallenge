@@ -41,7 +41,12 @@ test('expired sessions return to auth and do not leak cached account data', asyn
 
 test('reviewer can move through the core product', async ({ page }) => {
   await enterDemo(page)
-  await expect(page.getByLabel('Search images')).toBeVisible()
+  const search = page.getByLabel('Search images')
+  await expect(search).toBeVisible()
+  await search.focus()
+  await expect(search).toBeFocused()
+  const focusShadow = await page.locator('.discover-search').evaluate((element) => getComputedStyle(element).boxShadow)
+  expect(focusShadow).not.toBe('none')
 
   await page.getByRole('link', { name: 'Collections' }).click()
   await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
