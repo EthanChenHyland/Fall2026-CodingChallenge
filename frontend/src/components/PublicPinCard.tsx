@@ -1,6 +1,7 @@
-import { ArrowUpRight, Heart, MessageCircle } from 'lucide-react'
+import { ArrowUpRight, Bookmark, Heart, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { PublicPin } from '../types'
+import { SavePinDialog } from './SavePinDialog'
 
 export function PublicPinCard({ pin }: { pin: PublicPin }) {
   return (
@@ -9,6 +10,7 @@ export function PublicPinCard({ pin }: { pin: PublicPin }) {
         <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
         <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
       </Link>
+      <SavePinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="pin-card-save"><Bookmark size={14} /> Save</button>} />
       <div className="image-meta public-pin-meta">
         <strong>{pin.title}</strong>
         <span>{pin.collection_name}</span>

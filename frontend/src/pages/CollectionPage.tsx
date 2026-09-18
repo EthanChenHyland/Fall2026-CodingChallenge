@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CheckSquare, Clock3, Grid2X2, ImagePlus, LayoutDashboard, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckSquare, Clock3, Copy, FolderPlus, Grid2X2, ImagePlus, LayoutDashboard, ListTree, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -107,6 +107,9 @@ export function CollectionPage() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   const [targetCollectionId, setTargetCollectionId] = useState('')
+  const [targetSectionId, setTargetSectionId] = useState('')
+  const [addingSection, setAddingSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState('')
   const [undoStack, setUndoStack] = useState<LayoutChange[][]>([])
   const [redoStack, setRedoStack] = useState<LayoutChange[][]>([])
   const [busy, setBusy] = useState(false)
@@ -122,6 +125,7 @@ export function CollectionPage() {
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const collection = data?.collection
   const items = useMemo(() => collection?.items ?? [], [collection?.items])
+  const sections = useMemo(() => collection?.sections ?? [], [collection?.sections])
   const tags = useMemo(() => Array.from(new Set(items.flatMap((item) => (item.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean)))).slice(0, 10), [items])
   const filteredItems = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -131,6 +135,11 @@ export function CollectionPage() {
       return matchesText && matchesTag
     })
   }, [activeTag, filter, items])
+  const groupedItems = useMemo(() => {
+    const groups = sections.map((section) => ({ section, items: filteredItems.filter((item) => item.section_id === section.id) }))
+    const unsorted = filteredItems.filter((item) => !item.section_id)
+    return [...groups.filter((group) => group.items.length || (!filter.trim() && !activeTag)), ...(unsorted.length ? [{ section: null, items: unsorted }] : [])]
+  }, [activeTag, filter, filteredItems, sections])
 
   const remove = useMutation({
     mutationFn: async (item: SavedItem) => { await api.deleteItem(id, item.id); return item },
@@ -190,7 +199,7 @@ export function CollectionPage() {
     if (next.has(itemId)) next.delete(itemId); else next.add(itemId)
     return next
   })
-  const stopSelecting = () => { setSelecting(false); setSelected(new Set()); setTargetCollectionId('') }
+  const stopSelecting = () => { setSelecting(false); setSelected(new Set()); setTargetCollectionId(''); setTargetSectionId('') }
   const bulkDelete = async () => {
     const result = await api.bulkItems(id, { action: 'delete', itemIds: [...selected] })
     stopSelecting()
@@ -205,6 +214,53 @@ export function CollectionPage() {
     stopSelecting()
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['collection', id] }), queryClient.invalidateQueries({ queryKey: ['collection', targetId] }), queryClient.invalidateQueries({ queryKey: ['collections'] })])
     toast.success(`${itemIds.length} ${itemIds.length === 1 ? 'pin' : 'pins'} moved`, { action: { label: 'Undo', onClick: () => { void api.bulkItems(targetId, { action: 'move', itemIds, targetCollectionId: id }).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', id] }); queryClient.invalidateQueries({ queryKey: ['collection', targetId] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }).catch((error: Error) => toast.error(error.message)) } } })
+  }
+  const bulkCopy = async () => {
+    const targetId = Number(targetCollectionId)
+    if (!targetId) return
+    const itemIds = [...selected]
+    const result = await api.bulkItems(id, { action: 'copy', itemIds, targetCollectionId: targetId })
+    stopSelecting()
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['collection', targetId] }), queryClient.invalidateQueries({ queryKey: ['collections'] })])
+    toast.success(`${itemIds.length} ${itemIds.length === 1 ? 'pin' : 'pins'} copied`, { action: { label: 'Undo', onClick: () => { void api.bulkItems(targetId, { action: 'delete', itemIds: result.items.map((item) => item.id) }).then(() => { queryClient.invalidateQueries({ queryKey: ['collection', targetId] }); queryClient.invalidateQueries({ queryKey: ['collections'] }) }).catch((error: Error) => toast.error(error.message)) } } })
+  }
+  const bulkSection = async () => {
+    if (!targetSectionId) return
+    const sectionId = targetSectionId === 'unsorted' ? null : Number(targetSectionId)
+    await api.bulkItems(id, { action: 'section', itemIds: [...selected], sectionId })
+    stopSelecting()
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success(sectionId === null ? 'Moved to Unsorted' : 'Pins organized into section')
+  }
+  const createSection = async () => {
+    const name = newSectionName.trim()
+    if (!name) return
+    await api.createSection(id, name)
+    setNewSectionName('')
+    setAddingSection(false)
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success('Section created')
+  }
+  const removeSection = async (sectionId: number) => {
+    await api.deleteSection(id, sectionId)
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success('Section removed; its pins are now Unsorted')
+  }
+  const renameSection = async (sectionId: number, currentName: string) => {
+    const name = window.prompt('Rename section', currentName)?.trim()
+    if (!name || name === currentName) return
+    await api.updateSection(id, sectionId, name)
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    toast.success('Section renamed')
+  }
+
+  const renderSavedItem = (item: SavedItem) => {
+    const selectedItem = selected.has(item.id)
+    return <article className={`saved-card ${selectedItem ? 'selected' : ''}`} key={item.id}>
+      {selecting && <button className="selection-toggle" aria-label={`${selectedItem ? 'Deselect' : 'Select'} ${item.title}`} aria-pressed={selectedItem} onClick={() => toggleSelected(item.id)}>{selectedItem ? <Check size={15} /> : null}</button>}
+      <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" />
+      <div className="saved-card-copy"><div><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}<span className="saved-time">Saved {relativeTime(item.created_at)}</span>{item.tags && <div className="saved-tags">{item.tags.split(',').slice(0, 3).map((tag) => <span key={tag.trim()}>{tag.trim()}</span>)}</div>}</div>{!selecting && <div className="item-actions"><EditItemDialog collectionId={id} item={item} trigger={<button aria-label="Edit"><Pencil size={16} /></button>} /><button aria-label="Remove" onClick={() => remove.mutate(item)}><Trash2 size={16} /></button></div>}</div>
+    </article>
   }
 
   if (isLoading) return <div className="loading-page">Opening collection…</div>
@@ -231,18 +287,12 @@ export function CollectionPage() {
           <Tabs.Content value="grid">
             <div className="collection-grid-tools">
               <label><Search size={14} /><input aria-label="Filter this collection" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter this collection" /></label>
-              <button className={`secondary-button ${selecting ? 'active' : ''}`} onClick={() => selecting ? stopSelecting() : setSelecting(true)}>{selecting ? <X size={14} /> : <CheckSquare size={14} />}{selecting ? 'Done' : 'Select'}</button>
+              <div className="collection-grid-actions"><button className="secondary-button" onClick={() => setAddingSection((current) => !current)}><FolderPlus size={14} /> Section</button><button className={`secondary-button ${selecting ? 'active' : ''}`} onClick={() => selecting ? stopSelecting() : setSelecting(true)}>{selecting ? <X size={14} /> : <CheckSquare size={14} />}{selecting ? 'Done' : 'Select'}</button></div>
             </div>
+            {addingSection && <form className="section-create-row" onSubmit={(event) => { event.preventDefault(); void runAction(createSection) }}><ListTree size={15} /><input aria-label="Section name" maxLength={80} autoFocus value={newSectionName} onChange={(event) => setNewSectionName(event.target.value)} placeholder="Materials, Places, Ideas…" /><button className="primary-button" type="submit" disabled={busy || !newSectionName.trim()}>Create</button><button className="secondary-button" type="button" onClick={() => { setAddingSection(false); setNewSectionName('') }}>Cancel</button></form>}
             {!!tags.length && <div className="collection-tag-filter"><button className={!activeTag ? 'active' : ''} onClick={() => setActiveTag('')}>All</button>{tags.map((tag) => <button className={activeTag === tag ? 'active' : ''} key={tag} onClick={() => setActiveTag(tag)}>{tag}</button>)}</div>}
-            {selecting && <div className="bulk-action-bar"><strong>{selected.size} selected</strong><select aria-label="Move selected pins to collection" value={targetCollectionId} onChange={(event) => setTargetCollectionId(event.target.value)}><option value="">Move to…</option>{collectionsQuery.data?.collections.filter((option) => option.id !== id).map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkMove)}><MoveRight size={14} /> Move</button><button className="danger" disabled={busy || !selected.size} onClick={() => void runAction(bulkDelete)}><Trash2 size={14} /> Delete</button></div>}
-            {filteredItems.length ? <div className={`saved-grid layout-${collection.grid_layout ?? 'gallery'}`}>{filteredItems.map((item) => {
-              const selectedItem = selected.has(item.id)
-              return <article className={`saved-card ${selectedItem ? 'selected' : ''}`} key={item.id}>
-                {selecting && <button className="selection-toggle" aria-label={`${selectedItem ? 'Deselect' : 'Select'} ${item.title}`} aria-pressed={selectedItem} onClick={() => toggleSelected(item.id)}>{selectedItem ? <Check size={15} /> : null}</button>}
-                <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" />
-                <div className="saved-card-copy"><div><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}<span className="saved-time">Saved {relativeTime(item.created_at)}</span>{item.tags && <div className="saved-tags">{item.tags.split(',').slice(0, 3).map((tag) => <span key={tag.trim()}>{tag.trim()}</span>)}</div>}</div>{!selecting && <div className="item-actions"><EditItemDialog collectionId={id} item={item} trigger={<button aria-label="Edit"><Pencil size={16} /></button>} /><button aria-label="Remove" onClick={() => remove.mutate(item)}><Trash2 size={16} /></button></div>}</div>
-              </article>
-            })}</div> : <div className="empty-state compact"><Search size={24} /><h3>No saves match that filter.</h3><button className="secondary-button" onClick={() => { setFilter(''); setActiveTag('') }}>Clear filters</button></div>}
+            {selecting && <div className="bulk-action-bar"><strong>{selected.size} selected</strong><select aria-label="Destination collection" value={targetCollectionId} onChange={(event) => setTargetCollectionId(event.target.value)}><option value="">Choose board…</option>{collectionsQuery.data?.collections.filter((option) => option.id !== id).map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkMove)}><MoveRight size={14} /> Move</button><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkCopy)}><Copy size={14} /> Copy</button>{sections.length > 0 && <><select aria-label="Assign selected pins to section" value={targetSectionId} onChange={(event) => setTargetSectionId(event.target.value)}><option value="">Section…</option><option value="unsorted">Unsorted</option>{sections.map((section) => <option value={section.id} key={section.id}>{section.name}</option>)}</select><button disabled={busy || !selected.size || !targetSectionId} onClick={() => void runAction(bulkSection)}><ListTree size={14} /> Organize</button></>}<button className="danger" disabled={busy || !selected.size} onClick={() => void runAction(bulkDelete)}><Trash2 size={14} /> Delete</button></div>}
+            {filteredItems.length ? <div className="sectioned-grid">{groupedItems.map((group) => <section className="collection-section" key={group.section?.id ?? 'unsorted'}><div className="collection-section-head"><div><span className="eyebrow">{group.section ? 'SECTION' : 'UNSORTED'}</span><h3>{group.section?.name ?? 'Unsorted'}</h3><small>{group.items.length} {group.items.length === 1 ? 'pin' : 'pins'}</small></div>{group.section && <div className="section-actions"><button aria-label={`Rename ${group.section.name}`} onClick={() => void runAction(() => renameSection(group.section!.id, group.section!.name))}><Pencil size={13} /></button><button aria-label={`Remove ${group.section.name}`} onClick={() => void runAction(() => removeSection(group.section!.id))}><Trash2 size={13} /></button></div>}</div>{group.items.length ? <div className={`saved-grid layout-${collection.grid_layout ?? 'gallery'}`}>{group.items.map(renderSavedItem)}</div> : <div className="section-empty">Select pins and use Organize to add them here.</div>}</section>)}</div> : <div className="empty-state compact"><Search size={24} /><h3>No saves match that filter.</h3><button className="secondary-button" onClick={() => { setFilter(''); setActiveTag('') }}>Clear filters</button></div>}
           </Tabs.Content>
           <Tabs.Content value="canvas">
             <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag, nudge, align, undo, and remix your saves into a visual story.</span></div><div className="canvas-tools"><button className="canvas-reset" disabled={busy || !undoStack.length} onClick={() => void runAction(undoLayout)} title="Undo canvas change"><Undo2 size={14} /> Undo</button><button className="canvas-reset" disabled={busy || !redoStack.length} onClick={() => void runAction(redoLayout)} title="Redo canvas change"><Redo2 size={14} /> Redo</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('remix'))}><Shuffle size={14} /> Remix board</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('tidy'))}><RotateCcw size={14} /> Tidy up</button></div></div>

@@ -216,11 +216,14 @@ img { display: block; max-width: 100%; }
 .collection-choice-list { display: grid; gap: 5px; margin: 12px 0; }
 .collection-choice-list > button { width: 100%; border: 0; background: transparent; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 11px; text-align: left; padding: 7px; border-radius: 10px; cursor: pointer; }
 .collection-choice-list > button:hover { background: #ece8e0; }
+.collection-choice-list > button:disabled { cursor: default; opacity: .68; }
 .collection-choice-list > button > span:nth-child(2) { display: grid; gap: 2px; }
 .collection-choice-list strong { font-size: 12px; }
 .collection-choice-list small { color: var(--muted); font-size: 10px; }
 .choice-thumb { width: 42px; height: 42px; overflow: hidden; border-radius: 8px; background: #ddd6ca; display: grid; place-items: center; font-family: Georgia, serif; }
 .choice-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.save-pin-note { margin-bottom: 8px; }
+.save-duplicate-mark { color: var(--accent); font-size: 9px; font-weight: 800; }
 .edit-image { width: 100%; max-height: 220px; object-fit: cover; border-radius: 13px; margin: 16px 0; }
 .cover-editor { margin: 20px 0; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .cover-editor-head { display: grid; gap: 4px; margin-bottom: 12px; }
@@ -583,6 +586,10 @@ img { display: block; max-width: 100%; }
 @media (max-width: 780px) { .pin-page-card { grid-template-columns: 1fr; margin-top: 20px; border-radius: 18px; } .pin-page-media { min-height: 0; } .pin-page-media img { max-height: none; } .pin-page-copy { padding: 28px 22px 34px; } .pin-page-copy h1 { font-size: 36px; } }
 .public-pin-image { display: block; min-height: 180px; }
 .public-pin-image img { width: 100%; height: auto; min-height: 180px; object-fit: cover; }
+.public-pin-card { position: relative; }
+.pin-card-save { position: absolute; z-index: 3; top: 10px; right: 10px; min-height: 34px; padding: 0 11px; border: 0; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.94); color: var(--ink); box-shadow: 0 4px 16px rgba(24,22,18,.12); cursor: pointer; font-size: 9px; font-weight: 800; opacity: 0; transform: translateY(-3px); transition: .18s ease; }
+.public-pin-card:hover .pin-card-save, .pin-card-save:focus-visible { opacity: 1; transform: translateY(0); }
+@media (hover: none), (max-width: 700px) { .pin-card-save { opacity: 1; transform: none; } }
 .pin-open-badge { position: absolute; right: 10px; bottom: 10px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.92); opacity: 0; transform: translateY(4px); transition: .2s ease; }
 .public-pin-card:hover .pin-open-badge { opacity: 1; transform: translateY(0); }
 .public-pin-meta { gap: 3px; }
@@ -757,6 +764,21 @@ img { display: block; max-width: 100%; }
 .bulk-action-bar strong { margin-right: auto; font-size: 10px; }
 .bulk-action-bar select { min-height: 34px; max-width: 190px; border: 1px solid #d5cfc5; border-radius: 8px; background: #fff; padding: 0 9px; color: #655f57; font-size: 9px; }
 .bulk-action-bar button { min-height: 34px; border: 1px solid #d5cfc5; border-radius: 8px; background: #fff; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 9px; font-weight: 750; }
+.collection-grid-actions { display: flex; gap: 7px; }
+.section-create-row { display: grid; grid-template-columns: auto minmax(160px, 1fr) auto auto; align-items: center; gap: 8px; margin: 0 0 15px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.58); color: var(--muted); }
+.section-create-row input { min-height: 38px; border: 1px solid var(--line); border-radius: 9px; padding: 0 11px; background: #fff; color: var(--ink); outline: 0; }
+.section-create-row input:focus { border-color: #aeb5ea; box-shadow: 0 0 0 3px rgba(77,91,209,.08); }
+.sectioned-grid { display: grid; gap: 30px; }
+.collection-section { min-width: 0; }
+.collection-section-head { min-height: 52px; display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+.collection-section-head > div:first-child { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.collection-section-head h3 { margin: 0; font-family: Georgia, serif; font-size: 22px; font-weight: 400; }
+.collection-section-head small { color: var(--muted); font-size: 9px; }
+.section-actions { display: flex; gap: 4px; }
+.section-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.section-actions button:hover { background: #ece8e0; color: var(--ink); }
+.section-empty { min-height: 82px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 10px; }
+@media (max-width: 700px) { .collection-grid-actions { width: 100%; } .collection-grid-actions > button { flex: 1; } .section-create-row { grid-template-columns: auto 1fr; } .section-create-row .primary-button, .section-create-row .secondary-button { width: 100%; } .collection-section-head > div:first-child { flex-wrap: wrap; } }
 .bulk-action-bar button.danger { color: #944451; }
 .bulk-action-bar button:disabled { opacity: .45; cursor: not-allowed; }
 .saved-card { position: relative; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
@@ -842,6 +864,9 @@ img { display: block; max-width: 100%; }
 .send-pin-empty strong { color: var(--ink); font-family: Georgia, serif; font-weight: 400; }
 .send-pin-empty span { font-size: 9px; }
 .message-pin-preview { width: min(300px, 100%); display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; align-items: center; overflow: hidden; margin: 0 0 9px; border-radius: 10px; background: #f1ede6; color: var(--ink); }
+.message-pin-attachment { position: relative; width: min(300px, 100%); margin-bottom: 9px; }
+.message-pin-attachment .message-pin-preview { width: 100%; margin: 0; padding-right: 56px; }
+.message-pin-save { position: absolute; right: 7px; bottom: 7px; min-height: 28px; padding: 0 8px; border: 0; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.94); color: var(--ink); cursor: pointer; font-size: 8px; font-weight: 800; box-shadow: 0 2px 10px rgba(24,22,18,.1); }
 .message-pin-preview img { width: 72px; height: 72px; object-fit: cover; }
 .message-pin-preview > span { min-width: 0; display: grid; gap: 4px; padding-right: 10px; }
 .message-pin-preview b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: Georgia, serif; font-size: 12px; font-weight: 400; }

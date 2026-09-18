@@ -44,6 +44,8 @@ const inviteSchema = z.object({
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
 })
 
+const sectionSchema = z.object({ name: z.string().trim().min(1).max(80) })
+
 collectionsRouter.get('/', (req: AuthedRequest, res) => {
   const rows = db.prepare(`
     SELECT c.*,
@@ -163,6 +165,49 @@ collectionsRouter.delete('/:id', requireMembership, requireOwner, (req, res) => 
   res.status(204).end()
 })
 
+collectionsRouter.post('/:id/sections', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const parsed = sectionSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Give the section a name.' })
+  const position = (db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM collection_sections WHERE collection_id = ?').get(collectionId) as { next: number }).next
+  const section = db.transaction(() => {
+    const result = db.prepare('INSERT INTO collection_sections (collection_id, name, position) VALUES (?, ?, ?)').run(collectionId, parsed.data.name, position)
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} created section “${parsed.data.name}”`, req.user!.id)
+    return db.prepare('SELECT * FROM collection_sections WHERE id = ?').get(result.lastInsertRowid)
+  })()
+  return res.status(201).json({ section })
+})
+
+collectionsRouter.patch('/:id/sections/:sectionId', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const sectionId = Number(req.params.sectionId)
+  const parsed = sectionSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Give the section a name.' })
+  const current = db.prepare('SELECT id FROM collection_sections WHERE id = ? AND collection_id = ?').get(sectionId, collectionId)
+  if (!current) return res.status(404).json({ error: 'Section not found.' })
+  db.transaction(() => {
+    db.prepare('UPDATE collection_sections SET name = ? WHERE id = ? AND collection_id = ?').run(parsed.data.name, sectionId, collectionId)
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} renamed a section to “${parsed.data.name}”`, req.user!.id)
+  })()
+  return res.json({ section: db.prepare('SELECT * FROM collection_sections WHERE id = ?').get(sectionId) })
+})
+
+collectionsRouter.delete('/:id/sections/:sectionId', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const sectionId = Number(req.params.sectionId)
+  const section = db.prepare('SELECT name FROM collection_sections WHERE id = ? AND collection_id = ?').get(sectionId, collectionId) as { name: string } | undefined
+  if (!section) return res.status(404).json({ error: 'Section not found.' })
+  db.transaction(() => {
+    db.prepare('UPDATE items SET section_id = NULL WHERE collection_id = ? AND section_id = ?').run(collectionId, sectionId)
+    db.prepare('DELETE FROM collection_sections WHERE id = ? AND collection_id = ?').run(sectionId, collectionId)
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} removed section “${section.name}”`, req.user!.id)
+  })()
+  return res.status(204).end()
+})
+
 collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   const parsed = itemSchema.safeParse(req.body)
@@ -268,9 +313,10 @@ collectionsRouter.patch('/:id/layout', requireMembership, (req: AuthedRequest, r
 })
 
 const bulkSchema = z.object({
-  action: z.enum(['delete', 'move']),
+  action: z.enum(['delete', 'move', 'copy', 'section']),
   itemIds: z.array(z.number().int().positive()).min(1).max(100),
   targetCollectionId: z.number().int().positive().optional(),
+  sectionId: z.number().int().positive().nullable().optional(),
 })
 
 collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest, res) => {
@@ -293,12 +339,48 @@ collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest
     return res.json({ items })
   }
 
+  if (parsed.data.action === 'section') {
+    const sectionId = parsed.data.sectionId ?? null
+    if (sectionId !== null && !db.prepare('SELECT id FROM collection_sections WHERE id = ? AND collection_id = ?').get(sectionId, collectionId)) {
+      return res.status(404).json({ error: 'Section not found.' })
+    }
+    db.transaction(() => {
+      db.prepare(`UPDATE items SET section_id = ? WHERE collection_id = ? AND id IN (${placeholders})`).run(sectionId, collectionId, ...ids)
+      db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+      logActivity(collectionId, `${actor(req)} organized ${ids.length} ${ids.length === 1 ? 'pin' : 'pins'} into ${sectionId === null ? 'Unsorted' : 'a section'}`, req.user!.id)
+    })()
+    return res.json({ items: db.prepare(`SELECT * FROM items WHERE collection_id = ? AND id IN (${placeholders})`).all(collectionId, ...ids) })
+  }
+
   const targetId = parsed.data.targetCollectionId
   if (!targetId || targetId === collectionId) return res.status(400).json({ error: 'Choose a different collection.' })
   const targetMember = db.prepare('SELECT role FROM collection_members WHERE collection_id = ? AND user_id = ?').get(targetId, req.user!.id)
   if (!targetMember) return res.status(403).json({ error: 'You can’t add pins to that collection.' })
   const duplicate = items.find((item) => db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(targetId, item.source_id))
   if (duplicate) return res.status(409).json({ error: 'One of those pins is already in the destination collection.' })
+
+  if (parsed.data.action === 'copy') {
+    const copied = db.transaction(() => {
+      const startOffset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(targetId) as { count: number }).count
+      const insert = db.prepare(`
+        INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, section_id, canvas_x, canvas_y, rotation)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+      `)
+      const created = items.map((item, index) => {
+        const offset = startOffset + index
+        const result = insert.run(
+          targetId, item.source_id, item.image_url, item.source_page, item.source_creator, item.title, item.note, item.tags,
+          36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2,
+        )
+        return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
+      })
+      db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetId)
+      logActivity(collectionId, `${actor(req)} copied ${ids.length} ${ids.length === 1 ? 'pin' : 'pins'} to another collection`, req.user!.id)
+      logActivity(targetId, `${actor(req)} copied ${ids.length} ${ids.length === 1 ? 'pin' : 'pins'} into this collection`, req.user!.id)
+      return created
+    })()
+    return res.json({ items: copied })
+  }
 
   const moveMany = db.transaction(() => {
     db.prepare(`UPDATE items SET collection_id = ? WHERE collection_id = ? AND id IN (${placeholders})`).run(targetId, collectionId, ...ids)

@@ -48,6 +48,7 @@ export function getCollection(id: number, userId?: number) {
     ORDER BY i.id DESC
   `).all(id)
   const activity = db.prepare('SELECT * FROM activity WHERE collection_id = ? ORDER BY id DESC LIMIT 20').all(id)
+  const sections = db.prepare('SELECT * FROM collection_sections WHERE collection_id = ? ORDER BY position ASC, id ASC').all(id)
   const collaborators = db.prepare(`
     SELECT u.id, u.name, u.email, m.role
     FROM collection_members m
@@ -59,6 +60,7 @@ export function getCollection(id: number, userId?: number) {
     ...collection,
     role: userId ? membership(id, userId)?.role ?? null : null,
     items,
+    sections,
     activity,
     collaborators,
   }

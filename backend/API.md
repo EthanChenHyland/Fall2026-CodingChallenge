@@ -25,6 +25,11 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `PATCH /api/profiles/me` — edit the signed-in profile.
 - `POST /api/profiles/:id/follow` — follow an account.
 - `DELETE /api/profiles/:id/follow` — unfollow an account.
+
+## Public pins
+
+- `GET /api/pins/:id/saved-in` — show which editable collections already contain the public pin's source, for library-wide duplicate detection.
+- `POST /api/pins/:id/save` — copy a currently public pin into one of the signed-in user's editable collections with an optional private note. Duplicate sources in the target collection return `409`.
 - `GET /api/profiles/:id/connections?kind=followers|following` — browse a profile's social graph.
 
 ## Collections
@@ -36,6 +41,10 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `DELETE /api/collections/:id` — owner-only collection deletion.
 - `POST /api/collections/:id/items` — save an image with optional note atomically; images require HTTPS or an existing local media URL. Pixabay images are copied to persistent media.
 - `POST /api/collections/:id/items/restore` — restore `{itemId}` from a server-side deletion snapshot within 10 minutes, preserving social data and identity.
+- `POST /api/collections/:id/sections` — create a named section inside a collection.
+- `PATCH /api/collections/:id/sections/:sectionId` — rename a section.
+- `DELETE /api/collections/:id/sections/:sectionId` — remove a section while keeping its pins as Unsorted.
+- `POST /api/collections/:id/items/bulk` — delete, move, copy, or assign selected pins to a section. Copy creates new destination pins while preserving the originals.
 - `PATCH /api/collections/:id/layout` — atomically update `{positions: [{itemId, x, y, rotation}]}` for member-owned pins.
 - `POST /api/collections/:id/items/bulk` — transactionally delete or move selected item IDs.
 - `GET /api/collections/smart/:view` — recent, popular, or unsorted views (up to 60 pins).

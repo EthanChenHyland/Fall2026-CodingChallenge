@@ -59,6 +59,14 @@ db.exec(`
     PRIMARY KEY (collection_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS collection_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -68,6 +76,7 @@ db.exec(`
     source_creator TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL,
     note TEXT NOT NULL DEFAULT '',
+    section_id INTEGER,
     canvas_x REAL NOT NULL DEFAULT 40,
     canvas_y REAL NOT NULL DEFAULT 40,
     rotation REAL NOT NULL DEFAULT 0,
@@ -145,6 +154,7 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id, source_id);
+  CREATE INDEX IF NOT EXISTS idx_sections_collection ON collection_sections(collection_id, position, id);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_items_collection_source_unique ON items(collection_id, source_id);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_collection_single_owner ON collection_members(collection_id) WHERE role = 'owner';
   CREATE INDEX IF NOT EXISTS idx_activity_collection ON activity(collection_id, id DESC);
@@ -168,6 +178,7 @@ ensureColumn('collections', 'theme', "TEXT NOT NULL DEFAULT 'paper'")
 ensureColumn('collections', 'grid_layout', "TEXT NOT NULL DEFAULT 'gallery'")
 ensureColumn('collections', 'audience', "TEXT NOT NULL DEFAULT 'private'")
 ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
+ensureColumn('items', 'section_id', 'INTEGER')
 ensureColumn('messages', 'pin_id', 'INTEGER')
 db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
 

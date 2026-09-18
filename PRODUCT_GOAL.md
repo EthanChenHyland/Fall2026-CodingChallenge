@@ -11,10 +11,10 @@ A first-time reviewer should be able to understand the product without instructi
 - [x] Zero-key baseline: Wikimedia Commons live search plus a bundled fallback catalog.
 - [x] Optional provider upgrades: Pixabay search and Cloudinary uploads from environment variables.
 - [x] Creation loop: web discovery, URL pins, file upload, PWA Quick Capture/share target.
-- [x] Collection loop: create, rename, describe, save, edit, remove, search, sort, privacy toggle, public link.
+- [x] Collection loop: create, rename, describe, save, edit, remove, search, sort, board sections, bulk move/copy/organize, privacy toggle, public link.
 - [x] Signature interaction: persisted tactile Canvas with drag/keyboard movement plus one-click remix and tidy compositions.
 - [x] Collaboration: account-based editors, scoped permissions, activity history, notifications, optimistic UI with rollback.
-- [x] Social layer: public profiles, follows, follower/following browser, private direct messages with unread state and public-pin previews, Pin → DM sharing, For You/Following/Trending feeds, personalized “Because you saved…” recommendations, follower-only collections, likes, comments, moderation, related pins.
+- [x] Social layer: public profiles, follows, follower/following browser, private direct messages with unread state and public-pin previews, Pin → DM sharing, save-to-collection from public feeds and messages, For You/Following/Trending feeds, personalized “Because you saved…” recommendations, follower-only collections, likes, comments, moderation, related pins.
 - [x] Unified discovery: live image search plus Mosaic people and public collections.
 - [x] Mobile/PWA: responsive shell, safe-area navigation, install manifest, offline shell, native share, incoming share target.
 - [x] Production service: one Node process serves React + API; Docker image; persistent SQLite path; Render Blueprint.

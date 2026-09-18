@@ -74,6 +74,85 @@ test('recommendations are derived from saved interests', async () => {
   assert.ok(recommended.body.pins.every((pin: { owner_name: string }) => pin.owner_name !== 'Demo Curator'))
 })
 
+test('public pins can be saved into another collection without exposing private pins', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const curator = await makeCurator()
+  const publicExplore = await curator.agent.get('/api/explore').expect(200)
+  const publicPin = publicExplore.body.pins.find((pin: { owner_name: string }) => pin.owner_name === 'Demo Curator') as { id: number; source_id: string }
+  assert.ok(publicPin)
+
+  const target = await curator.agent.post('/api/collections').send({ name: 'Repins', description: 'Saved from Mosaic.' }).expect(201)
+  const targetId = target.body.collection.id as number
+  const beforeSavedIn = await curator.agent.get(`/api/pins/${publicPin.id}/saved-in`).expect(200)
+  assert.ok(!beforeSavedIn.body.collections.some((collection: { id: number }) => collection.id === targetId))
+  const saved = await curator.agent.post(`/api/pins/${publicPin.id}/save`).send({ collectionId: targetId, note: 'Reference for the lobby palette.' }).expect(201)
+  assert.equal(saved.body.item.collection_id, targetId)
+  assert.equal(saved.body.item.source_id, publicPin.source_id)
+  assert.equal(saved.body.item.note, 'Reference for the lobby palette.')
+  const afterSavedIn = await curator.agent.get(`/api/pins/${publicPin.id}/saved-in`).expect(200)
+  assert.ok(afterSavedIn.body.collections.some((collection: { id: number }) => collection.id === targetId))
+  await curator.agent.post(`/api/pins/${publicPin.id}/save`).send({ collectionId: targetId }).expect(409)
+
+  const privateBoard = await curator.agent.post('/api/collections').send({ name: 'Private source' }).expect(201)
+  const search = await curator.agent.get('/api/search?q=private').expect(200)
+  const result = search.body.results[0]
+  const privatePin = await curator.agent.post(`/api/collections/${privateBoard.body.collection.id}/items`).send({
+    sourceId: result.id,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Private pin',
+  }).expect(201)
+  const demoTarget = await demo.post('/api/collections').send({ name: `Private copy target ${randomUUID()}` }).expect(201)
+  await demo.post(`/api/pins/${privatePin.body.item.id}/save`).send({ collectionId: demoTarget.body.collection.id }).expect(404)
+})
+
+test('collection sections organize pins and bulk copy preserves the source board', async () => {
+  const curator = await makeCurator()
+  const source = await curator.agent.post('/api/collections').send({ name: 'Section source' }).expect(201)
+  const target = await curator.agent.post('/api/collections').send({ name: 'Section target' }).expect(201)
+  const sourceId = source.body.collection.id as number
+  const targetId = target.body.collection.id as number
+  const search = await curator.agent.get('/api/search?q=materials').expect(200)
+  const result = search.body.results[0]
+  const saved = await curator.agent.post(`/api/collections/${sourceId}/items`).send({
+    sourceId: result.id,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Section test pin',
+    note: 'Keep this note when copied.',
+  }).expect(201)
+  const itemId = saved.body.item.id as number
+
+  const createdSection = await curator.agent.post(`/api/collections/${sourceId}/sections`).send({ name: 'Textures' }).expect(201)
+  const sectionId = createdSection.body.section.id as number
+  await curator.agent.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'section', itemIds: [itemId], sectionId }).expect(200)
+  let sourceView = await curator.agent.get(`/api/collections/${sourceId}`).expect(200)
+  assert.equal(sourceView.body.collection.items.find((item: { id: number }) => item.id === itemId).section_id, sectionId)
+
+  await curator.agent.patch(`/api/collections/${sourceId}/sections/${sectionId}`).send({ name: 'Surfaces' }).expect(200)
+  sourceView = await curator.agent.get(`/api/collections/${sourceId}`).expect(200)
+  assert.ok(sourceView.body.collection.sections.some((section: { id: number; name: string }) => section.id === sectionId && section.name === 'Surfaces'))
+
+  const copied = await curator.agent.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'copy', itemIds: [itemId], targetCollectionId: targetId }).expect(200)
+  assert.equal(copied.body.items.length, 1)
+  assert.notEqual(copied.body.items[0].id, itemId)
+  assert.equal(copied.body.items[0].note, 'Keep this note when copied.')
+  assert.equal(copied.body.items[0].section_id, null)
+  await curator.agent.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'copy', itemIds: [itemId], targetCollectionId: targetId }).expect(409)
+
+  const targetView = await curator.agent.get(`/api/collections/${targetId}`).expect(200)
+  assert.ok(targetView.body.collection.items.some((item: { source_id: string }) => item.source_id === result.id))
+  sourceView = await curator.agent.get(`/api/collections/${sourceId}`).expect(200)
+  assert.ok(sourceView.body.collection.items.some((item: { id: number }) => item.id === itemId))
+
+  await curator.agent.delete(`/api/collections/${sourceId}/sections/${sectionId}`).expect(204)
+  sourceView = await curator.agent.get(`/api/collections/${sourceId}`).expect(200)
+  assert.equal(sourceView.body.collection.items.find((item: { id: number }) => item.id === itemId).section_id, null)
+})
+
 test('direct messages stay private and unread state clears on read', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)

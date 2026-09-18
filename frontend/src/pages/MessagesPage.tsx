@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
+import { ArrowLeft, Bookmark, MessageCircle, Send } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { SavePinDialog } from '../components/SavePinDialog'
 
 function initials(name: string) {
   return name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
@@ -105,7 +106,7 @@ export function MessagesPage() {
               <div className="message-stream" aria-live="polite">
                 {thread.data?.messages.length ? thread.data.messages.map((message) => {
                   const mine = message.sender_id === me?.user.id
-                  return <div className={`message-bubble-row ${mine ? 'mine' : ''}`} key={message.id}><div className="message-bubble">{message.pin_id && message.pin_image_url && <Link className="message-pin-preview" to={`/pin/${message.pin_id}`}><img src={message.pin_image_url} alt="" /><span><b>{message.pin_title || 'Shared pin'}</b><small>Open pin</small></span></Link>}<p>{message.body}</p><small>{new Date(`${message.created_at}Z`).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></div></div>
+                  return <div className={`message-bubble-row ${mine ? 'mine' : ''}`} key={message.id}><div className="message-bubble">{message.pin_id && message.pin_image_url && <div className="message-pin-attachment"><Link className="message-pin-preview" to={`/pin/${message.pin_id}`}><img src={message.pin_image_url} alt="" /><span><b>{message.pin_title || 'Shared pin'}</b><small>Open pin</small></span></Link><SavePinDialog pinId={message.pin_id} pinTitle={message.pin_title || 'Shared pin'} pinImageUrl={message.pin_image_url} trigger={<button className="message-pin-save" aria-label={`Save ${message.pin_title || 'shared pin'}`}><Bookmark size={13} /> Save</button>} /></div>}<p>{message.body}</p><small>{new Date(`${message.created_at}Z`).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></div></div>
                 }) : <div className="thread-empty"><MessageCircle size={28} /><h3>Say hello.</h3><p>Start a conversation with {current.other_user_name.split(' ')[0]}.</p></div>}
                 <div ref={endRef} />
               </div>

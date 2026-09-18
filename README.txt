@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, direct messages, likes/comments, Quick Save, smart collections, tags/filtering, bulk organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, direct messages, likes/comments, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -43,11 +43,11 @@ Suggested walkthrough:
 2. Open Collections and try the Recently saved / Most liked / Unsorted smart views, then open a normal collection.
 3. Filter that collection by title, note, or tag. Use Select to bulk move/delete pins, with Undo available after destructive actions.
 4. Choose Edit to set the cover/crop plus a restrained board theme and Gallery/Compact/Masonry layout.
-5. Open Canvas, drag until an alignment guide appears, then try Undo, Redo, Remix, and Tidy.
+5. In Grid, create a named Section, select one or more pins, and Organize them; selected pins can also be moved or copied to another collection. Then open Canvas, drag until an alignment guide appears, and try Undo, Redo, Remix, and Tidy.
 6. Open Activity, then Share to create a polished view-only URL or add sam@mosaic.local as an editor.
-7. Open Explore to see the “Because you saved…” recommendation shelf, then switch between For You, Following, and Trending; the seeded Sam Rivera account makes the Following feed immediately useful.
+7. Open Explore to see the “Because you saved…” recommendation shelf, then switch between For You, Following, and Trending; save a public pin directly into one of your collections without leaving the feed. The picker flags boards that already contain it, accepts a private note, and offers Undo after saving.
 8. Open a public pin to Like, Comment, Share, or Send it into a recent conversation as a tappable pin preview, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
-9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, and unread counts separate from collection notifications.
+9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, unread counts, and a Save action for shared pins separate from collection notifications.
 10. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
 11. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
 12. Check Notifications after shared edits, follows, likes, or comments.

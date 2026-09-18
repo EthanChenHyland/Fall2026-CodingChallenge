@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
+import { actor, logActivity } from '../lib/collections.js'
 import { membership, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const pinsRouter = Router()
@@ -52,6 +53,75 @@ pinsRouter.get('/:id/related', (req, res) => {
     LIMIT 8
   `).all(pinId, current.collection_id, current.owner_id)
   return res.json({ pins })
+})
+
+const savePinSchema = z.object({
+  collectionId: z.number().int().positive(),
+  note: z.string().trim().max(500).optional().default(''),
+})
+
+pinsRouter.get('/:id/saved-in', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  if (!Number.isSafeInteger(pinId) || pinId <= 0) return res.status(400).json({ error: 'Invalid pin.' })
+  const pin = db.prepare(`
+    SELECT i.source_id
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE i.id = ? AND c.visibility = 'public'
+  `).get(pinId) as { source_id: string } | undefined
+  if (!pin) return res.status(404).json({ error: 'Pin not found.' })
+  const collections = db.prepare(`
+    SELECT DISTINCT c.id, c.name
+    FROM collections c
+    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ?
+    JOIN items i ON i.collection_id = c.id AND i.source_id = ?
+    ORDER BY c.updated_at DESC, c.id DESC
+  `).all(req.user!.id, pin.source_id)
+  return res.json({ collections })
+})
+
+pinsRouter.post('/:id/save', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  if (!Number.isSafeInteger(pinId) || pinId <= 0) return res.status(400).json({ error: 'Invalid pin.' })
+  const parsed = savePinSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Choose a collection.' })
+  const targetCollectionId = parsed.data.collectionId
+  if (!membership(targetCollectionId, req.user!.id)) return res.status(404).json({ error: 'Collection not found.' })
+
+  const pin = db.prepare(`
+    SELECT i.*
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE i.id = ? AND c.visibility = 'public'
+  `).get(pinId) as Record<string, unknown> | undefined
+  if (!pin) return res.status(404).json({ error: 'Pin not found.' })
+  if (db.prepare('SELECT 1 FROM items WHERE collection_id = ? AND source_id = ?').get(targetCollectionId, pin.source_id)) {
+    return res.status(409).json({ error: 'That pin is already in this collection.' })
+  }
+
+  const offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(targetCollectionId) as { count: number }).count
+  const item = db.transaction(() => {
+    const result = db.prepare(`
+      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      targetCollectionId,
+      pin.source_id,
+      pin.image_url,
+      pin.source_page,
+      pin.source_creator,
+      pin.title,
+      parsed.data.note,
+      pin.tags,
+      36 + (offset % 3) * 220,
+      Math.min(5000, 40 + Math.floor(offset / 3) * 250),
+      (offset % 3 - 1) * 2,
+    )
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetCollectionId)
+    logActivity(targetCollectionId, `${actor(req)} saved “${String(pin.title)}” from Mosaic`, req.user!.id)
+    return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
+  })()
+  return res.status(201).json({ item })
 })
 
 pinsRouter.post('/:id/like', requireAuth, (req: AuthedRequest, res) => {

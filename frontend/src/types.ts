@@ -19,12 +19,21 @@ export type SavedItem = {
   title: string
   note: string
   tags: string
+  section_id: number | null
   canvas_x: number
   canvas_y: number
   rotation: number
   created_at: string
   like_count?: number
   comment_count?: number
+}
+
+export type CollectionSection = {
+  id: number
+  collection_id: number
+  name: string
+  position: number
+  created_at: string
 }
 
 export type SmartSavedItem = SavedItem & {
@@ -193,6 +202,7 @@ export type Collection = {
   owner_avatar?: string
   role?: 'owner' | 'editor' | null
   items?: SavedItem[]
+  sections?: CollectionSection[]
   activity?: ActivityItem[]
   collaborators?: Collaborator[]
 }

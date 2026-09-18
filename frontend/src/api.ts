@@ -34,6 +34,8 @@ export const api = {
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
+  pinSavedIn: (id: number) => request<{ collections: Array<{ id: number; name: string }> }>(`/api/pins/${id}/saved-in`),
+  savePin: (id: number, collectionId: number, note = '') => request<{ item: SavedItem }>(`/api/pins/${id}/save`, { method: 'POST', body: JSON.stringify({ collectionId, note }) }),
   pinComments: (id: number) => request<{ comments: PinComment[] }>(`/api/pins/${id}/comments`),
   addPinComment: (id: number, body: string) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
@@ -94,7 +96,10 @@ export const api = {
     }),
   updateLayout: (collectionId: number, positions: Array<{ itemId: number; x: number; y: number; rotation: number }>) =>
     request<void>(`/api/collections/${collectionId}/layout`, { method: 'PATCH', body: JSON.stringify({ positions }) }),
-  bulkItems: (collectionId: number, body: { action: 'delete' | 'move'; itemIds: number[]; targetCollectionId?: number }) =>
+  createSection: (collectionId: number, name: string) => request<{ section: { id: number; name: string } }>(`/api/collections/${collectionId}/sections`, { method: 'POST', body: JSON.stringify({ name }) }),
+  updateSection: (collectionId: number, sectionId: number, name: string) => request<{ section: { id: number; name: string } }>(`/api/collections/${collectionId}/sections/${sectionId}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
+  deleteSection: (collectionId: number, sectionId: number) => request<void>(`/api/collections/${collectionId}/sections/${sectionId}`, { method: 'DELETE' }),
+  bulkItems: (collectionId: number, body: { action: 'delete' | 'move' | 'copy' | 'section'; itemIds: number[]; targetCollectionId?: number; sectionId?: number | null }) =>
     request<{ items: SavedItem[] }>(`/api/collections/${collectionId}/items/bulk`, {
       method: 'POST',
       body: JSON.stringify(body),
