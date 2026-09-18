@@ -35,9 +35,7 @@ Use an unsigned Cloudinary preset restricted to JPEG/PNG/WebP/GIF, max_file_size
 Pixabay search responses are cached in SQLite for 24 hours, provider calls are guarded below Pixabay's published per-key rate limit, and Pixabay is named directly anywhere its search results are shown. New saved Pixabay pins are copied to the media directory beside the database instead of permanently hotlinking provider URLs; approved Pixabay/CDN redirects are validated on every hop before download. Keep that media directory with your database backups. Wikimedia/source pages retain attribution links. External images and services can still be unavailable.
 
 REVIEWER DEMO
-The login screen includes a one-click demo login. This is a shared, editable demo account, not an isolated sandbox. Use Create account for your own private collections. Demo content is seeded only on a new database and is not reset on restart. You can also use:
-- Owner: demo@mosaic.local / demo1234
-- Collaborator: sam@mosaic.local / demo1234
+Mosaic seeds example content on a new database so the product has realistic public material to browse. Production access to those seeded demo accounts is disabled by default. If a private reviewer demo is needed, set DEMO_ACCESS_PASSWORD in the host environment and share that credential privately; never commit it to the repository.
 
 Suggested walkthrough:
 1. Discover an image and use one-click Save. Mosaic remembers the last collection; the small arrow still lets you choose another.
@@ -45,7 +43,7 @@ Suggested walkthrough:
 3. Filter that collection by title, note, or tag. Use Select to bulk move/delete pins, with Undo available after destructive actions.
 4. Choose Edit to set the cover/crop plus a restrained board theme and Gallery/Compact/Masonry layout.
 5. In Grid, create a named Section, select one or more pins, and Organize them; selected pins can also be moved or copied to another collection. Then open Canvas, drag until an alignment guide appears, and try Undo, Redo, Remix, and Tidy.
-6. Open Activity, then Share to create a polished view-only URL or add sam@mosaic.local as an editor.
+6. Open Activity, then Share to create a polished view-only URL or add another Mosaic account as an editor.
 7. Open Explore to see the “Because you saved…” recommendation shelf, then switch between For You, Following, and Trending. Use Select to choose up to 30 public pins and save them to one collection in a batch; duplicate sources are skipped cleanly. Individual Save still supports duplicate warnings, a private note, and Undo.
 8. Open a public pin to Like, Comment, Share, or Send it into a recent conversation as a tappable pin preview, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
 9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, unread counts, and a Save action for shared pins separate from collection notifications.

@@ -33,6 +33,14 @@ const deleteAccountSchema = z.object({
   confirmation: z.literal('DELETE'),
 })
 
+const seededDemoEmails = new Set(['demo@mosaic.local', 'sam@mosaic.local', 'maya@mosaic.local'])
+
+function secureStringEqual(actual: string, expected: string) {
+  const actualHash = crypto.createHash('sha256').update(actual).digest()
+  const expectedHash = crypto.createHash('sha256').update(expected).digest()
+  return crypto.timingSafeEqual(actualHash, expectedHash)
+}
+
 function emailVerificationConfigured() {
   return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim())
 }
@@ -158,7 +166,14 @@ authRouter.post('/login', (req, res) => {
   const account = db.prepare('SELECT * FROM users WHERE email = ?').get(parsed.data.email) as
     | (User & { password_hash: string; password_salt: string })
     | undefined
-  if (!account || !safePasswordEqual(parsed.data.password, account.password_salt, account.password_hash)) {
+  const isProductionDemo = process.env.NODE_ENV === 'production' && seededDemoEmails.has(parsed.data.email)
+  const privateDemoPassword = process.env.DEMO_ACCESS_PASSWORD?.trim()
+  const passwordMatches = account && (
+    isProductionDemo
+      ? Boolean(privateDemoPassword && secureStringEqual(parsed.data.password, privateDemoPassword))
+      : safePasswordEqual(parsed.data.password, account.password_salt, account.password_hash)
+  )
+  if (!account || !passwordMatches) {
     return res.status(401).json({ error: 'Email or password is incorrect.' })
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString())
@@ -167,6 +182,7 @@ authRouter.post('/login', (req, res) => {
 })
 
 authRouter.post('/demo', (_req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Endpoint not found.' })
   const user = db.prepare("SELECT id, username, name, email, bio, avatar_url, created_at FROM users WHERE email = 'demo@mosaic.local'").get() as User
   setSession(res, user.id)
   return res.json({ user })
@@ -182,7 +198,7 @@ authRouter.get('/me', requireAuth, (req: AuthedRequest, res) => res.json({ user:
 authRouter.delete('/account', requireAuth, (req: AuthedRequest, res) => {
   const parsed = deleteAccountSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Enter your password and type DELETE to confirm.' })
-  if (req.user!.email === 'demo@mosaic.local') return res.status(403).json({ error: 'The shared demo account cannot be deleted.' })
+  if (seededDemoEmails.has(req.user!.email)) return res.status(403).json({ error: 'Seeded demo accounts cannot be deleted.' })
 
   const account = db.prepare('SELECT password_hash, password_salt FROM users WHERE id = ?').get(req.user!.id) as
     | { password_hash: string; password_salt: string }

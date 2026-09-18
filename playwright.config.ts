@@ -12,7 +12,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'rm -f /tmp/mosaic-e2e.sqlite /tmp/mosaic-e2e.sqlite-shm /tmp/mosaic-e2e.sqlite-wal && npm run build && PORT=3199 DATABASE_PATH=/tmp/mosaic-e2e.sqlite npm start',
+    command: 'rm -f /tmp/mosaic-e2e.sqlite /tmp/mosaic-e2e.sqlite-shm /tmp/mosaic-e2e.sqlite-wal && npm run build && PORT=3199 DATABASE_PATH=/tmp/mosaic-e2e.sqlite TRUST_PROXY_HOPS=1 DEMO_ACCESS_PASSWORD=local-e2e-demo npm start',
     url: 'http://127.0.0.1:3199/api/health',
     timeout: 120_000,
     reuseExistingServer: false,

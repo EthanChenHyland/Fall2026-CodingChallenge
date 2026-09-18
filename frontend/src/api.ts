@@ -30,7 +30,6 @@ export const api = {
     request<{ verificationRequired: false; user: User } | { verificationRequired: true; email: string }>('/api/auth/register/start', { method: 'POST', body: JSON.stringify(body) }),
   verifyRegistration: (body: { email: string; code: string }) =>
     request<{ user: User }>('/api/auth/register/verify', { method: 'POST', body: JSON.stringify(body) }),
-  demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   deleteAccount: (password: string, confirmation: 'DELETE') => request<void>('/api/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirmation }) }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),

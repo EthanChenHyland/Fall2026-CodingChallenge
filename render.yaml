@@ -23,6 +23,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      - key: DEMO_ACCESS_PASSWORD
+        sync: false
     disk:
       name: mosaic-data
       mountPath: /data

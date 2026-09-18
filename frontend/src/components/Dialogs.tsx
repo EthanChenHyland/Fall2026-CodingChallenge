@@ -371,7 +371,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
                 <button className="primary-button" disabled={!email.trim() || addEditor.isPending} onClick={() => addEditor.mutate()}><UserPlus size={15} /> {addEditor.isPending ? 'Adding…' : 'Add editor'}</button>
               </div>
             )}
-            {isOwner && <p className="invite-hint">Try <strong>sam@mosaic.local</strong> with the seeded demo account.</p>}
+            {isOwner && <p className="invite-hint">Add an editor using the email address on their Mosaic account.</p>}
             {isOwner && (
               <div className="editor-invite-panel">
                 <div><strong>Editor invite link</strong><span>Anyone signed in with this link can join as an editor. Revoke it whenever you want.</span></div>
