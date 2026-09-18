@@ -227,6 +227,88 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   }
 })
 
+test('stored user content stays inert instead of executing as HTML', async ({ page }) => {
+  await enterDemo(page)
+  const payload = '</h1><img src=x onerror="window.__mosaicXss=1">'
+  const collection = await page.evaluate(async (name) => {
+    const response = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    const body = await response.json() as { collection: { id: number } }
+    return body.collection
+  }, payload)
+
+  await page.goto(`/collections/${collection.id}`)
+  await expect(page.getByRole('heading', { name: payload })).toBeVisible()
+  expect(await page.locator('img[src="x"]').count()).toBe(0)
+  expect(await page.evaluate(() => (window as Window & { __mosaicXss?: number }).__mosaicXss)).toBeUndefined()
+})
+
+test('privacy policy is public and core pages stay inside 320px and 390px viewports', async ({ page }) => {
+  const overflowReport = () => page.evaluate(() => {
+    const overflow = document.documentElement.scrollWidth - window.innerWidth
+    const offenders = [...document.querySelectorAll<HTMLElement>('body *')]
+      .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.right > window.innerWidth + 1 || rect.left < -1)
+      .slice(0, 5)
+      .map(({ element, rect }) => ({
+        tag: element.tagName.toLowerCase(),
+        className: element.className,
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+      }))
+    return { overflow, offenders }
+  })
+
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/privacy')
+  await expect(page.getByRole('heading', { name: 'Your data, in plain language.' })).toBeVisible()
+  expect(await overflowReport()).toEqual({ overflow: 0, offenders: [] })
+
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Read the Privacy Policy' })).toBeVisible()
+  const email = await page.getByLabel('Email').boundingBox()
+  expect(email?.height ?? 0).toBeGreaterThanOrEqual(44)
+  expect((await overflowReport()).overflow).toBeLessThanOrEqual(1)
+  await page.getByRole('button', { name: 'Open demo' }).click()
+  await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+
+  const collectionData = await page.evaluate(async () => {
+    const response = await fetch('/api/collections')
+    return response.json() as Promise<{ collections: Array<{ id: number; share_token?: string | null }> }>
+  })
+  const collectionId = collectionData.collections[0]!.id
+  const shareToken = collectionData.collections.find((collection) => collection.share_token)?.share_token
+  await page.goto('/explore')
+  const pinHref = await page.locator('.public-pin-image').first().getAttribute('href')
+  const paths = ['/', '/explore', '/collections', `/collections/${collectionId}`, '/people/demo-curator', '/messages', '/capture', '/privacy']
+  if (pinHref) paths.push(pinHref)
+  if (shareToken) paths.push(`/shared/${shareToken}`)
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: width === 320 ? 568 : 844 })
+    for (const path of paths) {
+      await page.goto(path)
+      await page.locator('body').waitFor()
+      const report = await overflowReport()
+      expect(report, `${path} overflow at ${width}px: ${JSON.stringify(report.offenders)}`).toEqual({ overflow: 0, offenders: [] })
+    }
+  }
+
+  await page.goto('/')
+  const nav = page.locator('.mobile-nav')
+  await expect(nav).toBeVisible()
+  for (const control of await nav.locator('a, button').all()) {
+    const box = await control.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(48)
+  }
+})
+
 test('header and profile avatars use the same square crop geometry', async ({ page }) => {
   await enterDemo(page)
   const avatarUrl = 'https://example.com/mosaic-avatar.png'
