@@ -84,6 +84,38 @@ function readPage(value: unknown) {
   return Math.min(page, MAX_PAGE)
 }
 
+function readSeed(value: unknown) {
+  const seed = Number(value)
+  if (!Number.isInteger(seed) || seed < 0) return null
+  return seed >>> 0
+}
+
+function mixSeed(seed: number, value: string) {
+  let mixed = seed >>> 0
+  for (let index = 0; index < value.length; index += 1) {
+    mixed = Math.imul(mixed ^ value.charCodeAt(index), 16777619) >>> 0
+  }
+  return mixed
+}
+
+function shuffledResults(results: SearchResult[], seed: number | null, salt: string) {
+  if (seed == null || results.length < 2) return results
+  const shuffled = [...results]
+  let state = mixSeed(seed, salt) || 0x6d2b79f5
+  const random = () => {
+    state += 0x6d2b79f5
+    let value = state
+    value = Math.imul(value ^ (value >>> 15), value | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]]
+  }
+  return shuffled
+}
+
 function titleFromFileName(fileName: string) {
   return fileName
     .replace(/^File:/i, '')
@@ -319,16 +351,29 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
 
 searchRouter.get('/', async (req, res) => {
   const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 100)
-  const page = readPage(req.query.page)
+  const requestedPage = readPage(req.query.page)
+  const seed = readSeed(req.query.seed)
   const apiKey = process.env.PIXABAY_API_KEY?.trim()
 
   if (!query && !apiKey) return res.json({ results: localSearch(''), source: 'local' } satisfies SearchResponse)
 
   const provider = req.query.source === 'wikimedia' ? 'wikimedia' : apiKey ? 'pixabay' : 'wikimedia'
+  // Pixabay defaults to a fixed popularity order. For the unfiltered browse
+  // feed, start each client session on one of the first five provider pages so
+  // returning visitors see a different pool while still leaving room to load
+  // more pages. Search queries stay on their requested page, then get a stable
+  // per-session shuffle below so narrow searches cannot accidentally land on
+  // an empty random page.
+  const page = provider === 'pixabay' && !query && requestedPage === 1 && seed != null
+    ? 1 + (seed % Math.min(5, MAX_PAGE))
+    : requestedPage
   const cacheKey = `${provider}:${query}:${page}`
   db.prepare('DELETE FROM search_cache WHERE expires_at <= ?').run(Date.now())
   const cached = db.prepare('SELECT payload FROM search_cache WHERE key = ?').get(cacheKey) as { payload: string } | undefined
-  if (cached) return res.json({ ...JSON.parse(cached.payload), cached: true })
+  if (cached) {
+    const payload = JSON.parse(cached.payload) as SearchResponse
+    return res.json({ ...payload, results: shuffledResults(payload.results, seed, `${query}:${page}`), cached: true })
+  }
 
   const cacheCount = (db.prepare('SELECT COUNT(*) AS count FROM search_cache').get() as { count: number }).count
   if (cacheCount >= 5000) return res.status(503).json({ error: 'Search is busy. Please try again later.' })
@@ -342,9 +387,9 @@ searchRouter.get('/', async (req, res) => {
     try { response = await searchWikimedia(query, page) }
     catch { console.warn('Wikimedia search unavailable.') }
   }
-  response ??= { results: page === 1 ? localSearch(query) : [], source: 'local', fallback: true }
+  response ??= { results: requestedPage === 1 ? localSearch(query) : [], source: 'local', fallback: true }
   const expiry = Date.now() + (response.fallback ? 60_000 : CACHE_MS)
   // Bound disk use without evicting live 24-hour provider cache entries.
   db.prepare('INSERT OR REPLACE INTO search_cache VALUES (?, ?, ?)').run(cacheKey, JSON.stringify(response), expiry)
-  return res.json(response)
+  return res.json({ ...response, results: shuffledResults(response.results, seed, `${query}:${page}`) })
 })

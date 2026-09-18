@@ -43,8 +43,8 @@ export const api = {
   addPinComment: (id: number, body: string, parentId?: number) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId }) }),
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
   socialSearch: (query: string) => request<{ people: SocialSearchPerson[]; collections: SocialSearchCollection[] }>(`/api/search/social?q=${encodeURIComponent(query)}`),
-  search: (query = '', page = 1, source = '') =>
-    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}`),
+  search: (query = '', page = 1, source = '', seed?: number) =>
+    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}${seed == null ? '' : `&seed=${seed}`}`),
   searchRecommendations: (query = '') => request<{ suggestions: string[]; pins: PublicPin[]; basedOn: string[] }>(`/api/search/recommendations?q=${encodeURIComponent(query)}`),
   profile: (identifier: string | number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${encodeURIComponent(String(identifier))}`),
   profileConnections: (id: number, kind: 'followers' | 'following') => request<{ kind: string; people: ProfileConnection[] }>(`/api/profiles/${id}/connections?kind=${kind}`),

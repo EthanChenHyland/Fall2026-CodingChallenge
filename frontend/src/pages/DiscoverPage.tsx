@@ -8,6 +8,7 @@ import { PublicPinCard } from '../components/PublicPinCard'
 import { SocialSearchResults } from '../components/SocialSearchResults'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
+const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
 
 export function DiscoverPage() {
   const queryClient = useQueryClient()
@@ -17,13 +18,14 @@ export function DiscoverPage() {
   const [query, setQuery] = useState(initialQuery)
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery)
   const [activeTopic, setActiveTopic] = useState(initialTopic)
+  const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
   const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const effectiveQuery = submittedQuery || (activeTopic === 'All' ? '' : activeTopic)
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['search', effectiveQuery],
-    queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source),
+    queryKey: ['search', effectiveQuery, browseSeed],
+    queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source, browseSeed),
     initialPageParam: { page: 1, source: '' },
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
   })
@@ -88,6 +90,7 @@ export function DiscoverPage() {
     const nextQuery = query.trim()
     setActiveTopic('All')
     setSubmittedQuery(nextQuery)
+    setBrowseSeed(randomBrowseSeed())
     setSearchParams(nextQuery ? { q: nextQuery } : {}, { replace: true })
   }
 
@@ -95,6 +98,7 @@ export function DiscoverPage() {
     setActiveTopic(topic)
     setQuery('')
     setSubmittedQuery('')
+    setBrowseSeed(randomBrowseSeed())
     setSearchParams(topic === 'All' ? {} : { topic }, { replace: true })
   }
 
