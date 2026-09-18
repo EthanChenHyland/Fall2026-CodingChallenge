@@ -66,6 +66,56 @@ test('reviewer can move through the core product', async ({ page }) => {
   await expect(page.getByRole('button', { name: /like/i })).toBeVisible()
 })
 
+test('direct messages persist between accounts and surface unread threads', async ({ page, browser }) => {
+  await enterDemo(page)
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+  const samId = await page.evaluate(async () => {
+    const response = await fetch('/api/search/social?q=sam')
+    const data = await response.json() as { people: Array<{ id: number; name: string }> }
+    return data.people.find((person) => person.name === 'Sam Rivera')!.id
+  })
+  await page.goto(`/people/${samId}`)
+  await page.getByRole('link', { name: 'Message', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Keep the idea moving.' })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Want to compare material boards?')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByText('Want to compare material boards?')).toBeVisible()
+
+  await page.goto('/explore')
+  await page.locator('.public-pin-image').first().click()
+  await expect(page.locator('.pin-page-card')).toBeVisible()
+  const sharedPinTitle = await page.locator('.pin-page-copy h1').innerText()
+  await page.getByRole('button', { name: 'Send', exact: true }).click()
+  await page.getByRole('button', { name: /Sam Rivera/ }).click()
+  await expect(page.getByText('Sent to Sam Rivera')).toBeVisible()
+
+  const recipient = await browser.newContext()
+  const sam = await recipient.newPage()
+  await sam.goto('http://127.0.0.1:3199/')
+  const loggedIn = await sam.evaluate(async () => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'sam@mosaic.local', password: 'demo1234' }),
+    })
+    return response.ok
+  })
+  expect(loggedIn).toBe(true)
+  await sam.goto('http://127.0.0.1:3199/messages')
+  const demoThread = sam.getByRole('link', { name: /Demo Curator/ })
+  await expect(demoThread).toBeVisible()
+  await expect(demoThread.locator('.conversation-unread')).toHaveText('2')
+  await demoThread.click()
+  await expect(sam.locator('.message-stream').getByText('Want to compare material boards?', { exact: true })).toBeVisible()
+  await expect(sam.locator('.message-pin-preview')).toContainText(sharedPinTitle)
+  await expect(sam.locator('.message-pin-preview')).toHaveAttribute('href', /\/pin\/\d+/)
+  await sam.getByRole('textbox', { name: 'Message', exact: true }).fill('Yes — sending mine now.')
+  await sam.getByRole('button', { name: 'Send message' }).click()
+  await expect(sam.locator('.message-stream').getByText('Yes — sending mine now.', { exact: true })).toBeVisible()
+  await recipient.close()
+})
+
 test('mobile shell stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)

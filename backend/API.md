@@ -15,12 +15,13 @@ In development, Vite and Express run separately and Vite proxies `/api` to Expre
 - `GET /api/search?q=<query>&page=<number>` — paginated live image search.
 - `GET /api/search/social?q=<query>` — search Mosaic people and public collections.
 - `GET /api/explore?page=<number>&mode=all|following|trending` — public Mosaic pins with chronological, social-graph, or engagement ranking.
+- `GET /api/explore/recommended` — personalized public-pin recommendations derived from the signed-in user's saved titles, tags, and collections.
 
 Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searches Wikimedia Commons. A bundled catalog is the final reliability fallback.
 
 ## Profiles and follows
 
-- `GET /api/profiles/:id` — public profile, stats, follow state, and public collections.
+- `GET /api/profiles/:id` — profile, stats, follow state, and collections visible to the requester (public plus follower-only when eligible).
 - `PATCH /api/profiles/me` — edit the signed-in profile.
 - `POST /api/profiles/:id/follow` — follow an account.
 - `DELETE /api/profiles/:id/follow` — unfollow an account.
@@ -31,7 +32,7 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 - `GET /api/collections` — list collections the current account owns or edits.
 - `POST /api/collections` — create a collection owned by the current account.
 - `GET /api/collections/:id` — get a collection, items, activity, and collaborators.
-- `PATCH /api/collections/:id` — edit collection metadata; only owners can change visibility.
+- `PATCH /api/collections/:id` — edit collection metadata; only owners can change private/followers/public audience.
 - `DELETE /api/collections/:id` — owner-only collection deletion.
 - `POST /api/collections/:id/items` — save an image with optional note atomically; images require HTTPS or an existing local media URL. Pixabay images are copied to persistent media.
 - `POST /api/collections/:id/items/restore` — restore `{itemId}` from a server-side deletion snapshot within 10 minutes, preserving social data and identity.
@@ -57,7 +58,7 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 
 - `POST /api/collections/:id/share` — owner-only public read-only link creation.
 - `DELETE /api/collections/:id/share` — revoke the public link and return the collection to private.
-- `GET /api/shared/:token` — public read-only collection payload.
+- `GET /api/shared/:token` — read-only collection payload; follower-only links require a signed-in follower or collection member.
 - `POST /api/collections/:id/collaborators` — add an existing Mosaic account as an editor.
 - `DELETE /api/collections/:id/collaborators/:userId` — owner-only collaborator removal.
 
@@ -65,6 +66,14 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 
 - `GET /api/notifications` — recent collaboration, follow, like, and comment activity for the signed-in account.
 - `POST /api/notifications/read` — mark current notifications read.
+
+## Direct messages
+
+- `GET /api/messages` — list the signed-in user's one-to-one conversations, latest message preview, and unread count.
+- `POST /api/messages/with/:userId` — create or resume a conversation with another Mosaic account.
+- `GET /api/messages/:id` — load a conversation and its persisted message history; participants only.
+- `POST /api/messages/:id` — send a message up to 1,200 characters; participants only. An optional `pinId` may attach a currently public pin, which is returned with title/image metadata for a tappable conversation preview.
+- `POST /api/messages/:id/read` — mark incoming messages in the conversation as read.
 
 All private collection routes require a valid session and membership. Editors may change saved content and Canvas placement. Owner-only actions include deletion, public sharing, visibility, and collaborator management.
 

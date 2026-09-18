@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, likes/comments, Quick Save, smart collections, tags/filtering, bulk organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, direct messages, likes/comments, Quick Save, smart collections, tags/filtering, bulk organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -46,10 +46,11 @@ Suggested walkthrough:
 5. Open Canvas, drag until an alignment guide appears, then try Undo, Redo, Remix, and Tidy.
 6. Open Activity, then Share to create a polished view-only URL or add sam@mosaic.local as an editor.
 7. Open Explore to see the “Because you saved…” recommendation shelf, then switch between For You, Following, and Trending; the seeded Sam Rivera account makes the Following feed immediately useful.
-8. Open a public pin to Like, Comment, Share, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
-9. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
-10. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
-11. Check Notifications after shared edits, follows, likes, or comments.
+8. Open a public pin to Like, Comment, Share, or Send it into a recent conversation as a tappable pin preview, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
+9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, and unread counts separate from collection notifications.
+10. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
+11. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
+12. Check Notifications after shared edits, follows, likes, or comments.
 
 PRODUCTION / HOSTING
 - npm run build
