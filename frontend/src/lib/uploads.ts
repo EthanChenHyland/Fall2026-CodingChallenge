@@ -9,7 +9,7 @@ export function cloudUploadsConfigured() {
   return Boolean(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET)
 }
 
-export async function uploadImage(file: File): Promise<UploadedImage> {
+export async function uploadImage(file: File, folder = 'mosaic-pins'): Promise<UploadedImage> {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
   if (!cloudName || !uploadPreset) throw new Error('Cloudinary upload settings are not configured.')
@@ -19,7 +19,7 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
   const body = new FormData()
   body.append('file', file)
   body.append('upload_preset', uploadPreset)
-  body.append('folder', 'mosaic-pins')
+  body.append('folder', folder)
 
   const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`, { method: 'POST', body, signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error('Image upload failed. Check the Cloudinary preset and try again.')
