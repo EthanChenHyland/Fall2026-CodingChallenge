@@ -59,6 +59,30 @@ test('owner can add an editor while editor permissions stay scoped', async () =>
   assert.ok(notifications.body.notifications.some((notification: { message: string }) => notification.message.includes('Shared save')))
 })
 
+test('collaborator membership changes roll back with activity failures', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const created = await owner.post('/api/collections').send({ name: 'Atomic collaboration board' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const sam = db.prepare("SELECT id FROM users WHERE email = 'sam@mosaic.local'").get() as { id: number }
+
+  db.exec(`CREATE TRIGGER fail_test_collaborator_add BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%added Sam Rivera as an editor'
+    BEGIN SELECT RAISE(ABORT, 'test collaborator add failure'); END`)
+  await owner.post(`/api/collections/${collectionId}/collaborators`).send({ email: 'sam@mosaic.local' }).expect(500)
+  assert.equal(db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, sam.id), undefined)
+  db.exec('DROP TRIGGER fail_test_collaborator_add')
+  await owner.post(`/api/collections/${collectionId}/collaborators`).send({ email: 'sam@mosaic.local' }).expect(201)
+
+  db.exec(`CREATE TRIGGER fail_test_collaborator_remove BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%removed Sam Rivera from collaborators'
+    BEGIN SELECT RAISE(ABORT, 'test collaborator remove failure'); END`)
+  await owner.delete(`/api/collections/${collectionId}/collaborators/${sam.id}`).expect(500)
+  assert.ok(db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, sam.id))
+  db.exec('DROP TRIGGER fail_test_collaborator_remove')
+  await owner.delete(`/api/collections/${collectionId}/collaborators/${sam.id}`).expect(204)
+})
+
 test('public share tokens are read-only and revocable', async () => {
   const owner = request.agent(app)
   await owner.post('/api/auth/demo').expect(200)

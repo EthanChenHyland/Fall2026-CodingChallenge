@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -84,4 +84,20 @@ test('Pixabay redirects cannot escape the approved provider hosts', async () => 
   globalThis.fetch = (async () => new Response('', { status: 302, headers: { location: 'https://example.com/private.jpg' } })) as typeof fetch
   await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: 'pixabay-escaped', imageUrl: 'https://pixabay.com/get/escaped.jpg', title: 'Escaped' }).expect(502)
   assert.equal((await owner.get(`/api/collections/${board.body.collection.id}`)).body.collection.items.length, 0)
+})
+
+test('failed database saves discard newly downloaded Pixabay media', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const board = await owner.post('/api/collections').send({ name: 'Provider rollback board' }).expect(201)
+  const bytes = new Uint8Array([255, 216, 1, 2, 3, 255, 217])
+  const filename = `${createHash('sha256').update(bytes).digest('hex')}.jpg`
+  globalThis.fetch = (async () => new Response(bytes, { headers: { 'content-type': 'image/jpeg' } })) as typeof fetch
+  db.exec(`CREATE TRIGGER fail_test_provider_activity BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%saved “Provider rollback”'
+    BEGIN SELECT RAISE(ABORT, 'test provider activity failure'); END`)
+  await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: 'pixabay-provider-rollback', imageUrl: 'https://cdn.pixabay.com/provider-rollback.jpg', title: 'Provider rollback' }).expect(500)
+  assert.equal(existsSync(join(directory, 'media', filename)), false)
+  assert.equal((await owner.get(`/api/collections/${board.body.collection.id}`)).body.collection.items.length, 0)
+  db.exec('DROP TRIGGER fail_test_provider_activity')
 })

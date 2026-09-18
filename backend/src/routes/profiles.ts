@@ -101,13 +101,15 @@ profilesRouter.post('/:id/follow', requireAuth, (req: AuthedRequest, res) => {
   const userId = Number(req.params.id)
   if (!Number.isInteger(userId) || userId === req.user!.id) return res.status(400).json({ error: 'You cannot follow that profile.' })
   if (!db.prepare('SELECT id FROM users WHERE id = ?').get(userId)) return res.status(404).json({ error: 'Profile not found.' })
-  const result = db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(req.user!.id, userId)
-  if (result.changes) {
-    db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, NULL, ?)').run(
-      userId,
-      `${req.user!.name} followed you`,
-    )
-  }
+  db.transaction(() => {
+    const result = db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(req.user!.id, userId)
+    if (result.changes) {
+      db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, NULL, ?)').run(
+        userId,
+        `${req.user!.name} followed you`,
+      )
+    }
+  })()
   return res.status(204).end()
 })
 

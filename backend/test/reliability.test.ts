@@ -35,6 +35,17 @@ test('URL schemes, malformed cookies, pagination and JSON are handled safely', a
   await request(app).post('/api/auth/login').set('Content-Type', 'application/json').send('{').expect(400)
 })
 
+test('registration rolls back if a session cannot be created', async () => {
+  const email = `atomic-register-${randomUUID()}@example.test`
+  db.exec(`CREATE TRIGGER fail_test_registration_session BEFORE INSERT ON sessions
+    WHEN EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id AND email = '${email}')
+    BEGIN SELECT RAISE(ABORT, 'test session failure'); END`)
+  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password' }).expect(500)
+  assert.equal(db.prepare('SELECT 1 FROM users WHERE email = ?').get(email), undefined)
+  db.exec('DROP TRIGGER fail_test_registration_session')
+  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password' }).expect(201)
+})
+
 test('note save is atomic and publication through PATCH creates and revokes links', async () => {
   const { owner, id } = await board()
   await owner.post(`/api/collections/${id}/items`).send({ ...image, note: 'x'.repeat(501) }).expect(400)
@@ -90,6 +101,13 @@ test('delete/undo preserves pin identity, time, cover, likes and comments', asyn
   await owner.delete(`/api/collections/${id}/items/${item.id}`).expect(204)
   assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.cover_item_id, null)
   await request(app).get(`/api/pins/${item.id}`).expect(404)
+  db.exec(`CREATE TRIGGER fail_test_restore_activity BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%restored “Reference”'
+    BEGIN SELECT RAISE(ABORT, 'test restore activity failure'); END`)
+  await owner.post(`/api/collections/${id}/items/restore`).send({ itemId: item.id }).expect(500)
+  await request(app).get(`/api/pins/${item.id}`).expect(404)
+  assert.ok(db.prepare('SELECT 1 FROM deleted_items WHERE item_id = ?').get(item.id))
+  db.exec('DROP TRIGGER fail_test_restore_activity')
   const restored = await owner.post(`/api/collections/${id}/items/restore`).send({ itemId: item.id }).expect(201)
   assert.equal(restored.body.item.created_at, item.created_at)
   const pin = await owner.get(`/api/pins/${item.id}`).expect(200)

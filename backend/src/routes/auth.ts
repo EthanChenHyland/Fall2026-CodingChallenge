@@ -29,13 +29,15 @@ authRouter.post('/register', (req, res) => {
   if (db.prepare('SELECT id FROM users WHERE email = ?').get(parsed.data.email)) {
     return res.status(409).json({ error: 'An account already exists with that email.' })
   }
-  const salt = crypto.randomBytes(16).toString('hex')
-  const result = db.prepare(`
-    INSERT INTO users (name, email, password_hash, password_salt) VALUES (?, ?, ?, ?)
-  `).run(parsed.data.name, parsed.data.email, passwordHash(parsed.data.password, salt), salt)
-  const userId = Number(result.lastInsertRowid)
-  setSession(res, userId)
-  const user = db.prepare('SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(userId)
+  const user = db.transaction(() => {
+    const salt = crypto.randomBytes(16).toString('hex')
+    const result = db.prepare(`
+      INSERT INTO users (name, email, password_hash, password_salt) VALUES (?, ?, ?, ?)
+    `).run(parsed.data.name, parsed.data.email, passwordHash(parsed.data.password, salt), salt)
+    const userId = Number(result.lastInsertRowid)
+    setSession(res, userId)
+    return db.prepare('SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(userId)
+  })()
   return res.status(201).json({ user })
 })
 

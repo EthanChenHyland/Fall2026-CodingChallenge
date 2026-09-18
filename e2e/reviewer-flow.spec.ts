@@ -64,11 +64,21 @@ test('reviewer can move through the core product', async ({ page }) => {
 test('mobile shell stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
+  const searchBox = await page.getByLabel('Search images').boundingBox()
+  expect(searchBox?.height ?? 0).toBeGreaterThanOrEqual(40)
   await expect(page.locator('.mobile-nav')).toBeVisible()
   await page.getByRole('link', { name: 'Explore' }).last().click()
   await expect(page.getByRole('heading', { name: 'What people are saving.' })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
+  await page.goto('/collections/2')
+  const back = await page.getByRole('link', { name: 'All collections' }).boundingBox()
+  expect(back?.height ?? 0).toBeGreaterThanOrEqual(32)
+  const sharing = page.getByRole('button', { name: 'Manage sharing' })
+  if (await sharing.count()) {
+    const box = await sharing.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(32)
+  }
 })
 
 test('new account can create, capture, edit, share, revoke and undo', async ({ page, browser }) => {

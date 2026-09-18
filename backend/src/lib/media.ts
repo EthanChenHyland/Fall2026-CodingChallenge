@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { unlinkSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { databasePath } from '../db.js'
@@ -33,9 +34,14 @@ async function fetchPixabayImage(initialUrl: URL) {
 // Pixabay permits temporary search previews, but saved pins must use our own copy.
 // Redirects are followed only when every hop remains on an approved Pixabay host;
 // this keeps legitimate provider delivery working without turning the app into an SSRF proxy.
-export async function persistProviderImage(imageUrl: string) {
+export type PersistedProviderImage = {
+  imageUrl: string
+  discard: () => void
+}
+
+export async function persistProviderImage(imageUrl: string): Promise<PersistedProviderImage> {
   const url = pixabayUrl(imageUrl)
-  if (!url) return imageUrl
+  if (!url) return { imageUrl, discard: () => undefined }
   const response = await fetchPixabayImage(url)
   if (!response.ok || Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Provider image could not be saved.')
   const formats: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
@@ -54,7 +60,24 @@ export async function persistProviderImage(imageUrl: string) {
   const bytes = Buffer.concat(chunks)
   const name = `${createHash('sha256').update(bytes).digest('hex')}.${extension}`
   await mkdir(mediaDir, { recursive: true })
-  // Content-addressed names make concurrent saves harmless.
-  await writeFile(join(mediaDir, name), bytes)
-  return `/media/${name}`
+  const path = join(mediaDir, name)
+  let created = false
+  try {
+    // Avoid overwriting an existing content-addressed copy so rollback never
+    // deletes media that another pin already depends on.
+    await writeFile(path, bytes, { flag: 'wx' })
+    created = true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+  }
+  return {
+    imageUrl: `/media/${name}`,
+    discard: () => {
+      if (!created) return
+      created = false
+      try { unlinkSync(path) } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('Could not discard unused provider image.')
+      }
+    },
+  }
 }

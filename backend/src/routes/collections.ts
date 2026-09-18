@@ -165,22 +165,34 @@ collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedReques
   const p = parsed.data
   const duplicate = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)
   if (duplicate) return res.status(409).json({ error: 'That pin is already in this collection.' })
-  let imageUrl: string
-  try { imageUrl = await persistProviderImage(p.imageUrl) }
+  let persistedImage: Awaited<ReturnType<typeof persistProviderImage>>
+  try { persistedImage = await persistProviderImage(p.imageUrl) }
   catch { return res.status(502).json({ error: 'Could not store this image. Please try again.' }) }
   // Recheck access and duplicates after the asynchronous provider download.
-  if (!db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, req.user!.id)) return res.status(404).json({ error: 'Collection not found.' })
-  if (db.prepare('SELECT 1 FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)) return res.status(409).json({ error: 'That pin is already in this collection.' })
+  if (!db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, req.user!.id)) {
+    persistedImage.discard()
+    return res.status(404).json({ error: 'Collection not found.' })
+  }
+  if (db.prepare('SELECT 1 FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)) {
+    persistedImage.discard()
+    return res.status(409).json({ error: 'That pin is already in this collection.' })
+  }
   const offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(collectionId) as { count: number }).count
-  const item = db.transaction(() => {
-    const result = db.prepare(`
-      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(collectionId, p.sourceId, imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags.join(', '), 36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2)
-    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
-    logActivity(collectionId, `${actor(req)} saved “${p.title}”`, req.user!.id)
-    return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
-  })()
+  let item: unknown
+  try {
+    item = db.transaction(() => {
+      const result = db.prepare(`
+        INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(collectionId, p.sourceId, persistedImage.imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags.join(', '), 36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2)
+      db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+      logActivity(collectionId, `${actor(req)} saved “${p.title}”`, req.user!.id)
+      return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
+    })()
+  } catch (error) {
+    persistedImage.discard()
+    throw error
+  }
   res.status(201).json({ item })
 })
 
@@ -219,10 +231,13 @@ collectionsRouter.post('/:id/items/restore', requireMembership, (req: AuthedRequ
   const collectionId = Number(req.params.id)
   const itemId = Number(req.body.itemId)
   if (!Number.isSafeInteger(itemId)) return res.status(400).json({ error: 'Invalid saved pin.' })
-  const result = restoreSnapshot(collectionId, itemId)
+  const result = db.transaction(() => {
+    const restored = restoreSnapshot(collectionId, itemId)
+    if (restored && restored !== 'duplicate') logActivity(collectionId, `${actor(req)} restored “${restored.title}”`, req.user!.id)
+    return restored
+  })()
   if (!result) return res.status(410).json({ error: 'Undo has expired or this pin was already restored.' })
   if (result === 'duplicate') return res.status(409).json({ error: 'That pin is already in this collection.' })
-  logActivity(collectionId, `${actor(req)} restored “${result.title}”`, req.user!.id)
   return res.status(201).json({ item: result })
 })
 
@@ -331,11 +346,14 @@ collectionsRouter.post('/:id/collaborators', requireMembership, requireOwner, (r
   const user = db.prepare('SELECT id, name, email FROM users WHERE email = ?').get(parsed.data.email) as { id: number; name: string; email: string } | undefined
   if (!user) return res.status(404).json({ error: 'No Mosaic account uses that email yet.' })
   if (user.id === req.user!.id) return res.status(400).json({ error: 'You already own this collection.' })
-  const result = db.prepare(`
-    INSERT OR IGNORE INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')
-  `).run(collectionId, user.id)
+  const result = db.transaction(() => {
+    const inserted = db.prepare(`
+      INSERT OR IGNORE INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')
+    `).run(collectionId, user.id)
+    if (inserted.changes) logActivity(collectionId, `${actor(req)} added ${user.name} as an editor`, req.user!.id)
+    return inserted
+  })()
   if (result.changes === 0) return res.status(409).json({ error: 'That person already collaborates on this collection.' })
-  logActivity(collectionId, `${actor(req)} added ${user.name} as an editor`, req.user!.id)
   res.status(201).json({ collection: getCollection(collectionId, req.user!.id) })
 })
 
@@ -347,7 +365,9 @@ collectionsRouter.delete('/:id/collaborators/:userId', requireMembership, requir
     WHERE m.collection_id = ? AND m.user_id = ? AND m.role = 'editor'
   `).get(collectionId, userId) as { name: string } | undefined
   if (!user) return res.status(404).json({ error: 'Collaborator not found.' })
-  db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").run(collectionId, userId)
-  logActivity(collectionId, `${actor(req)} removed ${user.name} from collaborators`, req.user!.id)
+  db.transaction(() => {
+    db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").run(collectionId, userId)
+    logActivity(collectionId, `${actor(req)} removed ${user.name} from collaborators`, req.user!.id)
+  })()
   res.status(204).end()
 })

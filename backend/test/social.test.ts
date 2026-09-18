@@ -64,6 +64,36 @@ test('likes and comment moderation stay consistent', async () => {
   assert.equal(unliked.body.pin.liked_by_me, false)
 })
 
+test('social mutations roll back when notifications cannot be written', async () => {
+  const demo = request.agent(app)
+  const demoLogin = await demo.post('/api/auth/demo').expect(200)
+  const demoId = demoLogin.body.user.id as number
+  const curator = await makeCurator()
+  const explore = await curator.agent.get('/api/explore').expect(200)
+  const pinId = explore.body.pins.find((pin: { owner_id: number }) => pin.owner_id === demoId).id as number
+
+  db.exec(`CREATE TRIGGER fail_test_like_notification BEFORE INSERT ON notifications
+    WHEN NEW.user_id = ${demoId} AND NEW.message LIKE '%liked “%'
+    BEGIN SELECT RAISE(ABORT, 'test like notification failure'); END`)
+  await curator.agent.post(`/api/pins/${pinId}/like`).expect(500)
+  assert.equal(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, curator.id), undefined)
+  db.exec('DROP TRIGGER fail_test_like_notification')
+
+  db.exec(`CREATE TRIGGER fail_test_comment_notification BEFORE INSERT ON notifications
+    WHEN NEW.user_id = ${demoId} AND NEW.message LIKE '%commented on a pin'
+    BEGIN SELECT RAISE(ABORT, 'test comment notification failure'); END`)
+  await curator.agent.post(`/api/pins/${pinId}/comments`).send({ body: 'Atomic comment should roll back' }).expect(500)
+  assert.equal(db.prepare('SELECT 1 FROM comments WHERE item_id = ? AND user_id = ? AND body = ?').get(pinId, curator.id, 'Atomic comment should roll back'), undefined)
+  db.exec('DROP TRIGGER fail_test_comment_notification')
+
+  db.exec(`CREATE TRIGGER fail_test_follow_notification BEFORE INSERT ON notifications
+    WHEN NEW.user_id = ${curator.id} AND NEW.message LIKE '%followed you'
+    BEGIN SELECT RAISE(ABORT, 'test follow notification failure'); END`)
+  await demo.post(`/api/profiles/${curator.id}/follow`).expect(500)
+  assert.equal(db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(demoId, curator.id), undefined)
+  db.exec('DROP TRIGGER fail_test_follow_notification')
+})
+
 test('social search finds people and public boards without exposing email', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)
