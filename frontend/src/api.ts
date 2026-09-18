@@ -37,7 +37,7 @@ export const api = {
   pinSavedIn: (id: number) => request<{ collections: Array<{ id: number; name: string }> }>(`/api/pins/${id}/saved-in`),
   savePin: (id: number, collectionId: number, note = '') => request<{ item: SavedItem }>(`/api/pins/${id}/save`, { method: 'POST', body: JSON.stringify({ collectionId, note }) }),
   pinComments: (id: number) => request<{ comments: PinComment[] }>(`/api/pins/${id}/comments`),
-  addPinComment: (id: number, body: string) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
+  addPinComment: (id: number, body: string, parentId?: number) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId }) }),
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
   socialSearch: (query: string) => request<{ people: SocialSearchPerson[]; collections: SocialSearchCollection[] }>(`/api/search/social?q=${encodeURIComponent(query)}`),
   search: (query = '', page = 1, source = '') =>

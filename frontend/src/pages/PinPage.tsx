@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Share2, Trash2 } from 'lucide-react'
+import { ArrowLeft, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,19 +9,28 @@ import { ImageCard } from '../components/ImageCard'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { QuickSaveControls } from '../components/QuickSaveControls'
 import { SendPinDialog } from '../components/SendPinDialog'
-import type { CatalogImage } from '../types'
+import type { CatalogImage, PinComment } from '../types'
 
 export function PinPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [comment, setComment] = useState('')
+  const [replyTo, setReplyTo] = useState<PinComment | null>(null)
   const [removeArmed, setRemoveArmed] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
+  const commentRef = useRef<HTMLTextAreaElement>(null)
   const { id: rawId } = useParams()
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
   const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin', id] }) })
   const comments = useQuery({ queryKey: ['pin-comments', id], queryFn: () => api.pinComments(id), enabled: data?.pin.visibility === 'public' })
+  const commentThreads = useMemo(() => {
+    const all = comments.data?.comments ?? []
+    const ids = new Set(all.map((entry) => entry.id))
+    return all
+      .filter((entry) => !entry.parent_id || !ids.has(entry.parent_id))
+      .map((root) => ({ root, replies: all.filter((entry) => entry.parent_id === root.id) }))
+  }, [comments.data?.comments])
   const related = useQuery({ queryKey: ['related-pins', id], queryFn: () => api.relatedPins(id), enabled: data?.pin.visibility === 'public' })
   const relatedQuery = (() => {
     if (!data?.pin) return ''
@@ -52,7 +61,7 @@ export function PinPage() {
       return true
     })
   }, [data?.pin.image_url, webRelatedData?.pages])
-  const addComment = useMutation({ mutationFn: () => api.addPinComment(id, comment), onSuccess: () => { setComment(''); queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) } })
+  const addComment = useMutation({ mutationFn: () => api.addPinComment(id, comment, replyTo?.id), onSuccess: () => { setComment(''); setReplyTo(null); queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) } })
   const removeComment = useMutation({ mutationFn: (commentId: number) => api.deletePinComment(id, commentId), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin-comments', id] }) })
   const removePin = useMutation({ mutationFn: () => api.deleteItem(data!.pin.collection_id, id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['collections'] }); queryClient.invalidateQueries({ queryKey: ['explore'] }); navigate(`/collections/${data!.pin.collection_id}`) } })
 
@@ -80,6 +89,22 @@ export function PinPage() {
     try { await navigator.clipboard.writeText(url); toast.success('Pin link copied') }
     catch { toast.error('Could not copy. Copy the page address from your browser.') }
   }
+  const beginReply = (entry: PinComment) => {
+    setReplyTo(entry)
+    setComment(`@${entry.user_name} `)
+    requestAnimationFrame(() => commentRef.current?.focus())
+  }
+  const commentRow = (entry: PinComment, nested = false) => (
+    <div className={`pin-comment ${nested ? 'reply' : ''}`} key={entry.id}>
+      <span className="pin-comment-avatar">{entry.user_avatar ? <img src={entry.user_avatar} alt="" /> : entry.user_name.slice(0, 1)}</span>
+      <div className="pin-comment-copy">
+        <Link to={`/people/${entry.user_id}`}>{entry.user_name}</Link>
+        <p>{entry.body}</p>
+        <button className="comment-reply" onClick={() => beginReply(entry)}><Reply size={12} /> Reply</button>
+      </div>
+      {entry.can_delete && <button className="comment-delete" aria-label="Remove comment" disabled={removeComment.isPending} onClick={() => removeComment.mutate(entry.id)}><Trash2 size={13} /></button>}
+    </div>
+  )
   return (
     <>
       <Link className="back-link" to="/explore"><ArrowLeft size={16} /> Explore</Link>
@@ -92,7 +117,16 @@ export function PinPage() {
           <Link className="pin-owner" to={`/people/${pin.owner_id}`}><span className="pin-owner-avatar">{pin.owner_avatar ? <img src={pin.owner_avatar} alt="" /> : pin.owner_name.slice(0, 1)}</span><span><strong>{pin.owner_name}</strong><small>Curator</small></span></Link>
           <Link className="pin-board-link" to={pin.share_token ? `/shared/${pin.share_token}` : `/collections/${pin.collection_id}`}><FolderHeart size={16} /><span><strong>{pin.collection_name}</strong><small>{pin.collection_description || 'Public collection'}</small></span></Link>
           {pin.visibility === 'public' && <div className="pin-social-row"><button className={`pin-like-button ${pin.liked_by_me ? 'active' : ''}`} disabled={like.isPending} onClick={() => like.mutate()}><Heart size={17} fill={pin.liked_by_me ? 'currentColor' : 'none'} /> {pin.like_count} {pin.like_count === 1 ? 'like' : 'likes'}</button></div>}
-          {pin.visibility === 'public' && <section className="pin-comments"><div className="pin-comments-title"><MessageCircle size={16} /><strong>Conversation</strong><span>{comments.data?.comments.length ?? 0}</span></div><div className="pin-comment-list">{comments.isError && <p role="alert">Could not load comments. <button className="secondary-button" onClick={() => void comments.refetch()}>Try again</button></p>}{comments.data?.comments.map((entry) => <div className="pin-comment" key={entry.id}><span className="pin-comment-avatar">{entry.user_avatar ? <img src={entry.user_avatar} alt="" /> : entry.user_name.slice(0, 1)}</span><div><Link to={`/people/${entry.user_id}`}>{entry.user_name}</Link><p>{entry.body}</p></div>{entry.can_delete && <button className="comment-delete" aria-label="Remove comment" disabled={removeComment.isPending} onClick={() => removeComment.mutate(entry.id)}><Trash2 size={13} /></button>}</div>)}</div><div className="pin-comment-form"><textarea aria-label="Comment" maxLength={500} rows={2} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a thought…" /><button className="primary-button" disabled={!comment.trim() || addComment.isPending} onClick={() => addComment.mutate()}>Post</button></div></section>}
+          {pin.visibility === 'public' && <section className="pin-comments">
+            <div className="pin-comments-title"><MessageCircle size={16} /><strong>Conversation</strong><span>{comments.data?.comments.length ?? 0}</span></div>
+            <div className="pin-comment-list">
+              {comments.isError && <p role="alert">Could not load comments. <button className="secondary-button" onClick={() => void comments.refetch()}>Try again</button></p>}
+              {commentThreads.map(({ root, replies }) => <div className="pin-comment-thread" key={root.id}>{commentRow(root)}{replies.map((entry) => commentRow(entry, true))}</div>)}
+            </div>
+            {replyTo && <div className="comment-replying"><span>Replying to <strong>{replyTo.user_name}</strong></span><button aria-label="Cancel reply" onClick={() => { setReplyTo(null); setComment('') }}><X size={12} /></button></div>}
+            <div className="pin-comment-form"><textarea ref={commentRef} aria-label="Comment" maxLength={500} rows={2} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={replyTo ? `Reply to ${replyTo.user_name}…` : 'Add a thought…'} /><button className="primary-button" disabled={!comment.trim() || addComment.isPending} onClick={() => addComment.mutate()}>{replyTo ? 'Reply' : 'Post'}</button></div>
+            <small className="comment-mention-hint">Use @Name to notify another curator.</small>
+          </section>}
           <div className="pin-detail-actions">
             <QuickSaveControls image={image} />
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}

@@ -65,6 +65,7 @@ export type PinComment = {
   id: number
   item_id: number
   body: string
+  parent_id: number | null
   created_at: string
   user_id: number
   user_name: string

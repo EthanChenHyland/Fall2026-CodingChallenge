@@ -17,11 +17,11 @@ test.after(() => {
   for (const suffix of ['', '-shm', '-wal']) rmSync(`${databasePath}${suffix}`, { force: true })
 })
 
-async function makeCurator() {
+async function makeCurator(name = 'Test Curator') {
   const agent = request.agent(app)
   const email = `curator-${randomUUID()}@example.test`
   const credential = `local-${randomUUID()}`
-  const registered = await agent.post('/api/auth/register').send({ name: 'Test Curator', email, password: credential }).expect(201)
+  const registered = await agent.post('/api/auth/register').send({ name, email, password: credential }).expect(201)
   return { agent, id: registered.body.user.id as number }
 }
 
@@ -204,6 +204,36 @@ test('likes and comment moderation stay consistent', async () => {
   await curator.agent.delete(`/api/pins/${pinId}/like`).expect(204)
   const unliked = await curator.agent.get(`/api/pins/${pinId}`).expect(200)
   assert.equal(unliked.body.pin.liked_by_me, false)
+})
+
+test('comment replies stay threaded and notify reply and mention targets', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const target = await makeCurator('Thread Target')
+  const mentioned = await makeCurator('Mention Friend')
+  const explore = await target.agent.get('/api/explore').expect(200)
+  const pinId = explore.body.pins.find((pin: { owner_name: string }) => pin.owner_name === 'Demo Curator').id as number
+
+  const root = await target.agent.post(`/api/pins/${pinId}/comments`).send({ body: 'Thread starter' }).expect(201)
+  const rootId = root.body.comment.id as number
+  const reply = await demo.post(`/api/pins/${pinId}/comments`).send({ body: '@Mention Friend good thought.', parentId: rootId }).expect(201)
+  const replyId = reply.body.comment.id as number
+  assert.equal(reply.body.comment.parent_id, rootId)
+
+  const nested = await mentioned.agent.post(`/api/pins/${pinId}/comments`).send({ body: 'Adding one more thought.', parentId: replyId }).expect(201)
+  assert.equal(nested.body.comment.parent_id, rootId)
+
+  const thread = await demo.get(`/api/pins/${pinId}/comments`).expect(200)
+  assert.equal(thread.body.comments.find((entry: { id: number }) => entry.id === replyId).parent_id, rootId)
+
+  const targetNotifications = await target.agent.get('/api/notifications').expect(200)
+  assert.ok(targetNotifications.body.notifications.some((entry: { message: string }) => entry.message === 'Demo Curator replied to your comment'))
+  const mentionNotifications = await mentioned.agent.get('/api/notifications').expect(200)
+  assert.ok(mentionNotifications.body.notifications.some((entry: { message: string }) => entry.message === 'Demo Curator mentioned you in a comment'))
+
+  await demo.delete(`/api/pins/${pinId}/comments/${rootId}`).expect(204)
+  const afterDelete = await demo.get(`/api/pins/${pinId}/comments`).expect(200)
+  assert.equal(afterDelete.body.comments.find((entry: { id: number }) => entry.id === replyId).parent_id, null)
 })
 
 test('social mutations roll back when notifications cannot be written', async () => {

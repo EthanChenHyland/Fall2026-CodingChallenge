@@ -4,7 +4,7 @@ Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
 ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, direct messages, likes/comments, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
+Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search, personalized recommendations, social feeds, profiles, follows, direct messages, likes/threaded comments with @mentions, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration, notifications, PWA capture/install support, and activity history.
 
 REQUIREMENTS
 - Node.js 20.19+ or 22.12+
@@ -50,7 +50,7 @@ Suggested walkthrough:
 9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, unread counts, and a Save action for shared pins separate from collection notifications.
 10. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
 11. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
-12. Check Notifications after shared edits, follows, likes, or comments.
+12. Reply to a pin comment or type an exact `@Name`, then check Notifications for reply/mention alerts alongside shared edits, follows, and likes.
 
 PRODUCTION / HOSTING
 - npm run build

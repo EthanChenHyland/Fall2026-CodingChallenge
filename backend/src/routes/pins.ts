@@ -160,14 +160,17 @@ pinsRouter.get('/:id/comments', (req: AuthedRequest, res) => {
   if (!visible) return res.status(404).json({ error: 'Pin not found.' })
   const canModerate = req.user ? membership(visible.collection_id, req.user.id)?.role === 'owner' : false
   const comments = db.prepare(`
-    SELECT c.id, c.item_id, c.body, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+    SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
     FROM comments c JOIN users u ON u.id = c.user_id
     WHERE c.item_id = ? ORDER BY c.id ASC
   `).all(pinId) as Array<Record<string, unknown> & { user_id: number }>
   return res.json({ comments: comments.map((comment) => ({ ...comment, can_delete: canModerate || req.user?.id === comment.user_id })) })
 })
 
-const commentSchema = z.object({ body: z.string().trim().min(1).max(500) })
+const commentSchema = z.object({
+  body: z.string().trim().min(1).max(500),
+  parentId: z.number().int().positive().nullable().optional(),
+})
 
 pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
@@ -175,6 +178,11 @@ pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Write something before posting.' })
   const visible = db.prepare(`SELECT i.id FROM items i JOIN collections c ON c.id = i.collection_id WHERE i.id = ? AND c.visibility = 'public'`).get(pinId)
   if (!visible) return res.status(404).json({ error: 'Pin not found.' })
+  const requestedParent = parsed.data.parentId
+    ? db.prepare('SELECT id, user_id, parent_id FROM comments WHERE id = ? AND item_id = ?').get(parsed.data.parentId, pinId) as { id: number; user_id: number; parent_id: number | null } | undefined
+    : undefined
+  if (parsed.data.parentId && !requestedParent) return res.status(404).json({ error: 'Reply target not found.' })
+  const parentId = requestedParent ? requestedParent.parent_id ?? requestedParent.id : null
   const owner = db.prepare(`
     SELECT c.id AS collection_id, m.user_id AS owner_id
     FROM items i JOIN collections c ON c.id = i.collection_id
@@ -182,16 +190,26 @@ pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
     WHERE i.id = ?
   `).get(pinId) as { collection_id: number; owner_id: number }
   const comment = db.transaction(() => {
-    const result = db.prepare('INSERT INTO comments (item_id, user_id, body) VALUES (?, ?, ?)').run(pinId, req.user!.id, parsed.data.body)
+    const result = db.prepare('INSERT INTO comments (item_id, user_id, body, parent_id) VALUES (?, ?, ?, ?)').run(pinId, req.user!.id, parsed.data.body, parentId)
+    const notifications = new Map<number, string>()
     if (owner.owner_id !== req.user!.id) {
-      db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(
-        owner.owner_id,
-        owner.collection_id,
-        `${req.user!.name} commented on a pin`,
-      )
+      notifications.set(owner.owner_id, `${req.user!.name} commented on a pin`)
+    }
+    if (requestedParent && requestedParent.user_id !== req.user!.id) {
+      notifications.set(requestedParent.user_id, `${req.user!.name} replied to your comment`)
+    }
+    const bodyLower = parsed.data.body.toLowerCase()
+    const mentionable = db.prepare('SELECT id, name FROM users WHERE id != ? ORDER BY LENGTH(name) DESC').all(req.user!.id) as Array<{ id: number; name: string }>
+    for (const user of mentionable) {
+      if (bodyLower.includes(`@${user.name.toLowerCase()}`) && user.id !== requestedParent?.user_id) {
+        notifications.set(user.id, `${req.user!.name} mentioned you in a comment`)
+      }
+    }
+    for (const [userId, message] of notifications) {
+      db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(userId, owner.collection_id, message)
     }
     return db.prepare(`
-      SELECT c.id, c.item_id, c.body, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+      SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
       FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?
     `).get(result.lastInsertRowid)
   })()
@@ -210,6 +228,9 @@ pinsRouter.delete('/:id/comments/:commentId', requireAuth, (req: AuthedRequest, 
   if (!comment) return res.status(404).json({ error: 'Comment not found.' })
   const ownsCollection = membership(comment.collection_id, req.user!.id)?.role === 'owner'
   if (comment.user_id !== req.user!.id && !ownsCollection) return res.status(403).json({ error: 'You cannot remove that comment.' })
-  db.prepare('DELETE FROM comments WHERE id = ?').run(commentId)
+  db.transaction(() => {
+    db.prepare('UPDATE comments SET parent_id = NULL WHERE parent_id = ?').run(commentId)
+    db.prepare('DELETE FROM comments WHERE id = ?').run(commentId)
+  })()
   return res.status(204).end()
 })

@@ -84,6 +84,17 @@ test('reviewer can move through the core product', async ({ page }) => {
   await firstPin.click()
   await expect(page.locator('.pin-page-card')).toBeVisible()
   await expect(page.getByRole('button', { name: /like/i })).toBeVisible()
+  await page.getByLabel('Comment').fill('E2E thread starter')
+  await page.getByRole('button', { name: 'Post', exact: true }).click()
+  const thread = page.locator('.pin-comment-thread').filter({ hasText: 'E2E thread starter' })
+  await expect(thread).toBeVisible()
+  await thread.getByRole('button', { name: 'Reply', exact: true }).click()
+  await expect(page.getByText('Replying to Demo Curator')).toBeVisible()
+  const commentBox = page.getByRole('textbox', { name: 'Comment', exact: true })
+  await expect(commentBox).toHaveValue('@Demo Curator ')
+  await commentBox.fill('@Demo Curator following up in-thread.')
+  await page.locator('.pin-comment-form').getByRole('button', { name: 'Reply', exact: true }).click()
+  await expect(thread.locator('.pin-comment.reply')).toContainText('following up in-thread.')
 })
 
 test('direct messages persist between accounts and surface unread threads', async ({ page, browser }) => {

@@ -119,6 +119,7 @@ db.exec(`
     item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body TEXT NOT NULL,
+    parent_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -180,6 +181,7 @@ ensureColumn('collections', 'audience', "TEXT NOT NULL DEFAULT 'private'")
 ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
 ensureColumn('items', 'section_id', 'INTEGER')
 ensureColumn('messages', 'pin_id', 'INTEGER')
+ensureColumn('comments', 'parent_id', 'INTEGER')
 db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
 
 function hashPassword(password: string, salt: string) {

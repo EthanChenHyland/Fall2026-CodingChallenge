@@ -59,8 +59,8 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 - `GET /api/pins/:id/related` — related public pins, preferring the same collection and curator.
 - `POST /api/pins/:id/like` — like a public pin.
 - `DELETE /api/pins/:id/like` — remove the current user's like.
-- `GET /api/pins/:id/comments` — list comments on a public pin.
-- `POST /api/pins/:id/comments` — comment on a public pin; the curator receives a notification.
+- `GET /api/pins/:id/comments` — list comments and reply relationships on a public pin.
+- `POST /api/pins/:id/comments` — comment or reply on a public pin using optional `parentId`; replies notify their author and exact `@Name` mentions notify matching users.
 - `DELETE /api/pins/:id/comments/:commentId` — comment author or collection owner moderation.
 
 ## Sharing and collaboration
