@@ -67,6 +67,13 @@ export function DiscoverPage() {
       : firstPage?.fallback
         ? 'Catalog fallback'
       : 'Mosaic picks'
+  const browseTitle = effectiveQuery
+    ? `Results for “${effectiveQuery}”`
+    : firstPage?.source === 'pixabay'
+      ? 'Pixabay finds'
+      : firstPage?.source === 'wikimedia'
+        ? 'Wikimedia finds'
+        : 'Recent finds'
 
   const chooseSuggestion = (suggestion: string) => {
     setActiveTopic('All')
@@ -117,7 +124,7 @@ export function DiscoverPage() {
 
       {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
-      <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{effectiveQuery ? `Results for “${effectiveQuery}”` : 'Recent finds'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
+      <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
       ) : isError ? (
