@@ -6,16 +6,30 @@ import { toast } from 'sonner'
 import { api } from '../api'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 
+function looksLikeDirectImageUrl(value: string) {
+  if (!value) return false
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return false
+    const path = url.pathname.toLowerCase()
+    return /\.(avif|gif|jpe?g|png|webp)$/.test(path)
+      || ['cdn.pixabay.com', 'images.pexels.com', 'images.unsplash.com'].includes(url.hostname)
+  } catch {
+    return false
+  }
+}
+
 export function CapturePage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const [captureId] = useState(() => `capture-${crypto.randomUUID()}`)
+  const sharedUrl = params.get('url') || ''
   const [collectionId, setCollectionId] = useState(0)
   const [title, setTitle] = useState(params.get('title') || '')
-  const [imageUrl, setImageUrl] = useState(params.get('url') || '')
-  const [sourceUrl, setSourceUrl] = useState(params.get('url') || '')
+  const [imageUrl, setImageUrl] = useState(looksLikeDirectImageUrl(sharedUrl) ? sharedUrl : '')
+  const [sourceUrl, setSourceUrl] = useState(sharedUrl)
   const [note, setNote] = useState(params.get('text') || '')
   const [tags, setTags] = useState('')
   const [uploading, setUploading] = useState(false)
