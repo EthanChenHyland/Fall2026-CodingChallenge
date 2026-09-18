@@ -61,6 +61,7 @@ export function AuthPage() {
   }
 
   const errorMessage = verify.error?.message ?? auth.error?.message
+  const showCreateAccountPrompt = mode === 'login' && auth.error?.message === 'Email or password is incorrect.'
   const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || name.trim().length >= 2)
 
   return (
@@ -106,6 +107,12 @@ export function AuthPage() {
             </div>
 
             {errorMessage && <div className="auth-inline-error" role="alert">{errorMessage}</div>}
+            {showCreateAccountPrompt && (
+              <div className="auth-account-hint">
+                <span>Don&apos;t have an account?</span>
+                <button type="button" className="text-button" onClick={() => switchMode('register')}>Create one</button>
+              </div>
+            )}
 
             <button type="submit" className="primary-button full auth-submit" disabled={auth.isPending || !canSubmit}>
               {auth.isPending ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'} <ArrowRight size={16} />

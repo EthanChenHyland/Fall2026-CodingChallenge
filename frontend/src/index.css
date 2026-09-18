@@ -403,6 +403,8 @@ img { display: block; max-width: 100%; }
 .auth-password-toggle:hover { background: #eeeae2; color: var(--ink); }
 .auth-password-toggle:focus-visible, .auth-mode-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .auth-inline-error { margin: 3px 0 10px; padding: 9px 11px; border: 1px solid #dfc9cd; border-radius: 9px; background: #f8eeee; color: #874b57; font-size: 10px; line-height: 1.4; }
+.auth-account-hint { margin: -2px 0 10px; display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+.auth-account-hint .text-button { min-height: 32px; padding: 0 2px; }
 .auth-submit { min-height: 46px; margin-top: 7px; }
 .auth-code-actions { margin-top: 10px; display: flex; justify-content: space-between; gap: 12px; }
 .auth-code-actions .text-button { padding-inline: 0; }
