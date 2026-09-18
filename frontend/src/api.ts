@@ -28,6 +28,7 @@ export const api = {
     request<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  deleteAccount: (password: string, confirmation: 'DELETE') => request<void>('/api/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirmation }) }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
   recommendations: () => request<{ pins: PublicPin[]; basedOn: string[] }>('/api/explore/recommended'),
   recommendationFeedback: (id: number, signal: 'more' | 'not_interested') => request<void>(`/api/pins/${id}/recommendation-feedback`, { method: 'POST', body: JSON.stringify({ signal }) }),

@@ -59,6 +59,35 @@ test('registration rolls back if a session cannot be created', async () => {
   await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password' }).expect(201)
 })
 
+test('account deletion requires reauthentication, deletes owned collections, and preserves collaborator-owned collections', async () => {
+  const owner = request.agent(app)
+  const editor = request.agent(app)
+  const ownerEmail = `delete-owner-${randomUUID()}@example.test`
+  const editorEmail = `delete-editor-${randomUUID()}@example.test`
+  const password = 'delete-me-1234'
+  const ownerRegistered = await owner.post('/api/auth/register').send({ name: 'Delete Owner', email: ownerEmail, password }).expect(201)
+  const editorRegistered = await editor.post('/api/auth/register').send({ name: 'Delete Editor', email: editorEmail, password }).expect(201)
+  const owned = await owner.post('/api/collections').send({ name: 'Delete with owner' }).expect(201)
+  const kept = await editor.post('/api/collections').send({ name: 'Keep after collaborator deletion' }).expect(201)
+  await editor.post(`/api/collections/${kept.body.collection.id}/collaborators`).send({ email: ownerEmail }).expect(201)
+
+  await owner.delete('/api/auth/account').send({ password: 'wrong-password', confirmation: 'DELETE' }).expect(403)
+  await owner.get('/api/auth/me').expect(200)
+  await owner.delete('/api/auth/account').send({ password, confirmation: 'delete' }).expect(400)
+  await owner.delete('/api/auth/account').send({ password, confirmation: 'DELETE' }).expect(204)
+
+  await owner.get('/api/auth/me').expect(401)
+  assert.equal(db.prepare('SELECT 1 FROM users WHERE id = ?').get(ownerRegistered.body.user.id), undefined)
+  assert.equal(db.prepare('SELECT 1 FROM collections WHERE id = ?').get(owned.body.collection.id), undefined)
+  assert.ok(db.prepare('SELECT 1 FROM collections WHERE id = ?').get(kept.body.collection.id))
+  assert.ok(db.prepare('SELECT 1 FROM users WHERE id = ?').get(editorRegistered.body.user.id))
+
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  await demo.delete('/api/auth/account').send({ password: 'demo1234', confirmation: 'DELETE' }).expect(403)
+  await demo.get('/api/auth/me').expect(200)
+})
+
 test('note save is atomic and publication through PATCH creates and revokes links', async () => {
   const { owner, id } = await board()
   await owner.post(`/api/collections/${id}/items`).send({ ...image, note: 'x'.repeat(501) }).expect(400)

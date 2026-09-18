@@ -23,6 +23,11 @@ const registerSchema = authSchema.extend({
   name: z.string().trim().min(2).max(80),
 })
 
+const deleteAccountSchema = z.object({
+  password: z.string().min(6).max(128),
+  confirmation: z.literal('DELETE'),
+})
+
 authRouter.post('/register', (req, res) => {
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name, email, and password.' })
@@ -68,3 +73,26 @@ authRouter.post('/logout', (req, res) => {
 })
 
 authRouter.get('/me', requireAuth, (req: AuthedRequest, res) => res.json({ user: req.user }))
+
+authRouter.delete('/account', requireAuth, (req: AuthedRequest, res) => {
+  const parsed = deleteAccountSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Enter your password and type DELETE to confirm.' })
+  if (req.user!.email === 'demo@mosaic.local') return res.status(403).json({ error: 'The shared demo account cannot be deleted.' })
+
+  const account = db.prepare('SELECT password_hash, password_salt FROM users WHERE id = ?').get(req.user!.id) as
+    | { password_hash: string; password_salt: string }
+    | undefined
+  if (!account || !safePasswordEqual(parsed.data.password, account.password_salt, account.password_hash)) {
+    return res.status(403).json({ error: 'Password is incorrect.' })
+  }
+
+  db.transaction(() => {
+    const owned = db.prepare("SELECT collection_id FROM collection_members WHERE user_id = ? AND role = 'owner'").all(req.user!.id) as Array<{ collection_id: number }>
+    const deleteCollection = db.prepare('DELETE FROM collections WHERE id = ?')
+    for (const collection of owned) deleteCollection.run(collection.collection_id)
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.user!.id)
+  })()
+
+  clearSession(req, res)
+  return res.status(204).end()
+})
