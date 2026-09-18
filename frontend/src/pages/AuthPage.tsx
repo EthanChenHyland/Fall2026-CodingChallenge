@@ -97,7 +97,7 @@ export function AuthPage() {
             {mode === 'register' && (
               <label className="field-label" htmlFor="auth-name">Name<input disabled={auth.isPending} id="auth-name" name="name" maxLength={80} autoFocus autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); auth.reset() }} placeholder="Your name" /></label>
             )}
-            <label className="field-label" htmlFor="auth-email">Email<input disabled={auth.isPending} id="auth-email" name="email" maxLength={160} autoFocus={mode === 'login'} autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); auth.reset() }} placeholder="you@vanderbilt.edu" /></label>
+            <label className="field-label" htmlFor="auth-email">Email<input disabled={auth.isPending} id="auth-email" name="email" maxLength={160} autoFocus={mode === 'login'} autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); auth.reset() }} placeholder="you@gmail.com" /></label>
             <div className="field-label auth-password-label">
               <label htmlFor="auth-password">Password</label>
               <span className="auth-password-field">

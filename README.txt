@@ -27,6 +27,8 @@ I considered a heavier WebGL/Three.js presentation, but chose not to make visual
 
 That choice also matches the rubric: it rewards working features, maintainable code, responsive polish, collaboration, reliability, and creativity without prescribing a rendering technique. I treated “make the application look good” as a product-design requirement rather than a requirement to turn the app into a cinematic landing page.
 
+For the same reason, I did not bolt on a separate AI-agent service, model-dependent chat layer, or microservice solely to make the architecture look more advanced. Those can be useful when they solve a real product problem, but here they would introduce credentials, latency, failure modes, and review/setup overhead without helping the core save-organize-share workflow. I would rather make the main product deeper, faster, and easier to run than add complexity that is impressive mostly in an architecture diagram.
+
 I spent that complexity budget on interactions that remain useful after the first impression: a real draggable Canvas, multi-select organization, optimistic actions with recovery, responsive layouts, collection customization, social feedback, collaboration, and mobile/offline/error states. The visual language is intentionally closer to a polished consumer app than an Awwwards portfolio landing page. Motion is restrained so the content stays primary and the interface remains understandable, fast, keyboard-usable, and responsive.
 
 The Canvas is also intentionally DOM/CSS based instead of WebGL. Pins need normal focus behavior, selection, text, menus, drag state, persisted coordinates, and reliable mobile interaction. Using ordinary interface primitives made those behaviors easier to keep accessible and testable while still giving collections a spatial mode.
@@ -40,6 +42,17 @@ Production: one Docker service on Render; Express serves the compiled frontend a
 SQLite was deliberate for this submission. Mosaic is deployed as one application instance, so an embedded transactional database keeps setup small, makes the repository easy to run, and still provides real persistence and rollback behavior. The code does not use localStorage as its database. If the product needed horizontal multi-instance scaling, the next infrastructure step would be moving the persistence layer to PostgreSQL/object storage rather than pretending the current deployment has that requirement.
 
 Recommendations are similarly designed to degrade cleanly. Mosaic learns from saved interests, follows, popularity, and explicit More like this / Not interested feedback without requiring an AI key. I preferred a recommendation system that every reviewer can run over making the core experience depend on an external model service.
+
+EXTERNAL SERVICES / INTEGRATIONS
+- Render — production hosting, health checks, and persistent disk storage.
+- Pixabay API — preferred live image discovery provider when an API key is configured.
+- Wikimedia Commons — keyless live image-search fallback so discovery still works out of the box.
+- Cloudinary — optional direct image uploads from the browser through a restricted unsigned upload preset.
+- Resend — optional 6-digit signup verification email delivery.
+- GitHub — source control and submission repository; Render deploys from the main branch.
+- Docker — reproducible production build/runtime packaging.
+
+These integrations are optional around the core app rather than hard dependencies. A reviewer can clone Mosaic, run npm ci + npm run dev, create an account, search, save, organize, share, and collaborate without configuring a paid AI/model service.
 
 RELIABILITY / SECURITY DETAILS
 - Database writes that span related records use transactions and rollback on failure.
