@@ -256,6 +256,11 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
   const [email, setEmail] = useState('')
   const queryClient = useQueryClient()
   const isOwner = collection.role === 'owner'
+  const editorInvite = useQuery({
+    queryKey: ['editor-invite', collection.id],
+    queryFn: () => api.editorInvite(collection.id),
+    enabled: open && isOwner,
+  })
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
     queryClient.invalidateQueries({ queryKey: ['collections'] })
@@ -269,9 +274,19 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
     },
     onError: (error) => toast.error(error.message),
   })
-  const invite = useMutation({
+  const addEditor = useMutation({
     mutationFn: () => api.addCollaborator(collection.id, email),
     onSuccess: () => { setEmail(''); refresh(); toast.success('Editor added') },
+    onError: (error) => toast.error(error.message),
+  })
+  const createEditorInvite = useMutation({
+    mutationFn: () => api.createEditorInvite(collection.id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['editor-invite', collection.id] }); toast.success('Editor invite ready') },
+    onError: (error) => toast.error(error.message),
+  })
+  const revokeEditorInvite = useMutation({
+    mutationFn: () => api.revokeEditorInvite(collection.id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['editor-invite', collection.id] }); toast.success('Editor invite revoked') },
     onError: (error) => toast.error(error.message),
   })
   const remove = useMutation({
@@ -280,6 +295,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
     onError: (error) => toast.error(error.message),
   })
   const shareUrl = collection.share_token ? `${window.location.origin}/shared/${collection.share_token}` : ''
+  const editorInviteUrl = editorInvite.data?.invite ? `${window.location.origin}/invite/${editorInvite.data.invite.token}` : ''
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -325,11 +341,25 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
             </div>
             {isOwner && (
               <div className="invite-row">
-                <input aria-label="Collaborator account email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Collaborator account email" onKeyDown={(event) => { if (event.key === 'Enter' && email.trim()) invite.mutate() }} />
-                <button className="primary-button" disabled={!email.trim() || invite.isPending} onClick={() => invite.mutate()}><UserPlus size={15} /> {invite.isPending ? 'Adding…' : 'Add editor'}</button>
+                <input aria-label="Collaborator account email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Collaborator account email" onKeyDown={(event) => { if (event.key === 'Enter' && email.trim()) addEditor.mutate() }} />
+                <button className="primary-button" disabled={!email.trim() || addEditor.isPending} onClick={() => addEditor.mutate()}><UserPlus size={15} /> {addEditor.isPending ? 'Adding…' : 'Add editor'}</button>
               </div>
             )}
             {isOwner && <p className="invite-hint">Try <strong>sam@mosaic.local</strong> with the seeded demo account.</p>}
+            {isOwner && (
+              <div className="editor-invite-panel">
+                <div><strong>Editor invite link</strong><span>Anyone signed in with this link can join as an editor. Revoke it whenever you want.</span></div>
+                {editorInviteUrl ? (
+                  <div className="editor-invite-actions">
+                    <button className="secondary-button" onClick={() => { void navigator.clipboard.writeText(editorInviteUrl).then(() => toast.success('Invite link copied')).catch(() => toast.error('Could not copy the invite link.')) }}><Copy size={15} /> Copy link</button>
+                    <button className="secondary-button danger-button" disabled={revokeEditorInvite.isPending} onClick={() => revokeEditorInvite.mutate()}><Trash2 size={15} /> Revoke</button>
+                    <button className="text-button" disabled={createEditorInvite.isPending} onClick={() => createEditorInvite.mutate()}>Create a new link</button>
+                  </div>
+                ) : (
+                  <button className="secondary-button" disabled={editorInvite.isLoading || createEditorInvite.isPending} onClick={() => createEditorInvite.mutate()}><Link2 size={15} /> {createEditorInvite.isPending ? 'Creating…' : 'Create editor link'}</button>
+                )}
+              </div>
+            )}
           </section>
         </Dialog.Content>
       </Dialog.Portal>

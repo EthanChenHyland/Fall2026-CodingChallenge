@@ -460,6 +460,12 @@ img { display: block; max-width: 100%; }
 .invite-row input { min-width: 0; border: 1px solid #d7d1c6; background: #fffefb; border-radius: 999px; outline: none; padding: 0 14px; font-size: 11px; }
 .invite-row input:focus { border-color: #9f7c83; box-shadow: 0 0 0 3px rgba(126,48,64,.08); }
 .invite-hint { margin: 8px 5px 0; color: var(--muted); font-size: 9px; }
+.editor-invite-panel { margin-top: 15px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #f5f1ea; display: grid; gap: 11px; }
+.editor-invite-panel > div:first-child { display: grid; gap: 3px; }
+.editor-invite-panel strong { font-size: 11px; }
+.editor-invite-panel span { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.editor-invite-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.editor-invite-actions .text-button { min-height: 36px; padding-inline: 8px; }
 
 @media (max-width: 700px) {
   .auth-shell { grid-template-columns: 1fr; }
@@ -479,6 +485,9 @@ img { display: block; max-width: 100%; }
   .share-link-row .text-danger-button { grid-column: 1 / -1; justify-self: start; }
   .invite-row { grid-template-columns: 1fr; }
   .invite-row input { min-height: 42px; }
+  .editor-invite-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .editor-invite-actions .secondary-button { width: 100%; }
+  .editor-invite-actions .text-button { grid-column: 1 / -1; justify-self: start; }
 }
 
 .discovery-loader { min-height: 70px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 11px; }

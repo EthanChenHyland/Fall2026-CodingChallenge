@@ -59,6 +59,16 @@ db.exec(`
     PRIMARY KEY (collection_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS collection_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'editor' CHECK (role = 'editor'),
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS collection_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -183,6 +193,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_activity_collection ON activity(collection_id, id DESC);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
   CREATE INDEX IF NOT EXISTS idx_members_user ON collection_members(user_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_collection_active_invite ON collection_invites(collection_id) WHERE revoked_at IS NULL;
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_collection_follows_collection ON collection_follows(collection_id, created_at DESC);

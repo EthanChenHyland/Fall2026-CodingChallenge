@@ -16,6 +16,7 @@ import { PinPage } from './pages/PinPage'
 import { CapturePage } from './pages/CapturePage'
 import { SmartCollectionPage } from './pages/SmartCollectionPage'
 import { MessagesPage } from './pages/MessagesPage'
+import { InviteAcceptPage } from './pages/InviteAcceptPage'
 
 function handleUnauthorized(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 401) return false
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="/capture" element={<CapturePage />} />
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/messages/:conversationId" element={<MessagesPage />} />
+            <Route path="/invite/:token" element={<InviteAcceptPage />} />
           </Route>
           <Route path="/shared/:token" element={<SharedPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -80,6 +80,10 @@ Duplicate source IDs are rejected within the same collection to prevent accident
 - `GET /api/shared/:token` — read-only collection payload; follower-only links require a signed-in follower or collection member.
 - `POST /api/collections/:id/collaborators` — add an existing Mosaic account as an editor.
 - `DELETE /api/collections/:id/collaborators/:userId` — owner-only collaborator removal.
+- `GET /api/collections/:id/editor-invite` — owner-only status for the active editor invitation.
+- `POST /api/collections/:id/editor-invite` — owner-only creation or regeneration of an editor invitation link.
+- `DELETE /api/collections/:id/editor-invite` — owner-only revocation of the active editor invitation.
+- `POST /api/collections/editor-invites/:token/accept` — signed-in acceptance that grants editor access while preserving any existing role.
 
 ## Notifications
 

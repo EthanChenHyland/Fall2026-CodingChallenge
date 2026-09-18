@@ -59,6 +59,47 @@ test('owner can add an editor while editor permissions stay scoped', async () =>
   assert.ok(notifications.body.notifications.some((notification: { message: string }) => notification.message.includes('Shared save')))
 })
 
+test('editor invite links require owner control and grant editor access only while active', async () => {
+  const owner = request.agent(app)
+  const existingEditor = request.agent(app)
+  const invited = request.agent(app)
+  const revokedTarget = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const created = await owner.post('/api/collections').send({ name: 'Invite link board' }).expect(201)
+  const collectionId = created.body.collection.id as number
+
+  await owner.post(`/api/collections/${collectionId}/collaborators`).send({ email: 'sam@mosaic.local' }).expect(201)
+  await existingEditor.post('/api/auth/login').send({ email: 'sam@mosaic.local', password: 'demo1234' }).expect(200)
+  await existingEditor.post(`/api/collections/${collectionId}/editor-invite`).expect(403)
+  await existingEditor.delete(`/api/collections/${collectionId}/editor-invite`).expect(403)
+
+  const generated = await owner.post(`/api/collections/${collectionId}/editor-invite`).expect(201)
+  const token = generated.body.invite.token as string
+  assert.ok(token.length >= 40)
+  const status = await owner.get(`/api/collections/${collectionId}/editor-invite`).expect(200)
+  assert.equal(status.body.invite.token, token)
+  await request(app).post(`/api/collections/editor-invites/${token}/accept`).expect(401)
+
+  const invitedEmail = `invite-${randomUUID()}@mosaic.local`
+  await invited.post('/api/auth/register').send({ name: 'Invite Tester', email: invitedEmail, password: 'demo1234' }).expect(201)
+  const accepted = await invited.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
+  assert.equal(accepted.body.collection.role, 'editor')
+  assert.equal(accepted.body.alreadyMember, false)
+  const repeated = await invited.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
+  assert.equal(repeated.body.alreadyMember, true)
+  const invitedId = (db.prepare('SELECT id FROM users WHERE email = ?').get(invitedEmail) as { id: number }).id
+  assert.equal((db.prepare('SELECT COUNT(*) AS count FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, invitedId) as { count: number }).count, 1)
+
+  const ownerAccepted = await owner.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
+  assert.equal(ownerAccepted.body.collection.role, 'owner')
+  assert.equal(ownerAccepted.body.alreadyMember, true)
+
+  await owner.delete(`/api/collections/${collectionId}/editor-invite`).expect(204)
+  assert.equal((await owner.get(`/api/collections/${collectionId}/editor-invite`).expect(200)).body.invite, null)
+  await revokedTarget.post('/api/auth/register').send({ name: 'Revoked Tester', email: `revoked-${randomUUID()}@mosaic.local`, password: 'demo1234' }).expect(201)
+  await revokedTarget.post(`/api/collections/editor-invites/${token}/accept`).expect(404)
+})
+
 test('collaborator membership changes roll back with activity failures', async () => {
   const owner = request.agent(app)
   await owner.post('/api/auth/demo').expect(200)

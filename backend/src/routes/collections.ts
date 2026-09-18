@@ -180,6 +180,25 @@ collectionsRouter.post('/import', (req: AuthedRequest, res) => {
   return res.status(201).json({ collection: getCollection(collectionId, req.user!.id) })
 })
 
+collectionsRouter.post('/editor-invites/:token/accept', (req: AuthedRequest, res) => {
+  const invite = db.prepare(`
+    SELECT ci.collection_id, c.name
+    FROM collection_invites ci
+    JOIN collections c ON c.id = ci.collection_id
+    WHERE ci.token = ? AND ci.role = 'editor' AND ci.revoked_at IS NULL
+  `).get(req.params.token) as { collection_id: number; name: string } | undefined
+  if (!invite) return res.status(404).json({ error: 'This editor invite is invalid or has been revoked.' })
+
+  const membershipRow = db.prepare('SELECT role FROM collection_members WHERE collection_id = ? AND user_id = ?').get(invite.collection_id, req.user!.id) as { role: 'owner' | 'editor' } | undefined
+  if (!membershipRow) {
+    db.transaction(() => {
+      db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')").run(invite.collection_id, req.user!.id)
+      logActivity(invite.collection_id, `${actor(req)} joined as an editor`, req.user!.id)
+    })()
+  }
+  return res.json({ collection: getCollection(invite.collection_id, req.user!.id), alreadyMember: Boolean(membershipRow) })
+})
+
 collectionsRouter.post('/:id/follow', (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   if (!Number.isSafeInteger(collectionId) || collectionId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
@@ -560,6 +579,37 @@ collectionsRouter.delete('/:id/share', requireMembership, requireOwner, (req: Au
     logActivity(id, `${actor(req)} disabled public sharing`, req.user!.id)
   })()
   res.status(204).end()
+})
+
+collectionsRouter.get('/:id/editor-invite', requireMembership, requireOwner, (req: AuthedRequest, res) => {
+  const invite = db.prepare(`
+    SELECT token, created_at
+    FROM collection_invites
+    WHERE collection_id = ? AND revoked_at IS NULL
+  `).get(Number(req.params.id)) as { token: string; created_at: string } | undefined
+  return res.json({ invite: invite ?? null })
+})
+
+collectionsRouter.post('/:id/editor-invite', requireMembership, requireOwner, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const token = crypto.randomBytes(32).toString('base64url')
+  db.transaction(() => {
+    db.prepare('UPDATE collection_invites SET revoked_at = CURRENT_TIMESTAMP WHERE collection_id = ? AND revoked_at IS NULL').run(collectionId)
+    db.prepare("INSERT INTO collection_invites (collection_id, token, role, created_by) VALUES (?, ?, 'editor', ?)").run(collectionId, token, req.user!.id)
+    logActivity(collectionId, `${actor(req)} created an editor invite link`, req.user!.id)
+  })()
+  return res.status(201).json({ invite: { token } })
+})
+
+collectionsRouter.delete('/:id/editor-invite', requireMembership, requireOwner, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const result = db.transaction(() => {
+    const revoked = db.prepare('UPDATE collection_invites SET revoked_at = CURRENT_TIMESTAMP WHERE collection_id = ? AND revoked_at IS NULL').run(collectionId)
+    if (revoked.changes) logActivity(collectionId, `${actor(req)} revoked the editor invite link`, req.user!.id)
+    return revoked
+  })()
+  if (!result.changes) return res.status(404).json({ error: 'No active editor invite exists.' })
+  return res.status(204).end()
 })
 
 collectionsRouter.post('/:id/collaborators', requireMembership, requireOwner, (req: AuthedRequest, res) => {

@@ -115,6 +115,10 @@ export const api = {
     request<{ token: string }>(`/api/collections/${id}/share`, { method: 'POST' }),
   disableShare: (id: number) =>
     request<void>(`/api/collections/${id}/share`, { method: 'DELETE' }),
+  editorInvite: (id: number) => request<{ invite: { token: string; created_at: string } | null }>(`/api/collections/${id}/editor-invite`),
+  createEditorInvite: (id: number) => request<{ invite: { token: string } }>(`/api/collections/${id}/editor-invite`, { method: 'POST' }),
+  revokeEditorInvite: (id: number) => request<void>(`/api/collections/${id}/editor-invite`, { method: 'DELETE' }),
+  acceptEditorInvite: (token: string) => request<{ collection: Collection; alreadyMember: boolean }>(`/api/collections/editor-invites/${encodeURIComponent(token)}/accept`, { method: 'POST' }),
   addCollaborator: (id: number, email: string) =>
     request<{ collection: Collection }>(`/api/collections/${id}/collaborators`, {
       method: 'POST',
