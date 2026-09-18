@@ -271,6 +271,29 @@ test('header and profile avatars use the same square crop geometry', async ({ pa
   expect(geometry.header.src).toBe(geometry.profile.src)
 })
 
+test('collection visibility is discoverable from the collection header', async ({ page }) => {
+  await enterDemo(page)
+  const collection = await page.evaluate(async () => {
+    const response = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Visibility test ${Date.now()}` }),
+    })
+    const body = await response.json() as { collection: { id: number } }
+    return body.collection
+  })
+
+  await page.goto(`/collections/${collection.id}`)
+  const visibility = page.getByRole('button', { name: 'Collection visibility: Private. Open privacy and sharing' })
+  await expect(visibility).toBeVisible()
+  await visibility.click()
+  await expect(page.getByRole('heading', { name: 'Bring people into the board.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Public', exact: true }).click()
+  await expect(page.getByText('Collection is public')).toBeVisible()
+  await page.getByRole('button', { name: 'Close dialog' }).click()
+  await expect(page.getByRole('button', { name: 'Collection visibility: Public. Open privacy and sharing' })).toBeVisible()
+})
+
 test('new account can create, capture, edit, share, revoke and undo', async ({ page, browser }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Create account', exact: true }).click()
@@ -296,7 +319,7 @@ test('new account can create, capture, edit, share, revoke and undo', async ({ p
   await page.getByLabel('Note', { exact: true }).fill('Edited / note')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.locator('.saved-card')).toContainText('Edited / note')
-  await page.getByRole('button', { name: 'Share', exact: true }).click()
+  await page.getByRole('button', { name: 'Privacy & sharing', exact: true }).click()
   await page.getByRole('button', { name: 'Public', exact: true }).click()
   const link = page.locator('.share-url')
   await expect(link).toBeVisible()
