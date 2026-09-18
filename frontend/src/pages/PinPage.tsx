@@ -121,6 +121,16 @@ export function PinPage() {
           {pin.note && <p className="pin-page-note">{pin.note}</p>}
           <Link className="pin-owner" to={`/people/${pin.owner_id}`}><span className="pin-owner-avatar">{pin.owner_avatar ? <img src={pin.owner_avatar} alt="" /> : pin.owner_name.slice(0, 1)}</span><span><strong>{pin.owner_name}</strong><small>Curator</small></span></Link>
           <div className="pin-board-row"><Link className="pin-board-link" to={pin.share_token ? `/shared/${pin.share_token}` : `/collections/${pin.collection_id}`}><FolderHeart size={16} /><span><strong>{pin.collection_name}</strong><small>{pin.collection_description || 'Public collection'} · {pin.collection_follower_count} {pin.collection_follower_count === 1 ? 'follower' : 'followers'}</small></span></Link>{pin.visibility === 'public' && !pin.can_edit && <button className={pin.collection_followed_by_me ? 'secondary-button pin-board-follow' : 'primary-button pin-board-follow'} disabled={followCollection.isPending} onClick={() => followCollection.mutate()}>{pin.collection_followed_by_me ? 'Following' : 'Follow'}</button>}</div>
+          {pin.provenance.total_depth > 0 && <section className="pin-provenance" aria-label="Pin provenance">
+            <span className="eyebrow">REPIN LINEAGE</span>
+            <div className="pin-provenance-list">{pin.provenance.ancestors.map((ancestor) => (
+              <Link to={`/pin/${ancestor.pin_id}`} key={`${ancestor.pin_id}-${ancestor.depth}`}>
+                <span className="pin-provenance-avatar">{ancestor.owner_avatar ? <img src={ancestor.owner_avatar} alt="" /> : ancestor.owner_name.slice(0, 1)}</span>
+                <span><strong>{ancestor.depth === 1 ? `Saved from ${ancestor.owner_name} · ${ancestor.collection_name}` : `Earlier public save · ${ancestor.owner_name} · ${ancestor.collection_name}`}</strong><small>{ancestor.depth === 1 ? 'Previous Mosaic save' : `${ancestor.depth} steps back`}</small></span>
+              </Link>
+            ))}</div>
+            {pin.provenance.hidden_count > 0 && <small className="pin-provenance-hidden">{pin.provenance.hidden_count} earlier {pin.provenance.hidden_count === 1 ? 'step is' : 'steps are'} private or unavailable.</small>}
+          </section>}
           {pin.visibility === 'public' && <div className="pin-social-row"><button className={`pin-like-button ${pin.liked_by_me ? 'active' : ''}`} disabled={like.isPending} onClick={() => like.mutate()}><Heart size={17} fill={pin.liked_by_me ? 'currentColor' : 'none'} /> {pin.like_count} {pin.like_count === 1 ? 'like' : 'likes'}</button></div>}
           {pin.visibility === 'public' && <section className="pin-comments">
             <div className="pin-comments-title"><MessageCircle size={16} /><strong>Conversation</strong><span>{comments.data?.comments.length ?? 0}</span></div>
@@ -133,7 +143,7 @@ export function PinPage() {
             <small className="comment-mention-hint">Use @Name to notify another curator.</small>
           </section>}
           <div className="pin-detail-actions">
-            <QuickSaveControls image={image} />
+            <QuickSaveControls image={image} pinId={pin.id} />
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}
             <button className="secondary-button" onClick={() => void sharePin()}><Share2 size={15} /> Share</button>
             {pin.visibility === 'public' && <SendPinDialog pinId={pin.id} pinTitle={pin.title} trigger={<button className="secondary-button"><MessageCircle size={15} /> Send</button>} />}

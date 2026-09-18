@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
 import { actor, logActivity } from '../lib/collections.js'
+import { provenanceForViewer, recordRepinLineage } from '../lib/provenance.js'
 import { membership, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const pinsRouter = Router()
@@ -11,7 +12,7 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   if (!Number.isInteger(pinId)) return res.status(400).json({ error: 'Invalid pin.' })
   const pin = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.description AS collection_description,
-      c.visibility, c.share_token,
+      c.visibility, c.audience, c.share_token,
       u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
       (SELECT COUNT(*) FROM item_likes WHERE item_id = i.id) AS like_count,
       (SELECT COUNT(*) FROM collection_follows cf WHERE cf.collection_id = c.id) AS collection_follower_count,
@@ -26,9 +27,12 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   `).get(req.user?.id ?? -1, pinId) as Record<string, unknown> | undefined
   if (!pin) return res.status(404).json({ error: 'Pin not found.' })
   const pinMembership = req.user ? membership(Number(pin.collection_id), req.user.id) : undefined
-  const canView = pin.visibility === 'public' || pinMembership
+  const canViewFollowers = Boolean(req.user && pin.audience === 'followers' && db.prepare(
+    'SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?',
+  ).get(req.user.id, pin.owner_id))
+  const canView = pin.visibility === 'public' || pinMembership || canViewFollowers
   if (!canView) return res.status(404).json({ error: 'Pin not found.' })
-  return res.json({ pin: { ...pin, can_edit: Boolean(pinMembership), liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false } })
+  return res.json({ pin: { ...pin, can_edit: Boolean(pinMembership), liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false, provenance: provenanceForViewer(pinId, req.user?.id) } })
 })
 
 
@@ -116,7 +120,9 @@ pinsRouter.post('/save-batch', requireAuth, (req: AuthedRequest, res) => {
         Math.min(5000, 40 + Math.floor(offset / 3) * 250),
         (offset % 3 - 1) * 2,
       )
-      items.push(db.prepare('SELECT * FROM items WHERE id = ?').get(insert.lastInsertRowid))
+      const itemId = Number(insert.lastInsertRowid)
+      recordRepinLineage(itemId, pin.id)
+      items.push(db.prepare('SELECT * FROM items WHERE id = ?').get(itemId))
       existingSources.add(pin.source_id)
       offset += 1
     }
@@ -193,6 +199,7 @@ pinsRouter.post('/:id/save', requireAuth, (req: AuthedRequest, res) => {
       Math.min(5000, 40 + Math.floor(offset / 3) * 250),
       (offset % 3 - 1) * 2,
     )
+    recordRepinLineage(Number(result.lastInsertRowid), pinId)
     db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetCollectionId)
     logActivity(targetCollectionId, `${actor(req)} saved “${String(pin.title)}” from Mosaic`, req.user!.id)
     return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)

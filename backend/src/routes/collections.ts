@@ -5,6 +5,7 @@ import { db } from '../db.js'
 import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
 import { persistProviderImage } from '../lib/media.js'
 import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
+import { copyItemLineage } from '../lib/provenance.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
 import {
   requireAuth,
@@ -402,6 +403,7 @@ collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest
           targetId, item.source_id, item.image_url, item.source_page, item.source_creator, item.title, item.note, item.tags,
           36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2,
         )
+        copyItemLineage(Number(item.id), Number(result.lastInsertRowid))
         return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
       })
       db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetId)

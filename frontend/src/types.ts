@@ -60,6 +60,20 @@ export type PinDetail = PublicPin & {
   can_edit: boolean
   collection_follower_count: number
   collection_followed_by_me: boolean | number
+  provenance: {
+    ancestors: Array<{
+      depth: number
+      pin_id: number
+      collection_id: number
+      collection_name: string
+      share_token: string | null
+      owner_id: number
+      owner_name: string
+      owner_avatar: string
+    }>
+    hidden_count: number
+    total_depth: number
+  }
 }
 
 

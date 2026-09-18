@@ -605,6 +605,17 @@ img { display: block; max-width: 100%; }
 .pin-board-row { width: 100%; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); }
 .pin-board-row .pin-board-link { min-width: 0; flex: 1; border-top: 0; }
 .pin-board-follow { min-height: 34px; flex: 0 0 auto; padding-inline: 10px; }
+.pin-provenance { width: 100%; padding: 15px 0; border-top: 1px solid var(--line); }
+.pin-provenance > .eyebrow { display: block; margin-bottom: 9px; }
+.pin-provenance-list { display: grid; gap: 4px; }
+.pin-provenance-list > a { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 9px; align-items: center; padding: 7px; margin-inline: -7px; border-radius: 9px; }
+.pin-provenance-list > a:hover { background: #f2eee7; }
+.pin-provenance-avatar { width: 30px; height: 30px; overflow: hidden; border-radius: 50%; display: grid; place-items: center; background: #ddd6cb; font-size: 9px; font-weight: 800; }
+.pin-provenance-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pin-provenance-list > a > span:last-child { min-width: 0; display: grid; gap: 2px; }
+.pin-provenance-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.pin-provenance-list small, .pin-provenance-hidden { color: var(--muted); font-size: 9px; }
+.pin-provenance-hidden { display: block; margin-top: 8px; }
 .pin-owner-avatar { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--ink); color: white; font-weight: 700; }
 .pin-owner-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .pin-owner > span:last-child, .pin-board-link > span { display: grid; gap: 3px; }

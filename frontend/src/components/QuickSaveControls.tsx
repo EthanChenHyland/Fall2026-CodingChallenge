@@ -6,8 +6,9 @@ import { api } from '../api'
 import { recentCollection, rememberCollection } from '../lib/recentCollection'
 import type { CatalogImage, Collection } from '../types'
 import { SaveImageDialog } from './Dialogs'
+import { SavePinDialog } from './SavePinDialog'
 
-export function QuickSaveControls({ image }: { image: CatalogImage }) {
+export function QuickSaveControls({ image, pinId }: { image: CatalogImage; pinId?: number }) {
   const queryClient = useQueryClient()
   const { data } = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const [saved, setSaved] = useState(false)
@@ -15,7 +16,7 @@ export function QuickSaveControls({ image }: { image: CatalogImage }) {
   const target = collections.length ? recentCollection(collections) : null
 
   const save = useMutation({
-    mutationFn: (collectionId: number) => api.saveImage(collectionId, image),
+    mutationFn: (collectionId: number) => pinId ? api.savePin(pinId, collectionId) : api.saveImage(collectionId, image),
     onMutate: async (collectionId) => {
       await queryClient.cancelQueries({ queryKey: ['collections'] })
       const previous = queryClient.getQueryData<{ collections: Collection[] }>(['collections'])
@@ -55,7 +56,9 @@ export function QuickSaveControls({ image }: { image: CatalogImage }) {
   })
 
   if (!target) {
-    return <SaveImageDialog image={image} trigger={<button className="save-button"><Bookmark size={16} /> Save</button>} />
+    return pinId
+      ? <SavePinDialog pinId={pinId} pinTitle={image.title} pinImageUrl={image.imageUrl} trigger={<button className="save-button"><Bookmark size={16} /> Save</button>} />
+      : <SaveImageDialog image={image} trigger={<button className="save-button"><Bookmark size={16} /> Save</button>} />
   }
 
   return (
@@ -70,7 +73,9 @@ export function QuickSaveControls({ image }: { image: CatalogImage }) {
         {saved ? <Check size={16} /> : <Bookmark size={16} />}
         {saved ? 'Saved' : 'Save'}
       </button>
-      <SaveImageDialog image={image} trigger={<button className="quick-save-more" aria-label="Choose another collection" title="Choose another collection"><ChevronDown size={15} /></button>} />
+      {pinId
+        ? <SavePinDialog pinId={pinId} pinTitle={image.title} pinImageUrl={image.imageUrl} trigger={<button className="quick-save-more" aria-label="Choose another collection" title="Choose another collection"><ChevronDown size={15} /></button>} />
+        : <SaveImageDialog image={image} trigger={<button className="quick-save-more" aria-label="Choose another collection" title="Choose another collection"><ChevronDown size={15} /></button>} />}
     </div>
   )
 }

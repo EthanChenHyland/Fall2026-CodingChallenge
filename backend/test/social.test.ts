@@ -143,6 +143,64 @@ test('public pins can be saved into another collection without exposing private 
   await demo.post(`/api/pins/${privatePin.body.item.id}/save`).send({ collectionId: demoTarget.body.collection.id }).expect(404)
 })
 
+test('repin provenance preserves lineage without exposing boards that become private', async () => {
+  const sam = await makeCurator('Sam Lineage')
+  const middle = await makeCurator('Middle Curator')
+  const final = await makeCurator('Final Curator')
+  const outsider = await makeCurator('Lineage Viewer')
+
+  const sourceBoard = await sam.agent.post('/api/collections').send({ name: 'Material walks' }).expect(201)
+  const sourceBoardId = sourceBoard.body.collection.id as number
+  const search = await sam.agent.get('/api/search?q=material').expect(200)
+  const result = search.body.results[0]
+  const sourcePin = await sam.agent.post(`/api/collections/${sourceBoardId}/items`).send({
+    sourceId: `lineage-${randomUUID()}`,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Lineage source pin',
+  }).expect(201)
+  const sourcePinId = sourcePin.body.item.id as number
+  await sam.agent.post(`/api/collections/${sourceBoardId}/share`).expect(200)
+
+  const middleBoard = await middle.agent.post('/api/collections').send({ name: 'Collected surfaces' }).expect(201)
+  const middleBoardId = middleBoard.body.collection.id as number
+  const middleSave = await middle.agent.post(`/api/pins/${sourcePinId}/save`).send({ collectionId: middleBoardId }).expect(201)
+  const middlePinId = middleSave.body.item.id as number
+  await middle.agent.post(`/api/collections/${middleBoardId}/share`).expect(200)
+
+  const finalBoard = await final.agent.post('/api/collections').send({ name: 'Lobby references' }).expect(201)
+  const finalBoardId = finalBoard.body.collection.id as number
+  const finalSave = await final.agent.post(`/api/pins/${middlePinId}/save`).send({ collectionId: finalBoardId }).expect(201)
+  const finalPinId = finalSave.body.item.id as number
+  await final.agent.post(`/api/collections/${finalBoardId}/share`).expect(200)
+
+  const full = await outsider.agent.get(`/api/pins/${finalPinId}`).expect(200)
+  assert.deepEqual(full.body.pin.provenance.ancestors.map((entry: { pin_id: number; depth: number }) => [entry.pin_id, entry.depth]), [[middlePinId, 1], [sourcePinId, 2]])
+  assert.equal(full.body.pin.provenance.ancestors[0].owner_name, 'Middle Curator')
+  assert.equal(full.body.pin.provenance.ancestors[1].collection_name, 'Material walks')
+  assert.equal(full.body.pin.provenance.hidden_count, 0)
+
+  await middle.agent.patch(`/api/collections/${middleBoardId}`).send({ audience: 'private' }).expect(200)
+  const privacySafe = await outsider.agent.get(`/api/pins/${finalPinId}`).expect(200)
+  assert.deepEqual(privacySafe.body.pin.provenance.ancestors.map((entry: { pin_id: number; depth: number }) => [entry.pin_id, entry.depth]), [[sourcePinId, 2]])
+  assert.equal(privacySafe.body.pin.provenance.hidden_count, 1)
+  assert.equal(privacySafe.body.pin.provenance.total_depth, 2)
+  assert.ok(!JSON.stringify(privacySafe.body.pin.provenance).includes('Collected surfaces'))
+
+  const copyBoard = await final.agent.post('/api/collections').send({ name: 'Lineage copy' }).expect(201)
+  const copyBoardId = copyBoard.body.collection.id as number
+  const copied = await final.agent.post(`/api/collections/${finalBoardId}/items/bulk`).send({ action: 'copy', itemIds: [finalPinId], targetCollectionId: copyBoardId }).expect(200)
+  const copiedPinId = copied.body.items[0].id as number
+  const copiedDetail = await final.agent.get(`/api/pins/${copiedPinId}`).expect(200)
+  assert.equal(copiedDetail.body.pin.provenance.total_depth, 2)
+
+  await final.agent.delete(`/api/collections/${finalBoardId}/items/${finalPinId}`).expect(204)
+  await final.agent.post(`/api/collections/${finalBoardId}/items/restore`).send({ itemId: finalPinId }).expect(201)
+  const restored = await final.agent.get(`/api/pins/${finalPinId}`).expect(200)
+  assert.equal(restored.body.pin.provenance.total_depth, 2)
+})
+
 test('public pins can be batch saved with duplicate and privacy safeguards', async () => {
   const curator = await makeCurator('Batch Curator')
   const explore = await curator.agent.get('/api/explore').expect(200)
@@ -155,6 +213,9 @@ test('public pins can be batch saved with duplicate and privacy safeguards', asy
   assert.equal(firstBatch.body.savedCount, 2)
   assert.equal(firstBatch.body.skippedCount, 0)
   assert.deepEqual(new Set(firstBatch.body.items.map((item: { source_id: string }) => item.source_id)), new Set(publicPins.map((pin) => pin.source_id)))
+  const batchDetail = await curator.agent.get(`/api/pins/${firstBatch.body.items[0].id}`).expect(200)
+  assert.ok(batchDetail.body.pin.provenance.total_depth >= 1)
+  assert.equal(batchDetail.body.pin.provenance.ancestors[0].pin_id, publicPins[0].id)
 
   const repeated = await curator.agent.post('/api/pins/save-batch').send({ collectionId: targetId, pinIds: publicPins.map((pin) => pin.id) }).expect(200)
   assert.equal(repeated.body.savedCount, 0)
