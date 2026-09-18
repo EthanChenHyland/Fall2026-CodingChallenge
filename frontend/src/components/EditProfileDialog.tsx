@@ -30,7 +30,7 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
   const update = useMutation({
     mutationFn: () => api.updateProfile({ name, bio, avatarUrl }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', profile.id] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       setOpen(false)
       toast.success('Profile updated')

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, FolderHeart, MessageCircle } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { EditProfileDialog } from '../components/EditProfileDialog'
@@ -8,15 +9,21 @@ import { ConnectionsDialog } from '../components/ConnectionsDialog'
 
 export function ProfilePage() {
   const queryClient = useQueryClient()
-  const { id: rawId } = useParams()
-  const id = Number(rawId)
-  const { data, isLoading, isError } = useQuery({ queryKey: ['profile', id], queryFn: () => api.profile(id), enabled: Number.isInteger(id) })
-  const follow = useMutation({ mutationFn: () => data?.profile.followed_by_me ? api.unfollowProfile(id) : api.followProfile(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', id] }) })
+  const navigate = useNavigate()
+  const { identifier: rawIdentifier } = useParams()
+  const identifier = rawIdentifier ?? ''
+  const { data, isLoading, isError } = useQuery({ queryKey: ['profile', identifier], queryFn: () => api.profile(identifier), enabled: Boolean(identifier) })
+  const profileId = data?.profile.id ?? 0
+  const follow = useMutation({ mutationFn: () => data?.profile.followed_by_me ? api.unfollowProfile(profileId) : api.followProfile(profileId), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile'] }) })
   const followCollection = useMutation({
     mutationFn: ({ collectionId, followed }: { collectionId: number; followed: boolean }) => followed ? api.unfollowCollection(collectionId) : api.followCollection(collectionId),
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['profile', id] }); void queryClient.invalidateQueries({ queryKey: ['explore'] }) },
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['profile'] }); void queryClient.invalidateQueries({ queryKey: ['explore'] }) },
     onError: (error: Error) => toast.error(error.message),
   })
+
+  useEffect(() => {
+    if (data?.profile.username && identifier !== data.profile.username) navigate(`/people/${data.profile.username}`, { replace: true })
+  }, [data?.profile.username, identifier, navigate])
 
   if (isLoading) return <div className="loading-page">Opening profile…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That profile is not available.</h3><Link className="primary-button" to="/">Back to Mosaic</Link></div>
@@ -31,8 +38,9 @@ export function ProfilePage() {
         <div className="profile-copy">
           <span className="eyebrow">MOSAIC PROFILE</span>
           <h1>{profile.name}</h1>
+          <span className="profile-handle">@{profile.username}</span>
           <p>{profile.bio || 'Collecting a few good things at a time.'}</p>
-          <div className="profile-stats"><span><strong>{profile.pin_count}</strong> pins</span><span><strong>{profile.collection_count}</strong> collections</span><ConnectionsDialog profileId={profile.id} kind="followers" count={profile.follower_count} /><ConnectionsDialog profileId={profile.id} kind="following" count={profile.following_count} /></div>
+          <div className="profile-stats"><span className="profile-stat"><strong>{profile.pin_count}</strong><span>pins</span></span><span className="profile-stat"><strong>{profile.collection_count}</strong><span>collections</span></span><ConnectionsDialog profileId={profile.id} kind="followers" count={profile.follower_count} /><ConnectionsDialog profileId={profile.id} kind="following" count={profile.following_count} /></div>
           <div className="profile-actions">{profile.is_self ? <EditProfileDialog profile={profile} /> : <><button className={profile.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={follow.isPending} onClick={() => follow.mutate()}>{profile.followed_by_me ? 'Following' : 'Follow'}</button><Link className="secondary-button" to={`/messages?with=${profile.id}`}><MessageCircle size={15} /> Message</Link></>}</div>
         </div>
       </section>

@@ -47,7 +47,7 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
 
   const candidates = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar,
       (SELECT COUNT(*) FROM item_likes likes WHERE likes.item_id = i.id) AS like_count,
       (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
     FROM items i
@@ -81,7 +81,7 @@ exploreRouter.get('/', (req: AuthedRequest, res) => {
   const offset = (page - 1) * limit
   const pins = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar,
       (SELECT COUNT(*) FROM item_likes likes WHERE likes.item_id = i.id) AS like_count,
       (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
     FROM items i

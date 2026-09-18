@@ -208,6 +208,7 @@ db.exec(`
 
 ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")
 ensureColumn('users', 'avatar_url', "TEXT NOT NULL DEFAULT ''")
+ensureColumn('users', 'username', 'TEXT')
 ensureColumn('collections', 'cover_item_id', 'INTEGER')
 ensureColumn('collections', 'cover_focus_x', 'REAL NOT NULL DEFAULT 50')
 ensureColumn('collections', 'cover_focus_y', 'REAL NOT NULL DEFAULT 50')
@@ -220,6 +221,38 @@ ensureColumn('messages', 'pin_id', 'INTEGER')
 ensureColumn('comments', 'parent_id', 'INTEGER')
 db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
 
+function usernameBase(name: string) {
+  const normalized = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const withLetter = /^[a-z]/.test(normalized) ? normalized : `user-${normalized || 'mosaic'}`
+  return withLetter.slice(0, 30).replace(/-+$/g, '') || 'mosaic-user'
+}
+
+export function createUniqueUsername(name: string, excludeUserId?: number) {
+  const base = usernameBase(name)
+  let candidate = base
+  let suffix = 2
+  while (db.prepare('SELECT id FROM users WHERE username = ? COLLATE NOCASE AND id != ?').get(candidate, excludeUserId ?? -1)) {
+    const ending = `-${suffix}`
+    candidate = `${base.slice(0, 30 - ending.length).replace(/-+$/g, '')}${ending}`
+    suffix += 1
+  }
+  return candidate
+}
+
+const usersWithoutUsername = db.prepare("SELECT id, name FROM users WHERE username IS NULL OR TRIM(username) = '' ORDER BY id").all() as Array<{ id: number; name: string }>
+if (usersWithoutUsername.length) {
+  db.transaction(() => {
+    const update = db.prepare('UPDATE users SET username = ? WHERE id = ?')
+    for (const user of usersWithoutUsername) update.run(createUniqueUsername(user.name, user.id), user.id)
+  })()
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_unique ON users(username COLLATE NOCASE)')
+
 function hashPassword(password: string, salt: string) {
   return crypto.scryptSync(password, salt, 64).toString('hex')
 }
@@ -228,9 +261,10 @@ function seedUser(name: string, email: string, password: string) {
   const found = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
   if (found) return found.id
   const salt = crypto.randomBytes(16).toString('hex')
+  const username = createUniqueUsername(name)
   const result = db
-    .prepare('INSERT INTO users (name, email, password_hash, password_salt) VALUES (?, ?, ?, ?)')
-    .run(name, email, hashPassword(password, salt), salt)
+    .prepare('INSERT INTO users (name, username, email, password_hash, password_salt) VALUES (?, ?, ?, ?, ?)')
+    .run(name, username, email, hashPassword(password, salt), salt)
   return Number(result.lastInsertRowid)
 }
 

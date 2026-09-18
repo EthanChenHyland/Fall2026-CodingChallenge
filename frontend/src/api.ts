@@ -45,7 +45,7 @@ export const api = {
   search: (query = '', page = 1, source = '') =>
     request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}`),
   searchRecommendations: (query = '') => request<{ suggestions: string[]; pins: PublicPin[]; basedOn: string[] }>(`/api/search/recommendations?q=${encodeURIComponent(query)}`),
-  profile: (id: number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${id}`),
+  profile: (identifier: string | number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${encodeURIComponent(String(identifier))}`),
   profileConnections: (id: number, kind: 'followers' | 'following') => request<{ kind: string; people: ProfileConnection[] }>(`/api/profiles/${id}/connections?kind=${kind}`),
   updateProfile: (body: { name?: string; bio?: string; avatarUrl?: string }) => request<{ user: User }>('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(body) }),
   followProfile: (id: number) => request<void>(`/api/profiles/${id}/follow`, { method: 'POST' }),

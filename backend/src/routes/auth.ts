@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { Router } from 'express'
 import { z } from 'zod'
-import { db } from '../db.js'
+import { createUniqueUsername, db } from '../db.js'
 import {
   clearSession,
   passwordHash,
@@ -31,12 +31,13 @@ authRouter.post('/register', (req, res) => {
   }
   const user = db.transaction(() => {
     const salt = crypto.randomBytes(16).toString('hex')
+    const username = createUniqueUsername(parsed.data.name)
     const result = db.prepare(`
-      INSERT INTO users (name, email, password_hash, password_salt) VALUES (?, ?, ?, ?)
-    `).run(parsed.data.name, parsed.data.email, passwordHash(parsed.data.password, salt), salt)
+      INSERT INTO users (name, username, email, password_hash, password_salt) VALUES (?, ?, ?, ?, ?)
+    `).run(parsed.data.name, username, parsed.data.email, passwordHash(parsed.data.password, salt), salt)
     const userId = Number(result.lastInsertRowid)
     setSession(res, userId)
-    return db.prepare('SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(userId)
+    return db.prepare('SELECT id, username, name, email, bio, avatar_url, created_at FROM users WHERE id = ?').get(userId)
   })()
   return res.status(201).json({ user })
 })
@@ -52,11 +53,11 @@ authRouter.post('/login', (req, res) => {
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString())
   setSession(res, account.id)
-  return res.json({ user: { id: account.id, name: account.name, email: account.email, bio: account.bio, avatar_url: account.avatar_url, created_at: account.created_at } })
+  return res.json({ user: { id: account.id, username: account.username, name: account.name, email: account.email, bio: account.bio, avatar_url: account.avatar_url, created_at: account.created_at } })
 })
 
 authRouter.post('/demo', (_req, res) => {
-  const user = db.prepare("SELECT id, name, email, bio, avatar_url, created_at FROM users WHERE email = 'demo@mosaic.local'").get() as User
+  const user = db.prepare("SELECT id, username, name, email, bio, avatar_url, created_at FROM users WHERE email = 'demo@mosaic.local'").get() as User
   setSession(res, user.id)
   return res.json({ user })
 })

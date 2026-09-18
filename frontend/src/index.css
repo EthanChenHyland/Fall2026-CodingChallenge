@@ -533,13 +533,16 @@ img { display: block; max-width: 100%; }
 .profile-photo-upload { position: relative; }
 .profile-photo-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .profile-copy h1 { margin: 10px 0 9px; font-family: Georgia, serif; font-size: clamp(48px, 6vw, 76px); font-weight: 400; letter-spacing: -.04em; }
+.profile-handle { display: block; margin: -3px 0 9px; color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .01em; }
 .profile-copy > p { margin: 0; max-width: 620px; color: var(--muted); font-family: Georgia, serif; font-size: 16px; line-height: 1.55; }
-.profile-stats { display: flex; gap: 22px; margin-top: 20px; color: var(--muted); font-size: 11px; }
-.profile-stats strong { color: var(--ink); font-size: 14px; }
+.profile-stats { display: flex; align-items: stretch; gap: 22px; margin-top: 20px; color: var(--muted); font-size: 11px; }
+.profile-stat { min-width: 58px; display: grid; align-content: center; justify-items: start; gap: 2px; padding: 6px 0; line-height: 1.1; }
+.profile-stat strong { display: block; color: var(--ink); font-size: 14px; line-height: 1; }
+.profile-stat > span { display: block; }
 .profile-section-head { margin-top: 0; }
 @media (max-width: 700px) { .profile-hero { grid-template-columns: 82px 1fr; gap: 18px; padding-bottom: 32px; margin-bottom: 32px; } .profile-avatar { width: 82px; height: 82px; font-size: 22px; } .profile-copy h1 { font-size: 38px; } .profile-copy > p { font-size: 12px; } .profile-stats { gap: 14px; margin-top: 12px; } }
 
-.profile-stat-button { min-height: 32px; border: 0; background: transparent; padding: 6px 2px; color: inherit; cursor: pointer; font: inherit; }
+.profile-stat-button { min-height: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
 .profile-stat-button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .connections-dialog { max-height: min(620px, 82vh); }
 .connection-list { display: grid; gap: 4px; margin-top: 14px; overflow-y: auto; }

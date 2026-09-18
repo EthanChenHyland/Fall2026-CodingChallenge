@@ -67,7 +67,7 @@ export default function App() {
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/collections/smart/:mode" element={<SmartCollectionPage />} />
               <Route path="/collections/:id" element={<CollectionPage />} />
-              <Route path="/people/:id" element={<ProfilePage />} />
+              <Route path="/people/:identifier" element={<ProfilePage />} />
               <Route path="/pin/:id" element={<PinPage />} />
               <Route path="/capture" element={<CapturePage />} />
               <Route path="/messages" element={<MessagesPage />} />

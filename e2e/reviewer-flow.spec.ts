@@ -158,6 +158,9 @@ test('direct messages persist between accounts and surface unread threads', asyn
     return data.people.find((person) => person.name === 'Sam Rivera')!.id
   })
   await page.goto(`/people/${samId}`)
+  await expect(page).toHaveURL(/\/people\/sam-rivera$/)
+  const statTops = await page.locator('.profile-stats strong').evaluateAll((elements) => elements.map((element) => Math.round(element.getBoundingClientRect().top)))
+  expect(new Set(statTops).size).toBe(1)
   await page.getByRole('link', { name: 'Message', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Keep the idea moving.' })).toBeVisible()
   await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Want to compare material boards?')

@@ -45,6 +45,7 @@ export type PublicPin = SavedItem & {
   collection_name: string
   share_token: string
   owner_id: number
+  owner_username: string
   owner_name: string
   owner_avatar: string
   like_count?: number
@@ -68,6 +69,7 @@ export type PinDetail = PublicPin & {
       collection_name: string
       share_token: string | null
       owner_id: number
+      owner_username: string
       owner_name: string
       owner_avatar: string
     }>
@@ -84,6 +86,7 @@ export type PinComment = {
   parent_id: number | null
   created_at: string
   user_id: number
+  user_username: string
   user_name: string
   user_avatar: string
   can_delete: boolean
@@ -93,6 +96,7 @@ export type PinComment = {
 
 export type SocialSearchPerson = {
   id: number
+  username: string
   name: string
   bio: string
   avatar_url: string
@@ -122,6 +126,7 @@ export type ActivityItem = {
 
 export type User = {
   id: number
+  username: string
   name: string
   email: string
   bio: string
@@ -132,6 +137,7 @@ export type User = {
 
 export type PublicProfile = {
   id: number
+  username: string
   name: string
   bio: string
   avatar_url: string
@@ -148,6 +154,7 @@ export type PublicProfile = {
 
 export type ProfileConnection = {
   id: number
+  username: string
   name: string
   bio: string
   avatar_url: string
@@ -176,6 +183,7 @@ export type MessageConversation = {
   created_at: string
   updated_at: string
   other_user_id: number
+  other_user_username: string
   other_user_name: string
   other_user_avatar: string
   last_message: string | null

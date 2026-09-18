@@ -167,7 +167,7 @@ export function AppShell() {
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>
-                  <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.id}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
+                  <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.username}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
                   <button className="popover-action" onClick={() => { setShortcutOpen(true); setProfileOpen(false) }}><HelpCircle size={15} /> Keyboard shortcuts</button>
                   <button className="popover-action" onClick={() => { setCoachReplay((value) => value + 1); setProfileOpen(false) }}><Compass size={15} /> Replay quick tour</button>
                   {installPrompt && <button className="popover-action" onClick={() => { void installPrompt.prompt().then(() => installPrompt.userChoice).then(() => setInstallPrompt(null)); setProfileOpen(false) }}><Download size={15} /> Install Mosaic</button>}
