@@ -128,6 +128,14 @@ db.exec(`
     PRIMARY KEY (item_id, depth)
   );
 
+  CREATE TABLE IF NOT EXISTS recommendation_feedback (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    signal TEXT NOT NULL CHECK (signal IN ('more', 'not_interested')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, item_id)
+  );
+
   CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -180,6 +188,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_collection_follows_collection ON collection_follows(collection_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_item_likes_item ON item_likes(item_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_item_lineage_ancestor ON item_lineage(ancestor_item_id, item_id);
+  CREATE INDEX IF NOT EXISTS idx_recommendation_feedback_user ON recommendation_feedback(user_id, signal, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comments_item ON comments(item_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_conversations_user_a ON conversations(user_a_id, updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_conversations_user_b ON conversations(user_b_id, updated_at DESC);

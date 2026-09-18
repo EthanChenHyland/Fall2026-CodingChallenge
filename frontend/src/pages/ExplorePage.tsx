@@ -14,6 +14,15 @@ export function ExplorePage() {
   const sentinel = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const recommendations = useQuery({ queryKey: ['recommendations'], queryFn: api.recommendations })
+  const feedback = useMutation({
+    mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['recommendations'] })
+      void queryClient.invalidateQueries({ queryKey: ['search-recommendations'] })
+      toast.success(variables.signal === 'more' ? 'We’ll show you more like this' : 'Recommendation hidden')
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const { data, isLoading, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['explore', mode],
@@ -85,7 +94,7 @@ export function ExplorePage() {
       {mode === 'all' && recommendations.data?.pins.length ? (
         <section className="recommendation-section">
           <div className="section-head"><div><span className="eyebrow">BECAUSE YOU SAVED</span><h2>More in your orbit</h2></div><span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span></div>
-          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div>
+          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
         </section>
       ) : null}
       <section className="section-head explore-section-head"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>

@@ -73,6 +73,26 @@ const savePinsBatchSchema = z.object({
   pinIds: z.array(z.number().int().positive()).min(1).max(30),
 })
 
+const recommendationFeedbackSchema = z.object({ signal: z.enum(['more', 'not_interested']) })
+
+pinsRouter.post('/:id/recommendation-feedback', requireAuth, (req: AuthedRequest, res) => {
+  const pinId = Number(req.params.id)
+  const parsed = recommendationFeedbackSchema.safeParse(req.body)
+  if (!Number.isSafeInteger(pinId) || pinId <= 0 || !parsed.success) return res.status(400).json({ error: 'Invalid recommendation feedback.' })
+  const publicPin = db.prepare(`
+    SELECT i.id FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE i.id = ? AND c.visibility = 'public' AND c.share_token IS NOT NULL
+  `).get(pinId)
+  if (!publicPin) return res.status(404).json({ error: 'Pin not found.' })
+  db.prepare(`
+    INSERT INTO recommendation_feedback (user_id, item_id, signal)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, item_id) DO UPDATE SET signal = excluded.signal, created_at = CURRENT_TIMESTAMP
+  `).run(req.user!.id, pinId, parsed.data.signal)
+  return res.status(204).end()
+})
+
 pinsRouter.post('/save-batch', requireAuth, (req: AuthedRequest, res) => {
   const parsed = savePinsBatchSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Choose up to 30 public pins and a collection.' })

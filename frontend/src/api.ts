@@ -30,6 +30,7 @@ export const api = {
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
   recommendations: () => request<{ pins: PublicPin[]; basedOn: string[] }>('/api/explore/recommended'),
+  recommendationFeedback: (id: number, signal: 'more' | 'not_interested') => request<void>(`/api/pins/${id}/recommendation-feedback`, { method: 'POST', body: JSON.stringify({ signal }) }),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),

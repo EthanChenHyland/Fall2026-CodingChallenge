@@ -46,6 +46,21 @@ function searchInterests(userId?: number) {
       weights.set(term, (weights.get(term) ?? 0) + 1)
     }
   }
+  const feedback = db.prepare(`
+    SELECT rf.signal, i.title, i.tags, c.name AS collection_name
+    FROM recommendation_feedback rf
+    JOIN items i ON i.id = rf.item_id
+    JOIN collections c ON c.id = i.collection_id
+    WHERE rf.user_id = ?
+    ORDER BY rf.created_at DESC
+    LIMIT 100
+  `).all(userId) as Array<{ signal: 'more' | 'not_interested'; title: string; tags: string; collection_name: string }>
+  for (const item of feedback) {
+    const multiplier = item.signal === 'more' ? 8 : -6
+    for (const term of recommendationTerms(`${item.tags} ${item.title} ${item.collection_name}`)) {
+      weights.set(term, (weights.get(term) ?? 0) + multiplier)
+    }
+  }
   return [...weights.entries()].sort((a, b) => b[1] - a[1])
 }
 
@@ -251,7 +266,7 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
     suggestionScores.set(suggestion, Math.max(suggestionScores.get(suggestion) ?? 0, score))
   }
 
-  for (const [interest, weight] of interests.slice(0, 20)) addSuggestion(interest, 100 + weight)
+  for (const [interest, weight] of interests.filter(([, weight]) => weight > 0).slice(0, 20)) addSuggestion(interest, 100 + weight)
   for (const image of catalog) {
     for (const tag of image.tags) {
       const normalized = tag.trim().toLowerCase()
@@ -281,9 +296,13 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
     JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
     JOIN users u ON u.id = owner.user_id
     WHERE c.visibility = 'public' AND c.share_token IS NOT NULL AND u.id != ?
+      AND NOT EXISTS (
+        SELECT 1 FROM recommendation_feedback rf
+        WHERE rf.user_id = ? AND rf.item_id = i.id AND rf.signal = 'not_interested'
+      )
     ORDER BY c.updated_at DESC, i.id DESC
     LIMIT 250
-  `).all(userId) as Array<Record<string, unknown>>
+  `).all(userId, userId) as Array<Record<string, unknown>>
 
   const ranked = candidates.map((pin) => {
     const haystack = `${String(pin.title ?? '')} ${String(pin.tags ?? '')} ${String(pin.collection_name ?? '')} ${String(pin.source_creator ?? '')}`.toLowerCase()
@@ -295,7 +314,7 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
 
-  return res.json({ suggestions, pins: ranked.map((entry) => entry.pin), basedOn: interests.slice(0, 4).map(([term]) => term) })
+  return res.json({ suggestions, pins: ranked.map((entry) => entry.pin), basedOn: interests.filter(([, weight]) => weight > 0).slice(0, 4).map(([term]) => term) })
 })
 
 searchRouter.get('/', async (req, res) => {

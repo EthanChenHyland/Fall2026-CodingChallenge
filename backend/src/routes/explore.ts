@@ -27,7 +27,22 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
     for (const term of recommendationTerms(item.tags)) weights.set(term, (weights.get(term) ?? 0) + 4)
     for (const term of recommendationTerms(`${item.title} ${item.collection_name}`)) weights.set(term, (weights.get(term) ?? 0) + 1)
   }
-  const interests = [...weights.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const feedback = db.prepare(`
+    SELECT rf.signal, i.title, i.tags, c.name AS collection_name
+    FROM recommendation_feedback rf
+    JOIN items i ON i.id = rf.item_id
+    JOIN collections c ON c.id = i.collection_id
+    WHERE rf.user_id = ?
+    ORDER BY rf.created_at DESC
+    LIMIT 100
+  `).all(userId) as Array<{ signal: 'more' | 'not_interested'; title: string; tags: string; collection_name: string }>
+  for (const item of feedback) {
+    const multiplier = item.signal === 'more' ? 8 : -6
+    for (const term of recommendationTerms(`${item.tags} ${item.title} ${item.collection_name}`)) {
+      weights.set(term, (weights.get(term) ?? 0) + multiplier)
+    }
+  }
+  const interests = [...weights.entries()].filter(([, weight]) => weight > 0).sort((a, b) => b[1] - a[1]).slice(0, 10)
   if (!interests.length) return res.json({ pins: [], basedOn: [] })
 
   const candidates = db.prepare(`
@@ -40,9 +55,13 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
     JOIN users u ON u.id = m.user_id
     WHERE c.visibility = 'public' AND c.share_token IS NOT NULL AND u.id != ?
+      AND NOT EXISTS (
+        SELECT 1 FROM recommendation_feedback rf
+        WHERE rf.user_id = ? AND rf.item_id = i.id AND rf.signal = 'not_interested'
+      )
     ORDER BY c.updated_at DESC, i.id DESC
     LIMIT 200
-  `).all(userId) as Array<Record<string, unknown>>
+  `).all(userId, userId) as Array<Record<string, unknown>>
 
   const ranked = candidates.map((pin) => {
     const haystack = `${String(pin.title ?? '')} ${String(pin.tags ?? '')} ${String(pin.collection_name ?? '')} ${String(pin.source_creator ?? '')}`.toLowerCase()

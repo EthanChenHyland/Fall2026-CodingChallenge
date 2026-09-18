@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, LoaderCircle, Search, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { SocialSearchResults } from '../components/SocialSearchResults'
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
 
 export function DiscoverPage() {
+  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQuery = searchParams.get('q') ?? ''
   const initialTopic = topics.includes(searchParams.get('topic') ?? '') ? searchParams.get('topic')! : 'All'
@@ -29,6 +30,10 @@ export function DiscoverPage() {
   const recommendations = useQuery({
     queryKey: ['search-recommendations', debouncedQuery],
     queryFn: () => api.searchRecommendations(debouncedQuery),
+  })
+  const feedback = useMutation({
+    mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['search-recommendations'] }); void queryClient.invalidateQueries({ queryKey: ['recommendations'] }) },
   })
 
   const results = useMemo(() => {
@@ -106,7 +111,7 @@ export function DiscoverPage() {
 
       <SocialSearchResults query={debouncedQuery} />
 
-      {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{debouncedQuery ? `More around “${debouncedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} />)}</div></section> : null}
+      {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{debouncedQuery ? `More around “${debouncedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
       <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{effectiveQuery ? `Results for “${effectiveQuery}”` : 'Recent finds'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (

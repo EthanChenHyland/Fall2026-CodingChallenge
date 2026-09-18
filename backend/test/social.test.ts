@@ -109,6 +109,46 @@ test('recommendations are derived from saved interests', async () => {
   assert.ok(materialSearch.body.pins.every((pin: { title: string; tags: string; collection_name: string }) => `${pin.title} ${pin.tags} ${pin.collection_name}`.toLowerCase().includes('material')))
 })
 
+test('recommendation feedback persists and tunes Explore and search recommendations', async () => {
+  const viewer = await makeCurator('Feedback Curator')
+  const source = await makeCurator('Feedback Source')
+  const board = await source.agent.post('/api/collections').send({ name: 'Blue concrete studies' }).expect(201)
+  const boardId = board.body.collection.id as number
+  const search = await source.agent.get('/api/search?q=blue concrete').expect(200)
+  const result = search.body.results[0]
+  const saved = await source.agent.post(`/api/collections/${boardId}/items`).send({
+    sourceId: `feedback-${randomUUID()}`,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Blue concrete wall',
+    tags: ['blue', 'concrete'],
+  }).expect(201)
+  const pinId = saved.body.item.id as number
+  await source.agent.post(`/api/collections/${boardId}/share`).expect(200)
+
+  const tasteBoard = await viewer.agent.post('/api/collections').send({ name: 'Concrete references' }).expect(201)
+  await viewer.agent.post(`/api/collections/${tasteBoard.body.collection.id}/items`).send({
+    sourceId: `taste-${randomUUID()}`,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Concrete study',
+    tags: ['concrete'],
+  }).expect(201)
+
+  await viewer.agent.post(`/api/pins/${pinId}/recommendation-feedback`).send({ signal: 'more' }).expect(204)
+  assert.equal((db.prepare('SELECT signal FROM recommendation_feedback WHERE user_id = ? AND item_id = ?').get(viewer.id, pinId) as { signal: string }).signal, 'more')
+  const tunedSearch = await viewer.agent.get('/api/search/recommendations').expect(200)
+  assert.ok(tunedSearch.body.basedOn.includes('blue') || tunedSearch.body.basedOn.includes('concrete'))
+
+  await viewer.agent.post(`/api/pins/${pinId}/recommendation-feedback`).send({ signal: 'not_interested' }).expect(204)
+  const explore = await viewer.agent.get('/api/explore/recommended').expect(200)
+  const searchRecommendations = await viewer.agent.get('/api/search/recommendations').expect(200)
+  assert.ok(!explore.body.pins.some((pin: { id: number }) => pin.id === pinId))
+  assert.ok(!searchRecommendations.body.pins.some((pin: { id: number }) => pin.id === pinId))
+})
+
 test('public pins can be saved into another collection without exposing private pins', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)

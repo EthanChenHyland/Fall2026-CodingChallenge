@@ -30,6 +30,7 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 ## Public pins
 
 - `GET /api/pins/:id` includes privacy-filtered repin provenance. Mosaic preserves ancestry across repins, copies, and delete/undo, while private or unavailable boards are omitted from the returned chain.
+- `POST /api/pins/:id/recommendation-feedback` — persist `more` or `not_interested` feedback. Explore and search recommendations use the signal on later requests.
 
 - `GET /api/pins/:id/saved-in` — show which editable collections already contain the public pin's source, for library-wide duplicate detection.
 - `POST /api/pins/:id/save` — copy a currently public pin into one of the signed-in user's editable collections with an optional private note. Duplicate sources in the target collection return `409`.
