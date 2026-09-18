@@ -104,7 +104,7 @@ export function PinPage() {
       {related.data?.pins.length ? <section className="related-pin-section"><div className="section-head"><div><span className="eyebrow">KEEP GOING</span><h2>More from this corner of Mosaic</h2></div><Link className="result-count" to="/explore">See Explore</Link></div><div className="masonry-grid related-pin-grid">{related.data.pins.map((item) => <PublicPinCard pin={item} key={item.id} />)}</div></section> : null}
       {webResults.length ? (
         <section className="related-pin-section web-related-section">
-          <div className="section-head"><div><span className="eyebrow">MORE LIKE THIS</span><h2>Keep following the idea</h2></div><span className="result-count">{webRelatedData?.pages[0]?.source === 'pixabay' ? 'Pixabay' : webRelatedData?.pages[0]?.source === 'wikimedia' ? 'Wikimedia Commons' : 'Mosaic picks'}</span></div>
+          <div className="section-head"><div><span className="eyebrow">MORE LIKE THIS</span><h2>Keep following the idea</h2></div><span className="result-count">{webRelatedData?.pages[0]?.source === 'pixabay' ? 'Images from Pixabay' : webRelatedData?.pages[0]?.source === 'wikimedia' ? 'Images from Wikimedia Commons' : 'Mosaic picks'}</span></div>
           <div className="masonry-grid related-pin-grid">{webResults.map((item) => <ImageCard image={item} key={item.id} />)}</div>
           <div ref={moreRef} className="feed-sentinel">{isFetchingMoreWebRelated ? 'Finding more like this…' : hasMoreWebRelated ? '' : 'That’s the end of this trail.'}</div>
         </section>

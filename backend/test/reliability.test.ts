@@ -65,6 +65,14 @@ test('layout is atomic and rejects pins from another collection', async () => {
   assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.items[0].canvas_x, 222)
 })
 
+test('database constraints enforce one owner and one source per collection', async () => {
+  const { owner, id } = await board()
+  await owner.post(`/api/collections/${id}/items`).send(image).expect(201)
+  const sam = db.prepare("SELECT id FROM users WHERE email = 'sam@mosaic.local'").get() as { id: number }
+  assert.throws(() => db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(id, sam.id))
+  assert.throws(() => db.prepare("INSERT INTO items (collection_id, source_id, image_url, title) VALUES (?, ?, ?, ?)").run(id, image.sourceId, image.imageUrl, 'Duplicate'))
+})
+
 test('delete/undo preserves pin identity, time, cover, likes and comments', async () => {
   const { owner, id } = await board()
   const saved = await owner.post(`/api/collections/${id}/items`).send(image).expect(201)
@@ -72,7 +80,15 @@ test('delete/undo preserves pin identity, time, cover, likes and comments', asyn
   await owner.patch(`/api/collections/${id}`).send({ visibility: 'public', coverItemId: item.id }).expect(200)
   await owner.post(`/api/pins/${item.id}/like`).expect(204)
   const comment = await owner.post(`/api/pins/${item.id}/comments`).send({ body: 'Keep this discussion' }).expect(201)
+  db.exec(`CREATE TRIGGER fail_test_remove_activity BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%removed “Reference”'
+    BEGIN SELECT RAISE(ABORT, 'test activity failure'); END`)
+  await owner.delete(`/api/collections/${id}/items/${item.id}`).expect(500)
+  assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.cover_item_id, item.id)
+  await owner.get(`/api/pins/${item.id}`).expect(200)
+  db.exec('DROP TRIGGER fail_test_remove_activity')
   await owner.delete(`/api/collections/${id}/items/${item.id}`).expect(204)
+  assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.cover_item_id, null)
   await request(app).get(`/api/pins/${item.id}`).expect(404)
   const restored = await owner.post(`/api/collections/${id}/items/restore`).send({ itemId: item.id }).expect(201)
   assert.equal(restored.body.item.created_at, item.created_at)
@@ -81,6 +97,16 @@ test('delete/undo preserves pin identity, time, cover, likes and comments', asyn
   assert.equal((await owner.get(`/api/pins/${item.id}/comments`)).body.comments[0].id, comment.body.comment.id)
   assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.cover_item_id, item.id)
   await owner.post(`/api/collections/${id}/items/restore`).send({ itemId: item.id }).expect(410)
+})
+
+test('saving a pin rolls back if its activity record cannot be written', async () => {
+  const { owner, id } = await board()
+  db.exec(`CREATE TRIGGER fail_test_save_activity BEFORE INSERT ON activity
+    WHEN NEW.message LIKE '%saved “Rollback reference”'
+    BEGIN SELECT RAISE(ABORT, 'test activity failure'); END`)
+  await owner.post(`/api/collections/${id}/items`).send({ ...image, sourceId: 'rollback-image', title: 'Rollback reference' }).expect(500)
+  assert.equal((await owner.get(`/api/collections/${id}`)).body.collection.items.length, 0)
+  db.exec('DROP TRIGGER fail_test_save_activity')
 })
 
 test('private counts are not disclosed and removed collaborators lose access', async () => {

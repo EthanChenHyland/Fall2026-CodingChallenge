@@ -142,12 +142,14 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   const coverFocusY = parsed.data.coverFocusY ?? Number(existing.cover_focus_y ?? 50)
   const theme = parsed.data.theme ?? String(existing.theme ?? 'paper')
   const gridLayout = parsed.data.gridLayout ?? String(existing.grid_layout ?? 'gallery')
-  db.prepare(`
-    UPDATE collections
-    SET name = ?, description = ?, visibility = ?, share_token = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(next.name, next.description, next.visibility, shareToken, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
-  logActivity(id, `${actor(req)} updated collection details`, req.user!.id)
+  db.transaction(() => {
+    db.prepare(`
+      UPDATE collections
+      SET name = ?, description = ?, visibility = ?, share_token = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(next.name, next.description, next.visibility, shareToken, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
+    logActivity(id, `${actor(req)} updated collection details`, req.user!.id)
+  })()
   res.json({ collection: getCollection(id, req.user!.id) })
 })
 
@@ -170,13 +172,15 @@ collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedReques
   if (!db.prepare('SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, req.user!.id)) return res.status(404).json({ error: 'Collection not found.' })
   if (db.prepare('SELECT 1 FROM items WHERE collection_id = ? AND source_id = ?').get(collectionId, p.sourceId)) return res.status(409).json({ error: 'That pin is already in this collection.' })
   const offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(collectionId) as { count: number }).count
-  const result = db.prepare(`
-    INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(collectionId, p.sourceId, imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags.join(', '), 36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2)
-  db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
-  logActivity(collectionId, `${actor(req)} saved “${p.title}”`, req.user!.id)
-  const item = db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
+  const item = db.transaction(() => {
+    const result = db.prepare(`
+      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(collectionId, p.sourceId, imageUrl, p.sourcePage, p.sourceCreator, p.title, p.note, p.tags.join(', '), 36 + (offset % 3) * 220, Math.min(5000, 40 + Math.floor(offset / 3) * 250), (offset % 3 - 1) * 2)
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} saved “${p.title}”`, req.user!.id)
+    return db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid)
+  })()
   res.status(201).json({ item })
 })
 
@@ -188,24 +192,27 @@ collectionsRouter.patch('/:id/items/:itemId', requireMembership, (req: AuthedReq
   const parsed = itemPatchSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid image update.' })
   const p = parsed.data
-  db.prepare(`
-    UPDATE items SET title = ?, note = ?, tags = ?, canvas_x = ?, canvas_y = ?, rotation = ?
-    WHERE id = ? AND collection_id = ?
-  `).run(
-    p.title ?? current.title,
-    p.note ?? current.note,
-    p.tags ?? current.tags,
-    p.canvasX ?? current.canvas_x,
-    p.canvasY ?? current.canvas_y,
-    p.rotation ?? current.rotation,
-    itemId,
-    collectionId,
-  )
-  db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
-  if (p.title !== undefined || p.note !== undefined) {
-    logActivity(collectionId, `${actor(req)} edited “${String(p.title ?? current.title)}”`, req.user!.id)
-  }
-  res.json({ item: db.prepare('SELECT * FROM items WHERE id = ?').get(itemId) })
+  const item = db.transaction(() => {
+    db.prepare(`
+      UPDATE items SET title = ?, note = ?, tags = ?, canvas_x = ?, canvas_y = ?, rotation = ?
+      WHERE id = ? AND collection_id = ?
+    `).run(
+      p.title ?? current.title,
+      p.note ?? current.note,
+      p.tags ?? current.tags,
+      p.canvasX ?? current.canvas_x,
+      p.canvasY ?? current.canvas_y,
+      p.rotation ?? current.rotation,
+      itemId,
+      collectionId,
+    )
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    if (p.title !== undefined || p.note !== undefined) {
+      logActivity(collectionId, `${actor(req)} edited “${String(p.title ?? current.title)}”`, req.user!.id)
+    }
+    return db.prepare('SELECT * FROM items WHERE id = ?').get(itemId)
+  })()
+  res.json({ item })
 })
 
 collectionsRouter.post('/:id/items/restore', requireMembership, (req: AuthedRequest, res) => {
@@ -291,25 +298,29 @@ collectionsRouter.delete('/:id/items/:itemId', requireMembership, (req: AuthedRe
   db.transaction(() => {
     snapshotItem(Number(req.params.itemId), collectionId)
     db.prepare('DELETE FROM items WHERE id = ? AND collection_id = ?').run(Number(req.params.itemId), collectionId)
+    db.prepare('UPDATE collections SET cover_item_id = CASE WHEN cover_item_id = ? THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(req.params.itemId), collectionId)
+    logActivity(collectionId, `${actor(req)} removed “${item.title}”`, req.user!.id)
   })()
-  db.prepare('UPDATE collections SET cover_item_id = CASE WHEN cover_item_id = ? THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(req.params.itemId), collectionId)
-  logActivity(collectionId, `${actor(req)} removed “${item.title}”`, req.user!.id)
   res.status(204).end()
 })
 
 collectionsRouter.post('/:id/share', requireMembership, requireOwner, (req: AuthedRequest, res) => {
   const id = Number(req.params.id)
   const existing = db.prepare('SELECT share_token FROM collections WHERE id = ?').get(id) as { share_token: string | null }
-  const token = existing.share_token ?? crypto.randomBytes(10).toString('base64url')
-  db.prepare("UPDATE collections SET share_token = ?, visibility = 'public', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(token, id)
-  logActivity(id, `${actor(req)} enabled public sharing`, req.user!.id)
+  const token = existing.share_token ?? crypto.randomBytes(16).toString('base64url')
+  db.transaction(() => {
+    db.prepare("UPDATE collections SET share_token = ?, visibility = 'public', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(token, id)
+    logActivity(id, `${actor(req)} enabled public sharing`, req.user!.id)
+  })()
   res.json({ token })
 })
 
 collectionsRouter.delete('/:id/share', requireMembership, requireOwner, (req: AuthedRequest, res) => {
   const id = Number(req.params.id)
-  db.prepare("UPDATE collections SET share_token = NULL, visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id)
-  logActivity(id, `${actor(req)} disabled public sharing`, req.user!.id)
+  db.transaction(() => {
+    db.prepare("UPDATE collections SET share_token = NULL, visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id)
+    logActivity(id, `${actor(req)} disabled public sharing`, req.user!.id)
+  })()
   res.status(204).end()
 })
 

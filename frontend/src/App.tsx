@@ -1,4 +1,4 @@
-import { MutationCache, QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { toast, Toaster } from 'sonner'
 import { api, ApiError } from './api'
@@ -16,9 +16,24 @@ import { PinPage } from './pages/PinPage'
 import { CapturePage } from './pages/CapturePage'
 import { SmartCollectionPage } from './pages/SmartCollectionPage'
 
+function handleUnauthorized(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 401) return false
+  // A session can expire or be revoked without the in-app Sign out button.
+  // Drop account-scoped data immediately so another login can never inherit it.
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+  queryClient.setQueryData(['me'], { user: null })
+  return true
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => { handleUnauthorized(error) },
+  }),
   mutationCache: new MutationCache({
-    onError: (error, _variables, _context, mutation) => { if (!mutation.options.onError) toast.error(error.message) },
+    onError: (error, _variables, _context, mutation) => {
+      if (handleUnauthorized(error)) return
+      if (!mutation.options.onError) toast.error(error.message)
+    },
     onSuccess: () => { void queryClient.invalidateQueries({ predicate: (query) => ['smart-collection', 'pin', 'profile', 'explore', 'profile-connections', 'social-search', 'shared'].includes(String(query.queryKey[0])) }) },
   }),
   defaultOptions: {

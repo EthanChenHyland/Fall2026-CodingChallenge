@@ -17,6 +17,28 @@ test('sign in form is keyboard-friendly and exposes useful errors', async ({ pag
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'text')
 })
 
+test('expired sessions return to auth and do not leak cached account data', async ({ page }) => {
+  await enterDemo(page)
+  await page.getByRole('link', { name: 'Collections', exact: true }).click()
+  await expect(page.getByRole('link', { name: /Museum of small things/ })).toBeVisible()
+  await page.evaluate(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+  })
+  await page.goto('/collections/smart/recent')
+  await expect(page.getByRole('heading', { name: 'Pick up where you left off.' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Create account', exact: true }).click()
+  await page.getByLabel('Name', { exact: true }).fill('Fresh Account')
+  await page.getByLabel('Email').fill(`fresh-${Date.now()}@example.test`)
+  await page.getByLabel('Password', { exact: true }).fill('fresh-password')
+  await page.getByLabel('Password', { exact: true }).press('Enter')
+  await expect(page.getByRole('heading', { name: 'Recently saved' })).toBeVisible()
+  await expect(page.getByText('Nothing here yet.')).toBeVisible()
+  await page.getByRole('link', { name: 'Collections', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Museum of small things/ })).toHaveCount(0)
+})
+
 test('reviewer can move through the core product', async ({ page }) => {
   await enterDemo(page)
   await expect(page.getByLabel('Search images')).toBeVisible()

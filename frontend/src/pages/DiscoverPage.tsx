@@ -63,9 +63,9 @@ export function DiscoverPage() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
   const sourceLabel = firstPage?.source === 'pixabay'
-    ? 'Pixabay'
+    ? 'Images from Pixabay'
     : firstPage?.source === 'wikimedia'
-      ? 'Wikimedia Commons'
+      ? 'Images from Wikimedia Commons'
       : firstPage?.fallback
         ? 'Catalog fallback'
         : 'Mosaic picks'

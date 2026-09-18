@@ -14,6 +14,7 @@ mkdirSync(dirname(databasePath), { recursive: true })
 export const db = new Database(databasePath)
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
+db.pragma('busy_timeout = 5000')
 
 function ensureColumn(table: string, column: string, definition: string) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
@@ -123,6 +124,8 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id, source_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_items_collection_source_unique ON items(collection_id, source_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_collection_single_owner ON collection_members(collection_id) WHERE role = 'owner';
   CREATE INDEX IF NOT EXISTS idx_activity_collection ON activity(collection_id, id DESC);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
   CREATE INDEX IF NOT EXISTS idx_members_user ON collection_members(user_id);

@@ -18,6 +18,17 @@ type SearchResponse = {
 const CACHE_MS = 24 * 60 * 60 * 1000
 const PAGE_SIZE = 30
 const MAX_PAGE = 10
+const PIXABAY_WINDOW_MS = 60_000
+const PIXABAY_REQUEST_LIMIT = 90
+let pixabayRequestTimes: number[] = []
+
+function reservePixabayRequest() {
+  const cutoff = Date.now() - PIXABAY_WINDOW_MS
+  pixabayRequestTimes = pixabayRequestTimes.filter((time) => time > cutoff)
+  if (pixabayRequestTimes.length >= PIXABAY_REQUEST_LIMIT) return false
+  pixabayRequestTimes.push(Date.now())
+  return true
+}
 
 function localSearch(query: string) {
   return query
@@ -41,6 +52,10 @@ function titleFromFileName(fileName: string) {
 }
 
 async function searchPixabay(query: string, page: number, apiKey: string): Promise<SearchResponse | null> {
+  // Pixabay's published limit is per API key, not per visitor. Keep a small
+  // safety margin so concurrent users on this single production instance
+  // cannot collectively exhaust the provider allowance.
+  if (!reservePixabayRequest()) throw new Error('Pixabay request budget is temporarily exhausted.')
   const url = new URL('https://pixabay.com/api/')
   url.searchParams.set('key', apiKey)
   url.searchParams.set('q', query)

@@ -3,6 +3,7 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
+import type { User } from '../types'
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -12,9 +13,11 @@ export function AuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const queryClient = useQueryClient()
 
-  const finish = () => {
-    queryClient.invalidateQueries({ queryKey: ['me'] })
-    queryClient.invalidateQueries({ queryKey: ['collections'] })
+  const finish = ({ user }: { user: User }) => {
+    // Authentication establishes a new account boundary. Never reuse queries
+    // that may have been populated by an expired or previously signed-in user.
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+    queryClient.setQueryData(['me'], { user })
   }
 
   const auth = useMutation({

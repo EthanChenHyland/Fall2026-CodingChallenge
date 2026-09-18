@@ -19,8 +19,9 @@ test('provider cache lasts 24 hours and saved Pixabay images use durable local m
   globalThis.fetch = (async (input: URL | RequestInfo) => {
     if (String(input).startsWith('https://pixabay.com/api/')) {
       searches++
-      return Response.json({ totalHits: 1, hits: [{ id: 42, tags: 'nature, green', user: 'Photographer', webformatURL: 'https://cdn.pixabay.com/photo/test.jpg', pageURL: 'https://pixabay.com/photos/test-42/', webformatWidth: 500, webformatHeight: 300 }] })
+      return Response.json({ totalHits: 1, hits: [{ id: 42, tags: 'nature, green', user: 'Photographer', webformatURL: 'https://pixabay.com/get/test.jpg', pageURL: 'https://pixabay.com/photos/test-42/', webformatWidth: 500, webformatHeight: 300 }] })
     }
+    if (String(input) === 'https://pixabay.com/get/test.jpg') return new Response('', { status: 302, headers: { location: 'https://cdn.pixabay.com/photo/test.jpg' } })
     if (String(input) === 'https://cdn.pixabay.com/photo/test.jpg') return new Response(new Uint8Array([255, 216, 255, 217]), { headers: { 'content-type': 'image/jpeg' } })
     throw new Error('Unexpected fetch')
   }) as typeof fetch
@@ -51,11 +52,36 @@ test('Pixabay failures fall back to Wikimedia; oversized titles can still be sav
   assert.equal(result.body.results[0].creator.length, 120)
 })
 
+test('cached Pixabay searches do not consume extra provider requests', async () => {
+  let calls = 0
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    if (String(input).startsWith('https://pixabay.com/api/')) {
+      calls++
+      return Response.json({ totalHits: 1, hits: [{ id: 73, tags: 'design', user: 'Maker', webformatURL: 'https://cdn.pixabay.com/design.jpg', pageURL: 'https://pixabay.com/photos/design-73/', webformatWidth: 640, webformatHeight: 480 }] })
+    }
+    throw new Error('Unexpected fetch')
+  }) as typeof fetch
+  const query = `cache-budget-${randomUUID()}`
+  await request(app).get(`/api/search?q=${query}`).expect(200)
+  await request(app).get(`/api/search?q=${query}`).expect(200)
+  await request(app).get(`/api/search?q=${query}`).expect(200)
+  assert.equal(calls, 1)
+})
+
 test('provider failure cannot create a half-saved pin', async () => {
   const owner = request.agent(app)
   await owner.post('/api/auth/demo').expect(200)
   const board = await owner.post('/api/collections').send({ name: 'Failed provider board' }).expect(201)
   globalThis.fetch = (async () => new Response('', { status: 302, headers: { location: 'http://127.0.0.1/private' } })) as typeof fetch
   await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: 'pixabay-unsafe', imageUrl: 'https://cdn.pixabay.com/test.jpg', title: 'Test' }).expect(502)
+  assert.equal((await owner.get(`/api/collections/${board.body.collection.id}`)).body.collection.items.length, 0)
+})
+
+test('Pixabay redirects cannot escape the approved provider hosts', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const board = await owner.post('/api/collections').send({ name: 'Unsafe redirect board' }).expect(201)
+  globalThis.fetch = (async () => new Response('', { status: 302, headers: { location: 'https://example.com/private.jpg' } })) as typeof fetch
+  await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: 'pixabay-escaped', imageUrl: 'https://pixabay.com/get/escaped.jpg', title: 'Escaped' }).expect(502)
   assert.equal((await owner.get(`/api/collections/${board.body.collection.id}`)).body.collection.items.length, 0)
 })

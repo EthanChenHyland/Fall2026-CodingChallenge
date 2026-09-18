@@ -31,7 +31,7 @@ Without Cloudinary, users can add pins from a direct HTTPS image URL. A webpage 
 
 Use an unsigned Cloudinary preset restricted to JPEG/PNG/WebP/GIF, max_file_size 10485760 (10 MB), disallow_public_id, and appropriate incoming dimension limits. The cloud name and preset are public client settings; monitor account usage. Uploads are optional and need a real configured account to verify end-to-end.
 
-Pixabay search responses are cached in SQLite for 24 hours. New saved Pixabay pins are copied to the media directory beside the database; this avoids permanent provider hotlinking. Keep that directory with your database backups. Wikimedia/source pages retain attribution links. External images and services can still be unavailable.
+Pixabay search responses are cached in SQLite for 24 hours, provider calls are guarded below Pixabay's published per-key rate limit, and Pixabay is named directly anywhere its search results are shown. New saved Pixabay pins are copied to the media directory beside the database instead of permanently hotlinking provider URLs; approved Pixabay/CDN redirects are validated on every hop before download. Keep that media directory with your database backups. Wikimedia/source pages retain attribution links. External images and services can still be unavailable.
 
 REVIEWER DEMO
 The login screen includes a one-click demo login. This is a shared, editable demo account, not an isolated sandbox. Use Create account for your own private collections. Demo content is seeded only on a new database and is not reset on restart. You can also use:
