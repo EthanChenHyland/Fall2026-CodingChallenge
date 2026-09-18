@@ -85,7 +85,7 @@ Search results are paginated; the initial 12 Mosaic picks are a curated catalog.
 The PWA caches its app shell, not private API data or third-party images. Already loaded views may remain visible offline; fresh navigation asks you to reconnect. Writes fail with a message and are not queued. Installed share-target support varies by browser and accepts title/text/URLs, not automatic webpage image extraction.
 
 SUBMISSION
-Review and push the final working tree, then submit the completion form linked in README.md before the deadline. Local tests cannot verify form submission.
+Review and push the final working tree, then submit the completion form linked in original_challenge.md before the deadline. Local tests cannot verify form submission.
 
 REFLECTION
 This challenge pushed me beyond a basic CRUD app into account permissions, collaboration, optimistic UI updates, rollback behavior, and responsive design. I reinforced React, TypeScript, Express, REST APIs, and database modeling while learning how much product polish depends on small interaction details. The most interesting part was building collaboration safely: owner/editor permissions, revocable public links, notifications, and activity history all had to work together without making the interface feel complicated.
