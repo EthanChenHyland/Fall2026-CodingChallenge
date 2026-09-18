@@ -9,6 +9,11 @@ https://mosaic-f33m.onrender.com/
 WHAT I BUILT
 Mosaic is a Pinterest-inspired image discovery, saving, organization, collaboration, and social curation app. The required challenge flow — search, create collections, save/edit/remove content, share by URL, and collaborate with accounts — is the foundation. I then pushed the project toward a fuller product rather than stopping at CRUD.
 
+PRODUCT PHILOSOPHY
+Mosaic deliberately prioritizes product depth over technical spectacle. I could have spent the challenge budget on a separate AI chat/agent service, an embeddings/vector-search stack, extra microservices, or a cinematic Three.js/WebGL landing experience simply to make the architecture look more sophisticated. I chose not to. None of those technologies is automatically valuable because it is harder to build; they are valuable only when they materially improve the user's job.
+
+For this product, the harder and more useful problem was making the full save-organize-share loop feel complete: fast discovery, reliable persistence, collaboration, messaging, social interactions, bulk organization, responsive behavior, failure recovery, and a Canvas that people can actually manipulate. Mosaic is intended to be a product a user can keep using after the demo, not a collection of technically impressive side systems attached to a simpler core.
+
 The app includes:
 - Live image search with Pixabay when configured, Wikimedia fallback, pagination, related searches, and recommendation feedback.
 - Accounts, profile handles, editable profiles/avatars, follows, collection follows, follower counts, and public profiles.
@@ -27,7 +32,7 @@ I considered a heavier WebGL/Three.js presentation, but chose not to make visual
 
 That choice also matches the rubric: it rewards working features, maintainable code, responsive polish, collaboration, reliability, and creativity without prescribing a rendering technique. I treated “make the application look good” as a product-design requirement rather than a requirement to turn the app into a cinematic landing page.
 
-For the same reason, I did not bolt on a separate AI-agent service, model-dependent chat layer, or microservice solely to make the architecture look more advanced. Those can be useful when they solve a real product problem, but here they would introduce credentials, latency, failure modes, and review/setup overhead without helping the core save-organize-share workflow. I would rather make the main product deeper, faster, and easier to run than add complexity that is impressive mostly in an architecture diagram.
+For the same reason, I did not bolt on a separate AI-agent service, model-dependent chat layer, embedding pipeline, or microservice solely to increase the apparent sophistication of the stack. Those can be useful when they solve a real product problem, but here they would introduce credentials, latency, failure modes, and review/setup overhead without helping the core save-organize-share workflow. I would rather make the main product deeper, faster, and easier to run than add complexity that is impressive mostly in an architecture diagram or feature checklist.
 
 I spent that complexity budget on interactions that remain useful after the first impression: a real draggable Canvas, multi-select organization, optimistic actions with recovery, responsive layouts, collection customization, social feedback, collaboration, and mobile/offline/error states. The visual language is intentionally closer to a polished consumer app than an Awwwards portfolio landing page. Motion is restrained so the content stays primary and the interface remains understandable, fast, keyboard-usable, and responsive.
 
