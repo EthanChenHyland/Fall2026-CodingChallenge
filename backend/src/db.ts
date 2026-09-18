@@ -113,6 +113,26 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_a_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_b_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_a_id, user_b_id),
+    CHECK (user_a_id < user_b_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    pin_id INTEGER,
+    read_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS search_cache (
     key TEXT PRIMARY KEY,
     payload TEXT NOT NULL,
@@ -134,6 +154,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_item_likes_item ON item_likes(item_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comments_item ON comments(item_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_conversations_user_a ON conversations(user_a_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_conversations_user_b ON conversations(user_b_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id ASC);
 `)
 
 ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")
@@ -145,6 +168,7 @@ ensureColumn('collections', 'theme', "TEXT NOT NULL DEFAULT 'paper'")
 ensureColumn('collections', 'grid_layout', "TEXT NOT NULL DEFAULT 'gallery'")
 ensureColumn('collections', 'audience', "TEXT NOT NULL DEFAULT 'private'")
 ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
+ensureColumn('messages', 'pin_id', 'INTEGER')
 db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
 
 function hashPassword(password: string, salt: string) {

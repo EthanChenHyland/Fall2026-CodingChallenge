@@ -12,6 +12,7 @@ import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
 import { exploreRouter } from './routes/explore.js'
 import { notificationsRouter } from './routes/notifications.js'
+import { messagesRouter } from './routes/messages.js'
 import { pinsRouter } from './routes/pins.js'
 import { profilesRouter } from './routes/profiles.js'
 import { searchRouter } from './routes/search.js'
@@ -63,6 +64,7 @@ app.use('/api/search', searchRouter)
 app.use('/api/collections', collectionsRouter)
 app.use('/api/explore', exploreRouter)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/messages', messagesRouter)
 app.use('/api/pins', pinsRouter)
 app.use('/api/profiles', profilesRouter)
 app.use('/api/shared', sharedRouter)

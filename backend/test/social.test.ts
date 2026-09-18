@@ -74,6 +74,35 @@ test('recommendations are derived from saved interests', async () => {
   assert.ok(recommended.body.pins.every((pin: { owner_name: string }) => pin.owner_name !== 'Demo Curator'))
 })
 
+test('direct messages stay private and unread state clears on read', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const curator = await makeCurator()
+  const outsider = await makeCurator()
+
+  const started = await demo.post(`/api/messages/with/${curator.id}`).expect(200)
+  const conversationId = started.body.conversationId as number
+  const repeated = await demo.post(`/api/messages/with/${curator.id}`).expect(200)
+  assert.equal(repeated.body.conversationId, conversationId)
+
+  await demo.post(`/api/messages/${conversationId}`).send({ body: 'Want to swap board ideas?' }).expect(201)
+  await outsider.agent.get(`/api/messages/${conversationId}`).expect(404)
+
+  const inbox = await curator.agent.get('/api/messages').expect(200)
+  const conversation = inbox.body.conversations.find((entry: { id: number }) => entry.id === conversationId)
+  assert.equal(conversation.unread_count, 1)
+
+  const thread = await curator.agent.get(`/api/messages/${conversationId}`).expect(200)
+  assert.equal(thread.body.messages.at(-1).body, 'Want to swap board ideas?')
+  await curator.agent.post(`/api/messages/${conversationId}/read`).expect(204)
+  const readInbox = await curator.agent.get('/api/messages').expect(200)
+  assert.equal(readInbox.body.conversations.find((entry: { id: number }) => entry.id === conversationId).unread_count, 0)
+
+  await curator.agent.post(`/api/messages/${conversationId}`).send({ body: 'Absolutely — send it over.' }).expect(201)
+  const demoInbox = await demo.get('/api/messages').expect(200)
+  assert.equal(demoInbox.body.conversations.find((entry: { id: number }) => entry.id === conversationId).unread_count, 1)
+})
+
 test('likes and comment moderation stay consistent', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)
