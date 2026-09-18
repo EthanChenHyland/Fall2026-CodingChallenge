@@ -6,6 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { AddPinDialog, EditCollectionDialog, EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
+import { SavedItemDetailDialog } from '../components/SavedItemDetailDialog'
 import type { Collection, SavedItem } from '../types'
 
 type CanvasPosition = { x: number; y: number; rotation: number }
@@ -232,6 +233,13 @@ export function CollectionPage() {
     await queryClient.invalidateQueries({ queryKey: ['collection', id] })
     toast.success(sectionId === null ? 'Moved to Unsorted' : 'Pins organized into section')
   }
+  const moveItemToSection = async (item: SavedItem, sectionId: number | null) => {
+    if (item.section_id === sectionId) return
+    await api.bulkItems(id, { action: 'section', itemIds: [item.id], sectionId })
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+    const sectionName = sectionId === null ? 'Unsorted' : sections.find((section) => section.id === sectionId)?.name ?? 'section'
+    toast.success(`Moved to ${sectionName}`)
+  }
   const createSection = async () => {
     const name = newSectionName.trim()
     if (!name) return
@@ -258,8 +266,11 @@ export function CollectionPage() {
     const selectedItem = selected.has(item.id)
     return <article className={`saved-card ${selectedItem ? 'selected' : ''}`} key={item.id}>
       {selecting && <button className="selection-toggle" aria-label={`${selectedItem ? 'Deselect' : 'Select'} ${item.title}`} aria-pressed={selectedItem} onClick={() => toggleSelected(item.id)}>{selectedItem ? <Check size={15} /> : null}</button>}
-      <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" />
-      <div className="saved-card-copy"><div><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}<span className="saved-time">Saved {relativeTime(item.created_at)}</span>{item.tags && <div className="saved-tags">{item.tags.split(',').slice(0, 3).map((tag) => <span key={tag.trim()}>{tag.trim()}</span>)}</div>}</div>{!selecting && <div className="item-actions"><EditItemDialog collectionId={id} item={item} trigger={<button aria-label="Edit"><Pencil size={16} /></button>} /><button aria-label="Remove" onClick={() => remove.mutate(item)}><Trash2 size={16} /></button></div>}</div>
+      <SavedItemDetailDialog item={item} sections={sections} disabled={busy} onMove={(sectionId) => runAction(() => moveItemToSection(item, sectionId))} />
+      <div className="saved-card-copy">
+        <div className="saved-card-text"><strong>{item.title}</strong>{item.note && <p>{item.note}</p>}<span className="saved-time">Saved {relativeTime(item.created_at)}</span>{item.tags && <div className="saved-tags">{item.tags.split(',').slice(0, 3).map((tag) => <span key={tag.trim()}>{tag.trim()}</span>)}</div>}</div>
+        {!selecting && <div className="saved-card-footer"><label className="item-section-control"><ListTree size={13} /><span className="sr-only">Move {item.title} to section</span><select aria-label={`Move ${item.title} to section`} value={item.section_id ? String(item.section_id) : 'unsorted'} disabled={busy} onChange={(event) => { const sectionId = event.target.value === 'unsorted' ? null : Number(event.target.value); void runAction(() => moveItemToSection(item, sectionId)) }}><option value="unsorted">Unsorted</option>{sections.map((section) => <option value={section.id} key={section.id}>{section.name}</option>)}</select></label><div className="item-actions"><EditItemDialog collectionId={id} item={item} trigger={<button aria-label="Edit"><Pencil size={16} /></button>} /><button aria-label="Remove" onClick={() => remove.mutate(item)}><Trash2 size={16} /></button></div></div>}
+      </div>
     </article>
   }
 

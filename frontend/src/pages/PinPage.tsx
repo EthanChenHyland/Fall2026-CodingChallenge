@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -17,18 +17,20 @@ export function PinPage() {
   const [comment, setComment] = useState('')
   const [replyTo, setReplyTo] = useState<PinComment | null>(null)
   const [removeArmed, setRemoveArmed] = useState(false)
+  const [likesOpen, setLikesOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const { id: rawId } = useParams()
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
-  const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin', id] }) })
+  const like = useMutation({ mutationFn: () => data?.pin.liked_by_me ? api.unlikePin(id) : api.likePin(id), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['pin', id] }); void queryClient.invalidateQueries({ queryKey: ['pin-likes', id] }) } })
   const followCollection = useMutation({
     mutationFn: () => data?.pin.collection_followed_by_me ? api.unfollowCollection(data.pin.collection_id) : api.followCollection(data!.pin.collection_id),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['pin', id] }); void queryClient.invalidateQueries({ queryKey: ['explore'] }); toast.success(data?.pin.collection_followed_by_me ? 'Collection unfollowed' : 'Collection followed') },
     onError: (error: Error) => toast.error(error.message),
   })
   const comments = useQuery({ queryKey: ['pin-comments', id], queryFn: () => api.pinComments(id), enabled: data?.pin.visibility === 'public' })
+  const likes = useQuery({ queryKey: ['pin-likes', id], queryFn: () => api.pinLikes(id), enabled: likesOpen && data?.pin.visibility === 'public' })
   const commentThreads = useMemo(() => {
     const all = comments.data?.comments ?? []
     const ids = new Set(all.map((entry) => entry.id))
@@ -131,7 +133,7 @@ export function PinPage() {
             ))}</div>
             {pin.provenance.hidden_count > 0 && <small className="pin-provenance-hidden">{pin.provenance.hidden_count} earlier {pin.provenance.hidden_count === 1 ? 'step is' : 'steps are'} private or unavailable.</small>}
           </section>}
-          {pin.visibility === 'public' && <div className="pin-social-row"><button className={`pin-like-button ${pin.liked_by_me ? 'active' : ''}`} disabled={like.isPending} onClick={() => like.mutate()}><Heart size={17} fill={pin.liked_by_me ? 'currentColor' : 'none'} /> {pin.like_count} {pin.like_count === 1 ? 'like' : 'likes'}</button></div>}
+          {pin.visibility === 'public' && <div className="pin-social-row"><button className={`pin-like-button ${pin.liked_by_me ? 'active' : ''}`} disabled={like.isPending} onClick={() => like.mutate()}><Heart size={17} fill={pin.liked_by_me ? 'currentColor' : 'none'} /> {pin.liked_by_me ? 'Liked' : 'Like'}</button><details className="pin-likes-menu" onToggle={(event) => setLikesOpen(event.currentTarget.open)}><summary>{pin.like_count} {pin.like_count === 1 ? 'like' : 'likes'} <ChevronDown size={14} /></summary><div className="pin-likes-dropdown"><strong>Liked by</strong>{likes.isLoading && <span className="pin-likes-empty">Loading…</span>}{likes.isError && <span className="pin-likes-empty">Could not load likes.</span>}{likes.data?.likes.map((person) => <Link className="pin-like-person" to={`/people/${person.username}`} key={person.id}><span className="pin-like-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : person.name.slice(0, 1)}</span><span><b>{person.name}</b><small>@{person.username}</small></span></Link>)}{likes.data && !likes.data.likes.length && <span className="pin-likes-empty">No likes yet.</span>}</div></details></div>}
           {pin.visibility === 'public' && <section className="pin-comments">
             <div className="pin-comments-title"><MessageCircle size={16} /><strong>Conversation</strong><span>{comments.data?.comments.length ?? 0}</span></div>
             <div className="pin-comment-list">

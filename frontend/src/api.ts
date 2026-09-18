@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, DirectMessage, MessageConversation, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
+import type { CatalogImage, Collection, DirectMessage, MessageConversation, NotificationItem, PinComment, PinDetail, PinLikePerson, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -35,6 +35,7 @@ export const api = {
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
+  pinLikes: (id: number) => request<{ likes: PinLikePerson[] }>(`/api/pins/${id}/likes`),
   pinSavedIn: (id: number) => request<{ collections: Array<{ id: number; name: string }> }>(`/api/pins/${id}/saved-in`),
   savePin: (id: number, collectionId: number, note = '') => request<{ item: SavedItem }>(`/api/pins/${id}/save`, { method: 'POST', body: JSON.stringify({ collectionId, note }) }),
   savePinsBatch: (pinIds: number[], collectionId: number) => request<{ items: SavedItem[]; savedCount: number; skippedCount: number; skippedDuplicateIds: number[]; unavailableIds: number[] }>('/api/pins/save-batch', { method: 'POST', body: JSON.stringify({ pinIds, collectionId }) }),
