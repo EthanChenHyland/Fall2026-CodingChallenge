@@ -60,6 +60,78 @@ const savePinSchema = z.object({
   note: z.string().trim().max(500).optional().default(''),
 })
 
+const savePinsBatchSchema = z.object({
+  collectionId: z.number().int().positive(),
+  pinIds: z.array(z.number().int().positive()).min(1).max(30),
+})
+
+pinsRouter.post('/save-batch', requireAuth, (req: AuthedRequest, res) => {
+  const parsed = savePinsBatchSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Choose up to 30 public pins and a collection.' })
+  const targetCollectionId = parsed.data.collectionId
+  if (!membership(targetCollectionId, req.user!.id)) return res.status(404).json({ error: 'Collection not found.' })
+
+  const pinIds = [...new Set(parsed.data.pinIds)]
+  const placeholders = pinIds.map(() => '?').join(', ')
+  const publicPins = db.prepare(`
+    SELECT i.*
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE i.id IN (${placeholders}) AND c.visibility = 'public'
+  `).all(...pinIds) as Array<Record<string, unknown> & { id: number; source_id: string; title: string }>
+  const pinsById = new Map(publicPins.map((pin) => [pin.id, pin]))
+  const unavailableIds = pinIds.filter((pinId) => !pinsById.has(pinId))
+
+  const result = db.transaction(() => {
+    const items: unknown[] = []
+    const skippedDuplicateIds: number[] = []
+    const existingSources = new Set(
+      (db.prepare('SELECT source_id FROM items WHERE collection_id = ?').all(targetCollectionId) as Array<{ source_id: string }>).map((row) => row.source_id),
+    )
+    let offset = (db.prepare('SELECT COUNT(*) AS count FROM items WHERE collection_id = ?').get(targetCollectionId) as { count: number }).count
+
+    for (const pinId of pinIds) {
+      const pin = pinsById.get(pinId)
+      if (!pin) continue
+      if (existingSources.has(pin.source_id)) {
+        skippedDuplicateIds.push(pinId)
+        continue
+      }
+      const insert = db.prepare(`
+        INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, canvas_x, canvas_y, rotation)
+        VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
+      `).run(
+        targetCollectionId,
+        pin.source_id,
+        pin.image_url,
+        pin.source_page,
+        pin.source_creator,
+        pin.title,
+        pin.tags,
+        36 + (offset % 3) * 220,
+        Math.min(5000, 40 + Math.floor(offset / 3) * 250),
+        (offset % 3 - 1) * 2,
+      )
+      items.push(db.prepare('SELECT * FROM items WHERE id = ?').get(insert.lastInsertRowid))
+      existingSources.add(pin.source_id)
+      offset += 1
+    }
+
+    if (items.length) {
+      db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetCollectionId)
+      logActivity(targetCollectionId, `${actor(req)} saved ${items.length} ${items.length === 1 ? 'pin' : 'pins'} from Mosaic`, req.user!.id)
+    }
+    return { items, skippedDuplicateIds }
+  })()
+
+  return res.json({
+    ...result,
+    savedCount: result.items.length,
+    skippedCount: result.skippedDuplicateIds.length,
+    unavailableIds,
+  })
+})
+
 pinsRouter.get('/:id/saved-in', requireAuth, (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
   if (!Number.isSafeInteger(pinId) || pinId <= 0) return res.status(400).json({ error: 'Invalid pin.' })

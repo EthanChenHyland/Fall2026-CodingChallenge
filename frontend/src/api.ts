@@ -36,6 +36,7 @@ export const api = {
   unlikePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'DELETE' }),
   pinSavedIn: (id: number) => request<{ collections: Array<{ id: number; name: string }> }>(`/api/pins/${id}/saved-in`),
   savePin: (id: number, collectionId: number, note = '') => request<{ item: SavedItem }>(`/api/pins/${id}/save`, { method: 'POST', body: JSON.stringify({ collectionId, note }) }),
+  savePinsBatch: (pinIds: number[], collectionId: number) => request<{ items: SavedItem[]; savedCount: number; skippedCount: number; skippedDuplicateIds: number[]; unavailableIds: number[] }>('/api/pins/save-batch', { method: 'POST', body: JSON.stringify({ pinIds, collectionId }) }),
   pinComments: (id: number) => request<{ comments: PinComment[] }>(`/api/pins/${id}/comments`),
   addPinComment: (id: number, body: string, parentId?: number) => request<{ comment: PinComment }>(`/api/pins/${id}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId }) }),
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),

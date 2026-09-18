@@ -1,16 +1,23 @@
-import { ArrowUpRight, Bookmark, Heart, MessageCircle } from 'lucide-react'
+import { ArrowUpRight, Bookmark, Check, Heart, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { PublicPin } from '../types'
 import { SavePinDialog } from './SavePinDialog'
 
-export function PublicPinCard({ pin }: { pin: PublicPin }) {
+export function PublicPinCard({ pin, selectionMode = false, selected = false, onToggleSelection }: { pin: PublicPin; selectionMode?: boolean; selected?: boolean; onToggleSelection?: (pinId: number) => void }) {
   return (
-    <article className="image-card public-pin-card">
-      <Link className="image-frame public-pin-image" to={`/pin/${pin.id}`} aria-label={`Open ${pin.title}`}>
-        <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
-        <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
-      </Link>
-      <SavePinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="pin-card-save"><Bookmark size={14} /> Save</button>} />
+    <article className={`image-card public-pin-card${selected ? ' is-selected' : ''}`} data-pin-id={pin.id} data-source-id={pin.source_id}>
+      {selectionMode ? (
+        <button type="button" className="image-frame public-pin-image public-pin-select-surface" aria-label={`${selected ? 'Deselect' : 'Select'} ${pin.title}`} aria-pressed={selected} onClick={() => onToggleSelection?.(pin.id)}>
+          <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
+          <span className="pin-selection-mark"><Check size={16} /></span>
+        </button>
+      ) : (
+        <Link className="image-frame public-pin-image" to={`/pin/${pin.id}`} aria-label={`Open ${pin.title}`}>
+          <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
+          <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
+        </Link>
+      )}
+      {!selectionMode && <SavePinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="pin-card-save"><Bookmark size={14} /> Save</button>} />}
       <div className="image-meta public-pin-meta">
         <strong>{pin.title}</strong>
         <span>{pin.collection_name}</span>

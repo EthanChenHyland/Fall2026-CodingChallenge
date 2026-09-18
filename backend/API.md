@@ -31,6 +31,7 @@ Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searc
 
 - `GET /api/pins/:id/saved-in` — show which editable collections already contain the public pin's source, for library-wide duplicate detection.
 - `POST /api/pins/:id/save` — copy a currently public pin into one of the signed-in user's editable collections with an optional private note. Duplicate sources in the target collection return `409`.
+- `POST /api/pins/save-batch` — copy up to 30 selected public pins into one editable collection in one transaction. Existing source duplicates are skipped and reported; pins that are no longer public are ignored and returned as unavailable.
 - `GET /api/profiles/:id/connections?kind=followers|following` — browse a profile's social graph.
 
 ## Collections

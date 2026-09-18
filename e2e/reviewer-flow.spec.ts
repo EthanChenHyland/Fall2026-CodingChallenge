@@ -103,6 +103,51 @@ test('reviewer can move through the core product', async ({ page }) => {
   await expect(thread.locator('.pin-comment.reply')).toContainText('following up in-thread.')
 })
 
+test('explore supports multi-select saves into one collection', async ({ page }) => {
+  await enterDemo(page)
+  const target = await page.evaluate(async () => {
+    const name = `Explore batch ${Date.now()}`
+    const response = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    const body = await response.json() as { collection: { id: number; name: string } }
+    return body.collection
+  })
+
+  await page.goto('/explore')
+  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  const cards = page.locator('.public-pin-card')
+  await expect(cards.first().locator('.public-pin-select-surface')).toBeVisible()
+  const indexes = await cards.evaluateAll((elements) => {
+    const seen = new Set<string>()
+    const result: number[] = []
+    elements.forEach((element, index) => {
+      const sourceId = element.getAttribute('data-source-id')
+      if (sourceId && !seen.has(sourceId) && result.length < 2) {
+        seen.add(sourceId)
+        result.push(index)
+      }
+    })
+    return result
+  })
+  expect(indexes).toHaveLength(2)
+  for (const index of indexes) await cards.nth(index).locator('.public-pin-select-surface').click()
+
+  const toolbar = page.getByRole('region', { name: 'Save selected pins' })
+  await toolbar.getByLabel('Save selected to collection').selectOption(String(target.id))
+  await toolbar.getByRole('button', { name: 'Save selected' }).click()
+  await expect(page.getByText('2 saved', { exact: true })).toBeVisible()
+  await expect(toolbar).toHaveCount(0)
+  const savedCount = await page.evaluate(async (collectionId) => {
+    const response = await fetch(`/api/collections/${collectionId}`)
+    const body = await response.json() as { collection: { items: unknown[] } }
+    return body.collection.items.length
+  }, target.id)
+  expect(savedCount).toBe(2)
+})
+
 test('direct messages persist between accounts and surface unread threads', async ({ page, browser }) => {
   await enterDemo(page)
   const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
@@ -161,8 +206,14 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   await expect(page.locator('.mobile-nav')).toBeVisible()
   await page.getByRole('link', { name: 'Explore' }).last().click()
   await expect(page.getByRole('heading', { name: 'What people are saving.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  const bulkToolbar = page.getByRole('region', { name: 'Save selected pins' })
+  await expect(bulkToolbar).toBeVisible()
+  const bulkSave = await bulkToolbar.getByRole('button', { name: 'Save selected' }).boundingBox()
+  expect(bulkSave?.height ?? 0).toBeGreaterThanOrEqual(40)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
   await page.goto('/collections/2')
   const back = await page.getByRole('link', { name: 'All collections' }).boundingBox()
   expect(back?.height ?? 0).toBeGreaterThanOrEqual(32)

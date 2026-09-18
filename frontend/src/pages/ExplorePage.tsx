@@ -1,13 +1,20 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { Compass } from 'lucide-react'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CheckSquare2, Compass, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { api } from '../api'
 import { PublicPinCard } from '../components/PublicPinCard'
+import { rememberCollection } from '../lib/recentCollection'
 
 export function ExplorePage() {
   const [mode, setMode] = useState<'all' | 'following' | 'trending'>('all')
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [destinationId, setDestinationId] = useState('')
   const sentinel = useRef<HTMLDivElement>(null)
+  const queryClient = useQueryClient()
   const recommendations = useQuery({ queryKey: ['recommendations'], queryFn: api.recommendations })
+  const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const { data, isLoading, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['explore', mode],
     queryFn: ({ pageParam }) => api.explore(pageParam, mode),
@@ -15,6 +22,49 @@ export function ExplorePage() {
     getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
   })
   const pins = [...new Map((data?.pages.flatMap((page) => page.pins) ?? []).map((pin) => [pin.id, pin])).values()]
+  const collections = collectionsQuery.data?.collections ?? []
+  const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId)
+    ? destinationId
+    : collections[0] ? String(collections[0].id) : ''
+
+  const batchSave = useMutation({
+    mutationFn: ({ pinIds, collectionId }: { pinIds: number[]; collectionId: number }) => api.savePinsBatch(pinIds, collectionId),
+    onSuccess: (result, variables) => {
+      rememberCollection(variables.collectionId)
+      void queryClient.invalidateQueries({ queryKey: ['collections'] })
+      void queryClient.invalidateQueries({ queryKey: ['collection', variables.collectionId] })
+      void queryClient.invalidateQueries({ queryKey: ['pin-saved-in'] })
+      const parts: string[] = []
+      if (result.savedCount) parts.push(`${result.savedCount} saved`)
+      if (result.skippedCount) parts.push(`${result.skippedCount} already there`)
+      if (result.unavailableIds.length) parts.push(`${result.unavailableIds.length} unavailable`)
+      if (result.savedCount) toast.success(parts.join(' · '))
+      else toast.info(parts.join(' · ') || 'Nothing to save')
+      setSelectedIds(new Set())
+      setSelectionMode(false)
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  const toggleSelection = (pinId: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(pinId)) next.delete(pinId)
+      else if (next.size < 30) next.add(pinId)
+      else toast.info('You can save up to 30 pins at once')
+      return next
+    })
+  }
+
+  const toggleSelectionMode = () => {
+    if (selectionMode) setSelectedIds(new Set())
+    setSelectionMode((current) => !current)
+  }
+
+  const changeMode = (nextMode: typeof mode) => {
+    setMode(nextMode)
+    setSelectedIds(new Set())
+  }
 
   useEffect(() => {
     if (!sentinel.current) return
@@ -35,11 +85,19 @@ export function ExplorePage() {
       {mode === 'all' && recommendations.data?.pins.length ? (
         <section className="recommendation-section">
           <div className="section-head"><div><span className="eyebrow">BECAUSE YOU SAVED</span><h2>More in your orbit</h2></div><span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span></div>
-          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} />)}</div>
+          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div>
         </section>
       ) : null}
-      <section className="section-head explore-section-head"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => setMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => setMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => setMode('trending')}>Trending</button></div></section>
-      {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => setMode('all')}>Browse everyone</button>}</div>}
+      <section className="section-head explore-section-head"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>
+      {selectionMode && (
+        <div className="explore-bulk-toolbar" role="region" aria-label="Save selected pins">
+          <div className="explore-bulk-count"><strong>{selectedIds.size}</strong><span>{selectedIds.size === 1 ? 'pin selected' : 'pins selected'}</span></div>
+          <label className="explore-bulk-destination"><span>Save to</span><select aria-label="Save selected to collection" value={resolvedDestinationId} onChange={(event) => setDestinationId(event.target.value)} disabled={!collections.length || batchSave.isPending}><option value="">Choose collection</option>{collections.map((collection) => <option value={collection.id} key={collection.id}>{collection.name}</option>)}</select></label>
+          <button className="primary-button" disabled={!selectedIds.size || !resolvedDestinationId || batchSave.isPending} onClick={() => batchSave.mutate({ pinIds: [...selectedIds], collectionId: Number(resolvedDestinationId) })}>{batchSave.isPending ? 'Saving…' : 'Save selected'}</button>
+          <button className="explore-clear-selection" aria-label="Clear selected pins" disabled={!selectedIds.size || batchSave.isPending} onClick={() => setSelectedIds(new Set())}><X size={16} /> Clear</button>
+        </div>
+      )}
+      {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => changeMode('all')}>Browse everyone</button>}</div>}
       <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? <button className="secondary-button" onClick={() => void fetchNextPage()}>Load more</button> : pins.length ? 'You reached the end.' : ''}</div>
     </>
   )

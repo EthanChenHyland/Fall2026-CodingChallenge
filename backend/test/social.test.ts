@@ -117,6 +117,41 @@ test('public pins can be saved into another collection without exposing private 
   await demo.post(`/api/pins/${privatePin.body.item.id}/save`).send({ collectionId: demoTarget.body.collection.id }).expect(404)
 })
 
+test('public pins can be batch saved with duplicate and privacy safeguards', async () => {
+  const curator = await makeCurator('Batch Curator')
+  const explore = await curator.agent.get('/api/explore').expect(200)
+  const publicPins = (explore.body.pins as Array<{ id: number; source_id: string }>).filter((pin, index, pins) => pins.findIndex((candidate) => candidate.source_id === pin.source_id) === index).slice(0, 2)
+  assert.equal(publicPins.length, 2)
+
+  const target = await curator.agent.post('/api/collections').send({ name: 'Batch saves' }).expect(201)
+  const targetId = target.body.collection.id as number
+  const firstBatch = await curator.agent.post('/api/pins/save-batch').send({ collectionId: targetId, pinIds: publicPins.map((pin) => pin.id) }).expect(200)
+  assert.equal(firstBatch.body.savedCount, 2)
+  assert.equal(firstBatch.body.skippedCount, 0)
+  assert.deepEqual(new Set(firstBatch.body.items.map((item: { source_id: string }) => item.source_id)), new Set(publicPins.map((pin) => pin.source_id)))
+
+  const repeated = await curator.agent.post('/api/pins/save-batch').send({ collectionId: targetId, pinIds: publicPins.map((pin) => pin.id) }).expect(200)
+  assert.equal(repeated.body.savedCount, 0)
+  assert.deepEqual(new Set(repeated.body.skippedDuplicateIds), new Set(publicPins.map((pin) => pin.id)))
+  assert.equal((await curator.agent.get(`/api/collections/${targetId}`).expect(200)).body.collection.items.length, 2)
+
+  const privateBoard = await curator.agent.post('/api/collections').send({ name: 'Batch private source' }).expect(201)
+  const search = await curator.agent.get('/api/search?q=private').expect(200)
+  const result = search.body.results[0]
+  const privatePin = await curator.agent.post(`/api/collections/${privateBoard.body.collection.id}/items`).send({
+    sourceId: `batch-private-${randomUUID()}`,
+    imageUrl: result.imageUrl,
+    sourcePage: result.pageUrl,
+    sourceCreator: result.creator,
+    title: 'Private batch pin',
+  }).expect(201)
+  const safeTarget = await curator.agent.post('/api/collections').send({ name: 'Batch privacy target' }).expect(201)
+  const mixedBatch = await curator.agent.post('/api/pins/save-batch').send({ collectionId: safeTarget.body.collection.id, pinIds: [publicPins[0].id, privatePin.body.item.id] }).expect(200)
+  assert.equal(mixedBatch.body.savedCount, 1)
+  assert.deepEqual(mixedBatch.body.unavailableIds, [privatePin.body.item.id])
+  assert.equal(mixedBatch.body.items[0].source_id, publicPins[0].source_id)
+})
+
 test('collection sections organize pins and bulk copy preserves the source board', async () => {
   const curator = await makeCurator()
   const source = await curator.agent.post('/api/collections').send({ name: 'Section source' }).expect(201)
