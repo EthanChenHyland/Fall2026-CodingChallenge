@@ -163,7 +163,7 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}>{initials}</button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}>{me?.user.avatar_url ? <img src={me.user.avatar_url} alt="" /> : initials}</button>
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>
