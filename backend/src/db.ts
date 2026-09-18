@@ -45,6 +45,7 @@ db.exec(`
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public')),
+    audience TEXT NOT NULL DEFAULT 'private',
     share_token TEXT UNIQUE,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -142,7 +143,9 @@ ensureColumn('collections', 'cover_focus_x', 'REAL NOT NULL DEFAULT 50')
 ensureColumn('collections', 'cover_focus_y', 'REAL NOT NULL DEFAULT 50')
 ensureColumn('collections', 'theme', "TEXT NOT NULL DEFAULT 'paper'")
 ensureColumn('collections', 'grid_layout', "TEXT NOT NULL DEFAULT 'gallery'")
+ensureColumn('collections', 'audience', "TEXT NOT NULL DEFAULT 'private'")
 ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
+db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
 
 function hashPassword(password: string, salt: string) {
   return crypto.scryptSync(password, salt, 64).toString('hex')
@@ -189,8 +192,8 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
     const publicDemo = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number } | undefined
     if (!publicDemo) {
       const created = db.prepare(`
-        INSERT INTO collections (name, description, visibility, share_token)
-        VALUES (?, ?, 'public', 'mosaic-demo-public')
+        INSERT INTO collections (name, description, visibility, audience, share_token)
+        VALUES (?, ?, 'public', 'public', 'mosaic-demo-public')
       `).run('Museum of small things', 'Objects, rooms, colors, and details worth looking at twice.')
       const collectionId = Number(created.lastInsertRowid)
       db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(collectionId, demoUserId)
@@ -220,9 +223,9 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
 
       if (!row) {
         const created = db.prepare(`
-          INSERT INTO collections (name, description, visibility, share_token)
-          VALUES (?, ?, ?, ?)
-        `).run(name, description, visibility, shareToken)
+          INSERT INTO collections (name, description, visibility, audience, share_token)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(name, description, visibility, visibility, shareToken)
         row = { id: Number(created.lastInsertRowid) }
         db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(row.id, ownerId)
         db.prepare('INSERT INTO activity (collection_id, message) VALUES (?, ?)').run(row.id, `${ownerName} created “${name}”`)

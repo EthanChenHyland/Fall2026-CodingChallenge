@@ -214,7 +214,7 @@ export function CollectionPage() {
     <div className={`collection-page theme-${collection.theme ?? 'paper'}`}>
       <Link className="back-link" to="/collections"><ArrowLeft size={16} /> All collections</Link>
       <section className="collection-hero">
-        <div><span className="eyebrow">{collection.visibility.toUpperCase()} COLLECTION</span><h1>{collection.name}</h1><p>{collection.description}</p><span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span></div>
+        <div><span className="eyebrow">{(collection.audience ?? collection.visibility).toUpperCase()} COLLECTION</span><h1>{collection.name}</h1><p>{collection.description}</p><span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span></div>
         <div className="hero-actions">
           <AddPinDialog collectionId={id} trigger={<button className="primary-button"><ImagePlus size={16} /> Add pin</button>} />
           {collection.role === 'owner' && <EditCollectionDialog collection={collection} trigger={<button className="secondary-button"><Pencil size={16} /> Edit</button>} />}
@@ -223,7 +223,7 @@ export function CollectionPage() {
         </div>
       </section>
 
-      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> Anyone with the link can view this collection.</span><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div>}
+      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {(collection.audience ?? collection.visibility) === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}</span><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div>}
 
       {items.length ? (
         <Tabs.Root defaultValue="grid" className="collection-tabs">

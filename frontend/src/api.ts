@@ -29,6 +29,7 @@ export const api = {
   demoLogin: () => request<{ user: User }>('/api/auth/demo', { method: 'POST' }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
+  recommendations: () => request<{ pins: PublicPin[]; basedOn: string[] }>('/api/explore/recommended'),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),
   likePin: (id: number) => request<void>(`/api/pins/${id}/like`, { method: 'POST' }),
@@ -54,7 +55,7 @@ export const api = {
     }),
   updateCollection: (
     id: number,
-    body: Partial<Pick<Collection, 'name' | 'description' | 'visibility'>> & {
+    body: Partial<Pick<Collection, 'name' | 'description' | 'visibility' | 'audience'>> & {
       coverItemId?: number | null
       coverFocusX?: number
       coverFocusY?: number

@@ -260,18 +260,13 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
     queryClient.invalidateQueries({ queryKey: ['collection', collection.id] })
     queryClient.invalidateQueries({ queryKey: ['collections'] })
   }
-  const share = useMutation({
-    mutationFn: () => api.shareCollection(collection.id),
-    onSuccess: async ({ token }) => {
+  const audience = collection.audience ?? collection.visibility
+  const setAudience = useMutation({
+    mutationFn: (nextAudience: Collection['audience']) => api.updateCollection(collection.id, { audience: nextAudience }),
+    onSuccess: (_result, nextAudience) => {
       refresh()
-      try { await navigator.clipboard.writeText(`${window.location.origin}/shared/${token}`); toast.success('Public link copied') }
-      catch { toast.info('Public link created. Select the link to copy it.') }
+      toast.success(nextAudience === 'private' ? 'Collection is private' : nextAudience === 'followers' ? 'Followers can now view this collection' : 'Collection is public')
     },
-    onError: (error) => toast.error(error.message),
-  })
-  const disableShare = useMutation({
-    mutationFn: () => api.disableShare(collection.id),
-    onSuccess: () => { refresh(); toast.success('Public link disabled') },
     onError: (error) => toast.error(error.message),
   })
   const invite = useMutation({
@@ -296,14 +291,15 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
             <div><span className="eyebrow">SHARE & COLLABORATE</span><Dialog.Title>Bring people into the board.</Dialog.Title></div>
             <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>
           </div>
-          <Dialog.Description className="muted">Public links are view-only. Account collaborators can save, edit, remove, and rearrange images with you.</Dialog.Description>
+          <Dialog.Description className="muted">Choose who can view the board. Account collaborators can still save, edit, remove, and rearrange images with you.</Dialog.Description>
 
           <section className="share-section">
-            <div className="share-section-title"><span className="share-icon"><Link2 size={16} /></span><div><strong>Collection privacy</strong><span>Private by default. Public collections get a view-only URL.</span></div></div>
+            <div className="share-section-title"><span className="share-icon"><Link2 size={16} /></span><div><strong>Collection privacy</strong><span>Private, followers-only, or public. Shared views are always read-only.</span></div></div>
             {isOwner ? (
               <div className="privacy-toggle" aria-label="Collection privacy">
-                <button className={!collection.share_token ? 'active' : ''} onClick={() => collection.share_token && disableShare.mutate()} disabled={disableShare.isPending}><Lock size={14} /> Private</button>
-                <button className={collection.share_token ? 'active' : ''} onClick={() => !collection.share_token && share.mutate()} disabled={share.isPending}><Link2 size={14} /> Public</button>
+                <button className={audience === 'private' ? 'active' : ''} onClick={() => audience !== 'private' && setAudience.mutate('private')} disabled={setAudience.isPending}><Lock size={14} /> Private</button>
+                <button className={audience === 'followers' ? 'active' : ''} onClick={() => audience !== 'followers' && setAudience.mutate('followers')} disabled={setAudience.isPending}><Users size={14} /> Followers</button>
+                <button className={audience === 'public' ? 'active' : ''} onClick={() => audience !== 'public' && setAudience.mutate('public')} disabled={setAudience.isPending}><Link2 size={14} /> Public</button>
               </div>
             ) : <div className="owner-only-note"><Lock size={14} /> Only the owner can change collection privacy.</div>}
             {collection.share_token ? (
@@ -312,6 +308,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
                 <button className="secondary-button" onClick={() => { void navigator.clipboard.writeText(shareUrl).then(() => toast.success('Link copied')).catch(() => toast.error('Could not copy. Select the link and copy it manually.')) }}><Copy size={15} /> Copy</button>
               </div>
             ) : <p className="privacy-note">Only collaborators can open this collection while it is private.</p>}
+            {audience === 'followers' && <p className="privacy-note">The link opens only for signed-in people who follow the collection owner.</p>}
           </section>
 
           <section className="share-section">

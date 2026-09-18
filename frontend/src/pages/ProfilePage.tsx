@@ -31,17 +31,17 @@ export function ProfilePage() {
         </div>
       </section>
 
-      <section className="section-head profile-section-head"><div><span className="eyebrow">PUBLIC COLLECTIONS</span><h2>What {profile.name.split(' ')[0]} is collecting</h2></div><span className="result-count">{collections.length} public</span></section>
+      <section className="section-head profile-section-head"><div><span className="eyebrow">VISIBLE COLLECTIONS</span><h2>What {profile.name.split(' ')[0]} is collecting</h2></div><span className="result-count">{collections.length} visible</span></section>
       {collections.length ? (
         <div className="collection-grid">
           {collections.map((collection) => (
             <Link className="collection-card" to={`/shared/${collection.share_token}`} key={collection.id}>
               <div className="collection-cover">{collection.cover_url ? <img src={collection.cover_url} alt="" /> : <div className="blank-cover"><FolderHeart size={28} /></div>}<span className="open-badge"><ArrowUpRight size={16} /></span></div>
-              <div className="collection-card-copy"><div><h3>{collection.name}</h3><p>{collection.description || 'A public Mosaic collection.'}</p></div><span>{collection.item_count} saved</span></div>
+              <div className="collection-card-copy"><div><h3>{collection.name}</h3><p>{collection.description || 'A Mosaic collection.'}</p>{collection.audience === 'followers' && <small className="followers-only-label">Followers only</small>}</div><span>{collection.item_count} saved</span></div>
             </Link>
           ))}
         </div>
-      ) : <div className="empty-state"><FolderHeart size={28} /><h3>No public collections yet.</h3></div>}
+      ) : <div className="empty-state"><FolderHeart size={28} /><h3>No visible collections yet.</h3></div>}
     </>
   )
 }

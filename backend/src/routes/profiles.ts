@@ -38,25 +38,30 @@ profilesRouter.get('/:id', (req: AuthedRequest, res) => {
   `).get(userId) as Record<string, unknown> | undefined
   if (!profile) return res.status(404).json({ error: 'Profile not found.' })
 
+  const canViewFollowers = req.user?.id === userId || Boolean(
+    req.user && db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(req.user.id, userId),
+  )
+  const visibleAudiences = canViewFollowers ? "('public', 'followers')" : "('public')"
+
   const stats = db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM collection_members m JOIN collections c ON c.id = m.collection_id WHERE m.user_id = ? AND m.role = 'owner' AND c.visibility = 'public') AS collection_count,
+      (SELECT COUNT(*) FROM collection_members m JOIN collections c ON c.id = m.collection_id WHERE m.user_id = ? AND m.role = 'owner' AND c.audience IN ${visibleAudiences}) AS collection_count,
       (SELECT COUNT(*) FROM items i
         JOIN collection_members m ON m.collection_id = i.collection_id
         JOIN collections c ON c.id = i.collection_id
-        WHERE m.user_id = ? AND m.role = 'owner' AND c.visibility = 'public') AS pin_count,
+        WHERE m.user_id = ? AND m.role = 'owner' AND c.audience IN ${visibleAudiences}) AS pin_count,
       (SELECT COUNT(*) FROM follows WHERE following_id = ?) AS follower_count,
       (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
   `).get(userId, userId, userId, userId) as { collection_count: number; pin_count: number; follower_count: number; following_count: number }
 
   const collections = db.prepare(`
-    SELECT c.id, c.name, c.description, c.visibility, c.share_token, c.created_at, c.updated_at,
+    SELECT c.id, c.name, c.description, c.visibility, c.audience, c.share_token, c.created_at, c.updated_at,
       COUNT(i.id) AS item_count,
       (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url
     FROM collections c
     JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
     LEFT JOIN items i ON i.collection_id = c.id
-    WHERE c.visibility = 'public'
+    WHERE c.audience IN ${visibleAudiences} AND c.share_token IS NOT NULL
     GROUP BY c.id
     ORDER BY c.updated_at DESC
   `).all(userId)

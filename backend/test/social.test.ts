@@ -40,6 +40,40 @@ test('following feed is driven by the social graph', async () => {
   assert.ok(following.body.pins.some((pin: { owner_id: number }) => pin.owner_id === curator.id))
 })
 
+test('followers-only collections require a follower relationship', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const curator = await makeCurator()
+  const created = await curator.agent.post('/api/collections').send({ name: 'Followers test board', description: 'Visible to followers only.' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const restricted = await curator.agent.patch(`/api/collections/${collectionId}`).send({ audience: 'followers' }).expect(200)
+  const token = restricted.body.collection.share_token as string
+  assert.equal(restricted.body.collection.audience, 'followers')
+  assert.ok(token)
+
+  await request(app).get(`/api/shared/${token}`).expect(404)
+  await demo.get(`/api/shared/${token}`).expect(404)
+  const beforeFollow = await demo.get(`/api/profiles/${curator.id}`).expect(200)
+  assert.ok(!beforeFollow.body.collections.some((collection: { id: number }) => collection.id === collectionId))
+
+  await demo.post(`/api/profiles/${curator.id}/follow`).expect(204)
+  const afterFollow = await demo.get(`/api/profiles/${curator.id}`).expect(200)
+  assert.ok(afterFollow.body.collections.some((collection: { id: number; audience: string }) => collection.id === collectionId && collection.audience === 'followers'))
+  await demo.get(`/api/shared/${token}`).expect(200)
+
+  await demo.delete(`/api/profiles/${curator.id}/follow`).expect(204)
+  await demo.get(`/api/shared/${token}`).expect(404)
+})
+
+test('recommendations are derived from saved interests', async () => {
+  const demo = request.agent(app)
+  await demo.post('/api/auth/demo').expect(200)
+  const recommended = await demo.get('/api/explore/recommended').expect(200)
+  assert.ok(recommended.body.basedOn.length > 0)
+  assert.ok(recommended.body.pins.length > 0)
+  assert.ok(recommended.body.pins.every((pin: { owner_name: string }) => pin.owner_name !== 'Demo Curator'))
+})
+
 test('likes and comment moderation stay consistent', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)

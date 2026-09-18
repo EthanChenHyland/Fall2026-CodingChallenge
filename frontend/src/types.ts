@@ -150,6 +150,7 @@ export type Collection = {
   name: string
   description: string
   visibility: 'private' | 'public'
+  audience: 'private' | 'followers' | 'public'
   share_token: string | null
   created_at: string
   updated_at: string

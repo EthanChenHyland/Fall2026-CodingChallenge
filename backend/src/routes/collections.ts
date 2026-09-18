@@ -120,6 +120,7 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   const existing = getCollection(id, req.user!.id) as Record<string, unknown>
   const schema = collectionSchema.partial().extend({
     visibility: z.enum(['private', 'public']).optional(),
+    audience: z.enum(['private', 'followers', 'public']).optional(),
     coverItemId: z.number().int().positive().nullable().optional(),
     coverFocusX: z.number().min(0).max(100).optional(),
     coverFocusY: z.number().min(0).max(100).optional(),
@@ -128,15 +129,19 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   })
   const parsed = schema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid collection update.' })
-  if (parsed.data.visibility && res.locals.membership.role !== 'owner') {
+  if ((parsed.data.visibility || parsed.data.audience) && res.locals.membership.role !== 'owner') {
     return res.status(403).json({ error: 'Only the owner can change collection visibility.' })
   }
   if (parsed.data.coverItemId != null) {
     const coverItem = db.prepare('SELECT id FROM items WHERE id = ? AND collection_id = ?').get(parsed.data.coverItemId, id)
     if (!coverItem) return res.status(400).json({ error: 'Choose an image from this collection for the cover.' })
   }
+  const requestedAudience = parsed.data.audience
+    ?? parsed.data.visibility
+    ?? String(existing.audience ?? existing.visibility ?? 'private') as 'private' | 'followers' | 'public'
   const next = { ...existing, ...parsed.data }
-  const shareToken = parsed.data.visibility === 'private' ? null : parsed.data.visibility === 'public' ? existing.share_token ?? crypto.randomBytes(16).toString('base64url') : existing.share_token
+  const visibility = requestedAudience === 'public' ? 'public' : 'private'
+  const shareToken = requestedAudience === 'private' ? null : existing.share_token ?? crypto.randomBytes(16).toString('base64url')
   const coverItemId = parsed.data.coverItemId === undefined ? existing.cover_item_id : parsed.data.coverItemId
   const coverFocusX = parsed.data.coverFocusX ?? Number(existing.cover_focus_x ?? 50)
   const coverFocusY = parsed.data.coverFocusY ?? Number(existing.cover_focus_y ?? 50)
@@ -145,9 +150,9 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   db.transaction(() => {
     db.prepare(`
       UPDATE collections
-      SET name = ?, description = ?, visibility = ?, share_token = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, description = ?, visibility = ?, audience = ?, share_token = ?, cover_item_id = ?, cover_focus_x = ?, cover_focus_y = ?, theme = ?, grid_layout = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(next.name, next.description, next.visibility, shareToken, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
+    `).run(next.name, next.description, visibility, requestedAudience, shareToken, coverItemId, coverFocusX, coverFocusY, theme, gridLayout, id)
     logActivity(id, `${actor(req)} updated collection details`, req.user!.id)
   })()
   res.json({ collection: getCollection(id, req.user!.id) })
@@ -324,7 +329,7 @@ collectionsRouter.post('/:id/share', requireMembership, requireOwner, (req: Auth
   const existing = db.prepare('SELECT share_token FROM collections WHERE id = ?').get(id) as { share_token: string | null }
   const token = existing.share_token ?? crypto.randomBytes(16).toString('base64url')
   db.transaction(() => {
-    db.prepare("UPDATE collections SET share_token = ?, visibility = 'public', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(token, id)
+    db.prepare("UPDATE collections SET share_token = ?, visibility = 'public', audience = 'public', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(token, id)
     logActivity(id, `${actor(req)} enabled public sharing`, req.user!.id)
   })()
   res.json({ token })
@@ -333,7 +338,7 @@ collectionsRouter.post('/:id/share', requireMembership, requireOwner, (req: Auth
 collectionsRouter.delete('/:id/share', requireMembership, requireOwner, (req: AuthedRequest, res) => {
   const id = Number(req.params.id)
   db.transaction(() => {
-    db.prepare("UPDATE collections SET share_token = NULL, visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id)
+    db.prepare("UPDATE collections SET share_token = NULL, visibility = 'private', audience = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id)
     logActivity(id, `${actor(req)} disabled public sharing`, req.user!.id)
   })()
   res.status(204).end()
