@@ -10,6 +10,7 @@ process.env.DATABASE_PATH = join(directory, 'test.sqlite')
 process.env.PIXABAY_API_KEY = 'test-key'
 const { app } = await import('../src/app.js')
 const { db } = await import('../src/db.js')
+const { pruneUnusedMedia } = await import('../src/lib/media.js')
 const originalFetch = globalThis.fetch
 test.afterEach(() => { globalThis.fetch = originalFetch })
 test.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }) })
@@ -39,6 +40,28 @@ test('provider cache lasts 24 hours and saved Pixabay images use durable local m
   const saved = await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: image.id, imageUrl: image.imageUrl, sourcePage: image.pageUrl, title: image.title }).expect(201)
   assert.match(saved.body.item.image_url, /^\/media\/[a-f0-9]{64}\.jpg$/)
   await request(app).get(saved.body.item.image_url).expect(200).expect('Content-Type', /image\/jpeg/)
+})
+
+test('provider media GC preserves live and undo references before removing expired files', async () => {
+  const bytes = new Uint8Array([255, 216, 7, 8, 9, 255, 217])
+  const filename = `${createHash('sha256').update(bytes).digest('hex')}.jpg`
+  globalThis.fetch = (async () => new Response(bytes, { headers: { 'content-type': 'image/jpeg' } })) as typeof fetch
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const board = await owner.post('/api/collections').send({ name: `GC board ${randomUUID()}` }).expect(201)
+  const saved = await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: `gc-${randomUUID()}`, imageUrl: 'https://cdn.pixabay.com/gc.jpg', title: 'GC image' }).expect(201)
+  const path = join(directory, 'media', filename)
+  assert.equal(saved.body.item.image_url, `/media/${filename}`)
+  assert.equal(existsSync(path), true)
+  assert.equal(pruneUnusedMedia(), 0)
+
+  await owner.delete(`/api/collections/${board.body.collection.id}/items/${saved.body.item.id}`).expect(204)
+  assert.equal(existsSync(path), true)
+  assert.equal(pruneUnusedMedia(), 0)
+
+  db.prepare('UPDATE deleted_items SET expires_at = ? WHERE item_id = ?').run(Date.now() - 1, saved.body.item.id)
+  assert.equal(pruneUnusedMedia(), 1)
+  assert.equal(existsSync(path), false)
 })
 
 test('Pixabay failures fall back to Wikimedia; oversized titles can still be saved', async () => {

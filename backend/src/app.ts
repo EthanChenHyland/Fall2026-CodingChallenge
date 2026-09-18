@@ -6,7 +6,7 @@ import helmet from 'helmet'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { db } from './db.js'
-import { mediaDir } from './lib/media.js'
+import { mediaDir, pruneUnusedMedia } from './lib/media.js'
 import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
 import { collectionsRouter } from './routes/collections.js'
@@ -19,6 +19,12 @@ import { searchRouter } from './routes/search.js'
 import { sharedRouter } from './routes/shared.js'
 
 export const app = express()
+
+try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
+const mediaGcTimer = setInterval(() => {
+  try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
+}, 10 * 60_000)
+mediaGcTimer.unref()
 
 app.disable('x-powered-by')
 // Only trust the explicitly configured number of reverse-proxy hops.

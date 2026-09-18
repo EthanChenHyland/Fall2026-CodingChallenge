@@ -3,7 +3,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
 import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
-import { persistProviderImage } from '../lib/media.js'
+import { persistProviderImage, pruneUnusedMedia } from '../lib/media.js'
 import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
 import { copyItemLineage } from '../lib/provenance.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
@@ -337,6 +337,7 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
 
 collectionsRouter.delete('/:id', requireMembership, requireOwner, (req, res) => {
   db.prepare('DELETE FROM collections WHERE id = ?').run(Number(req.params.id))
+  try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
   res.status(204).end()
 })
 
@@ -418,6 +419,7 @@ collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedReques
     persistedImage.discard()
     throw error
   }
+  persistedImage.commit()
   res.status(201).json({ item })
 })
 
@@ -511,6 +513,7 @@ collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest
       logActivity(collectionId, `${actor(req)} removed ${ids.length} saved ${ids.length === 1 ? 'pin' : 'pins'}`, req.user!.id)
     })
     removeMany()
+    try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
     return res.json({ items })
   }
 
@@ -579,6 +582,7 @@ collectionsRouter.delete('/:id/items/:itemId', requireMembership, (req: AuthedRe
     db.prepare('UPDATE collections SET cover_item_id = CASE WHEN cover_item_id = ? THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(req.params.itemId), collectionId)
     logActivity(collectionId, `${actor(req)} removed “${item.title}”`, req.user!.id)
   })()
+  try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
   res.status(204).end()
 })
 

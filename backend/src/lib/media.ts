@@ -1,13 +1,15 @@
 import { createHash } from 'node:crypto'
-import { unlinkSync } from 'node:fs'
+import { existsSync, readdirSync, unlinkSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { databasePath } from '../db.js'
+import { databasePath, db } from '../db.js'
 
 export const mediaDir = join(dirname(databasePath), 'media')
 const MAX_BYTES = 10 * 1024 * 1024
 const PIXABAY_HOSTS = new Set(['pixabay.com', 'cdn.pixabay.com'])
 const MAX_REDIRECTS = 3
+const LOCAL_MEDIA_NAME = /^[a-f0-9]{64}\.(jpg|png|webp|gif)$/
+const pendingMediaNames = new Set<string>()
 
 function pixabayUrl(value: string | URL) {
   const url = value instanceof URL ? value : new URL(value, 'https://mosaic.invalid')
@@ -37,11 +39,49 @@ async function fetchPixabayImage(initialUrl: URL) {
 export type PersistedProviderImage = {
   imageUrl: string
   discard: () => void
+  commit: () => void
+}
+
+function localMediaName(value: unknown) {
+  if (typeof value !== 'string' || !value.startsWith('/media/')) return null
+  const name = value.slice('/media/'.length)
+  return LOCAL_MEDIA_NAME.test(name) ? name : null
+}
+
+export function pruneUnusedMedia() {
+  const now = Date.now()
+  db.prepare('DELETE FROM deleted_items WHERE expires_at <= ?').run(now)
+  const referenced = new Set<string>()
+  for (const row of db.prepare("SELECT image_url FROM items WHERE image_url LIKE '/media/%'").all() as Array<{ image_url: string }>) {
+    const name = localMediaName(row.image_url)
+    if (name) referenced.add(name)
+  }
+  for (const row of db.prepare('SELECT snapshot FROM deleted_items WHERE expires_at > ?').all(now) as Array<{ snapshot: string }>) {
+    try {
+      const snapshot = JSON.parse(row.snapshot) as { item?: { image_url?: unknown } }
+      const name = localMediaName(snapshot.item?.image_url)
+      if (name) referenced.add(name)
+    } catch {
+      // Corrupt undo data cannot be restored; it should not pin media forever.
+    }
+  }
+  if (!existsSync(mediaDir)) return 0
+  let removed = 0
+  for (const entry of readdirSync(mediaDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !LOCAL_MEDIA_NAME.test(entry.name) || referenced.has(entry.name) || pendingMediaNames.has(entry.name)) continue
+    try {
+      unlinkSync(join(mediaDir, entry.name))
+      removed++
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('Could not remove unused provider image.')
+    }
+  }
+  return removed
 }
 
 export async function persistProviderImage(imageUrl: string): Promise<PersistedProviderImage> {
   const url = pixabayUrl(imageUrl)
-  if (!url) return { imageUrl, discard: () => undefined }
+  if (!url) return { imageUrl, discard: () => undefined, commit: () => undefined }
   const response = await fetchPixabayImage(url)
   if (!response.ok || Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Provider image could not be saved.')
   const formats: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
@@ -59,20 +99,26 @@ export async function persistProviderImage(imageUrl: string): Promise<PersistedP
   }
   const bytes = Buffer.concat(chunks)
   const name = `${createHash('sha256').update(bytes).digest('hex')}.${extension}`
-  await mkdir(mediaDir, { recursive: true })
+  pendingMediaNames.add(name)
   const path = join(mediaDir, name)
   let created = false
   try {
+    await mkdir(mediaDir, { recursive: true })
     // Avoid overwriting an existing content-addressed copy so rollback never
     // deletes media that another pin already depends on.
     await writeFile(path, bytes, { flag: 'wx' })
     created = true
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      pendingMediaNames.delete(name)
+      throw error
+    }
   }
   return {
     imageUrl: `/media/${name}`,
+    commit: () => { pendingMediaNames.delete(name) },
     discard: () => {
+      pendingMediaNames.delete(name)
       if (!created) return
       created = false
       try { unlinkSync(path) } catch (error) {
