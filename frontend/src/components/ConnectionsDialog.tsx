@@ -26,7 +26,7 @@ export function ConnectionsDialog({ profileId, kind, count }: { profileId: numbe
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild><button className="profile-stat-button"><strong>{count}</strong> {kind}</button></Dialog.Trigger>
+      <Dialog.Trigger asChild><button className="profile-stat profile-stat-button"><strong>{count}</strong><span>{kind}</span></button></Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className="dialog-card compact connections-dialog">
@@ -35,7 +35,7 @@ export function ConnectionsDialog({ profileId, kind, count }: { profileId: numbe
           <div className="connection-list">
             {isError ? <div className="popover-empty">Could not load people. <button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="popover-empty">Loading people…</div> : data?.people.length ? data.people.map((person) => (
               <div className="connection-row" key={person.id}>
-                <Link className="connection-person" to={`/people/${person.id}`} onClick={() => setOpen(false)}>
+                <Link className="connection-person" to={`/people/${person.username}`} onClick={() => setOpen(false)}>
                   <span className="connection-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : <UserRound size={18} />}</span>
                   <span><strong>{person.name}</strong><small>{person.bio || 'Mosaic curator'}</small></span>
                 </Link>

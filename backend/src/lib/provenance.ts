@@ -39,7 +39,7 @@ export function provenanceForViewer(itemId: number, viewerId?: number) {
   const userId = viewerId ?? -1
   const ancestors = db.prepare(`
     SELECT l.depth, i.id AS pin_id, c.id AS collection_id, c.name AS collection_name, c.share_token,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar
     FROM item_lineage l
     JOIN items i ON i.id = l.ancestor_item_id
     JOIN collections c ON c.id = i.collection_id

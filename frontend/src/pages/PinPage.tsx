@@ -103,7 +103,7 @@ export function PinPage() {
     <div className={`pin-comment ${nested ? 'reply' : ''}`} key={entry.id}>
       <span className="pin-comment-avatar">{entry.user_avatar ? <img src={entry.user_avatar} alt="" /> : entry.user_name.slice(0, 1)}</span>
       <div className="pin-comment-copy">
-        <Link to={`/people/${entry.user_id}`}>{entry.user_name}</Link>
+        <Link to={`/people/${entry.user_username}`}>{entry.user_name}</Link>
         <p>{entry.body}</p>
         <button className="comment-reply" onClick={() => beginReply(entry)}><Reply size={12} /> Reply</button>
       </div>
@@ -119,7 +119,7 @@ export function PinPage() {
           <span className="eyebrow">SAVED TO MOSAIC</span>
           <h1>{pin.title}</h1>
           {pin.note && <p className="pin-page-note">{pin.note}</p>}
-          <Link className="pin-owner" to={`/people/${pin.owner_id}`}><span className="pin-owner-avatar">{pin.owner_avatar ? <img src={pin.owner_avatar} alt="" /> : pin.owner_name.slice(0, 1)}</span><span><strong>{pin.owner_name}</strong><small>Curator</small></span></Link>
+          <Link className="pin-owner" to={`/people/${pin.owner_username}`}><span className="pin-owner-avatar">{pin.owner_avatar ? <img src={pin.owner_avatar} alt="" /> : pin.owner_name.slice(0, 1)}</span><span><strong>{pin.owner_name}</strong><small>@{pin.owner_username}</small></span></Link>
           <div className="pin-board-row"><Link className="pin-board-link" to={pin.share_token ? `/shared/${pin.share_token}` : `/collections/${pin.collection_id}`}><FolderHeart size={16} /><span><strong>{pin.collection_name}</strong><small>{pin.collection_description || 'Public collection'} · {pin.collection_follower_count} {pin.collection_follower_count === 1 ? 'follower' : 'followers'}</small></span></Link>{pin.visibility === 'public' && !pin.can_edit && <button className={pin.collection_followed_by_me ? 'secondary-button pin-board-follow' : 'primary-button pin-board-follow'} disabled={followCollection.isPending} onClick={() => followCollection.mutate()}>{pin.collection_followed_by_me ? 'Following' : 'Follow'}</button>}</div>
           {pin.provenance.total_depth > 0 && <section className="pin-provenance" aria-label="Pin provenance">
             <span className="eyebrow">REPIN LINEAGE</span>

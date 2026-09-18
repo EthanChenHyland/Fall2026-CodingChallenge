@@ -10,6 +10,7 @@ function conversationFor(conversationId: number, userId: number) {
   return db.prepare(`
     SELECT c.*,
       CASE WHEN c.user_a_id = ? THEN c.user_b_id ELSE c.user_a_id END AS other_user_id,
+      u.username AS other_user_username,
       u.name AS other_user_name,
       u.avatar_url AS other_user_avatar
     FROM conversations c
@@ -22,7 +23,7 @@ messagesRouter.get('/', (req: AuthedRequest, res) => {
   const userId = req.user!.id
   const conversations = db.prepare(`
     SELECT c.id, c.created_at, c.updated_at,
-      u.id AS other_user_id, u.name AS other_user_name, u.avatar_url AS other_user_avatar,
+      u.id AS other_user_id, u.username AS other_user_username, u.name AS other_user_name, u.avatar_url AS other_user_avatar,
       (SELECT CASE
         WHEN TRIM(latest.body) != '' THEN latest.body
         WHEN latest.pin_id IS NOT NULL THEN 'Sent a pin'

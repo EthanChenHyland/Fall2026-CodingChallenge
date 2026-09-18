@@ -101,7 +101,7 @@ export function MessagesPage() {
               <header className="thread-head">
                 <Link className="thread-back" to="/messages" aria-label="Back to inbox"><ArrowLeft size={18} /></Link>
                 <span className="conversation-avatar">{current.other_user_avatar ? <img src={current.other_user_avatar} alt="" /> : initials(current.other_user_name)}</span>
-                <div><strong>{current.other_user_name}</strong><Link to={`/people/${current.other_user_id}`}>View profile</Link></div>
+                <div><strong>{current.other_user_name}</strong><Link to={`/people/${current.other_user_username}`}>View profile</Link></div>
               </header>
               <div className="message-stream" aria-live="polite">
                 {thread.data?.messages.length ? thread.data.messages.map((message) => {

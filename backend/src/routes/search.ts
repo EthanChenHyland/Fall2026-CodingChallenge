@@ -221,22 +221,22 @@ searchRouter.get('/social', (req: AuthedRequest, res) => {
   const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`
 
   const people = db.prepare(`
-    SELECT u.id, u.name, u.bio, u.avatar_url,
+    SELECT u.id, u.username, u.name, u.bio, u.avatar_url,
       (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.id) AS follower_count,
       CASE WHEN EXISTS (
         SELECT 1 FROM follows mine WHERE mine.follower_id = ? AND mine.following_id = u.id
       ) THEN 1 ELSE 0 END AS followed_by_me
     FROM users u
-    WHERE LOWER(u.name) LIKE ? ESCAPE '\\' OR LOWER(u.bio) LIKE ? ESCAPE '\\'
+    WHERE LOWER(u.name) LIKE ? ESCAPE '\\' OR LOWER(u.username) LIKE ? ESCAPE '\\' OR LOWER(u.bio) LIKE ? ESCAPE '\\'
     ORDER BY follower_count DESC, u.name ASC
     LIMIT 6
-  `).all(req.user?.id ?? -1, like, like)
+  `).all(req.user?.id ?? -1, like, like, like)
 
   const collections = db.prepare(`
     SELECT c.id, c.name, c.description, c.share_token, c.updated_at,
       COUNT(i.id) AS item_count,
       (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar
     FROM collections c
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
     JOIN users u ON u.id = m.user_id
@@ -288,7 +288,7 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
 
   const candidates = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar,
       (SELECT COUNT(*) FROM item_likes likes WHERE likes.item_id = i.id) AS like_count,
       (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
     FROM items i

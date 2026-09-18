@@ -13,7 +13,7 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   const pin = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.description AS collection_description,
       c.visibility, c.audience, c.share_token,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar,
       (SELECT COUNT(*) FROM item_likes WHERE item_id = i.id) AS like_count,
       (SELECT COUNT(*) FROM collection_follows cf WHERE cf.collection_id = c.id) AS collection_follower_count,
       CASE WHEN EXISTS (
@@ -50,7 +50,7 @@ pinsRouter.get('/:id/related', (req, res) => {
 
   const pins = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token,
-      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar
+      u.id AS owner_id, u.username AS owner_username, u.name AS owner_name, u.avatar_url AS owner_avatar
     FROM items i
     JOIN collections c ON c.id = i.collection_id
     JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
@@ -263,7 +263,7 @@ pinsRouter.get('/:id/comments', (req: AuthedRequest, res) => {
   if (!visible) return res.status(404).json({ error: 'Pin not found.' })
   const canModerate = req.user ? membership(visible.collection_id, req.user.id)?.role === 'owner' : false
   const comments = db.prepare(`
-    SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+    SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.username AS user_username, u.name AS user_name, u.avatar_url AS user_avatar
     FROM comments c JOIN users u ON u.id = c.user_id
     WHERE c.item_id = ? ORDER BY c.id ASC
   `).all(pinId) as Array<Record<string, unknown> & { user_id: number }>
@@ -312,7 +312,7 @@ pinsRouter.post('/:id/comments', requireAuth, (req: AuthedRequest, res) => {
       db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(userId, owner.collection_id, message)
     }
     return db.prepare(`
-      SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.name AS user_name, u.avatar_url AS user_avatar
+      SELECT c.id, c.item_id, c.body, c.parent_id, c.created_at, u.id AS user_id, u.username AS user_username, u.name AS user_name, u.avatar_url AS user_avatar
       FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?
     `).get(result.lastInsertRowid)
   })()

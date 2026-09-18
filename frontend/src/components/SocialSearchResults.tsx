@@ -17,9 +17,9 @@ export function SocialSearchResults({ query }: { query: string }) {
     <section className="social-search-block" aria-label="Mosaic search results">
       <div className="social-search-head"><span className="eyebrow">ON MOSAIC</span><span>{isLoading ? 'Looking around…' : `${(data?.people.length ?? 0) + (data?.collections.length ?? 0)} matches`}</span></div>
       {data?.people.length ? <div className="people-search-row">{data.people.map((person) => (
-        <Link className="people-search-card" to={`/people/${person.id}`} key={person.id}>
+        <Link className="people-search-card" to={`/people/${person.username}`} key={person.id}>
           <span className="people-search-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : <UserRound size={19} />}</span>
-          <span><strong>{person.name}</strong><small>{person.follower_count} {person.follower_count === 1 ? 'follower' : 'followers'}</small></span>
+          <span><strong>{person.name}</strong><small>@{person.username} · {person.follower_count} {person.follower_count === 1 ? 'follower' : 'followers'}</small></span>
         </Link>
       ))}</div> : null}
       {data?.collections.length ? <div className="board-search-row">{data.collections.map((collection) => (
