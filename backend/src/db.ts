@@ -394,7 +394,7 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
     const samMaterialsId = ensureDemoCollection(
       'Material walks',
       'Concrete, tile, metal, storefronts, and details collected on foot.',
-      [11, 6, 4, 1, 8],
+      [11, 6, 4, 8],
       'public',
       'mosaic-demo-material-walks',
       samUserId,
@@ -443,6 +443,20 @@ db.transaction(() => {
     WHERE c.share_token = 'mosaic-demo-field-notes'
   `).get(demoUser.id) as { id: number } | undefined
   if (fieldNotes) db.prepare('DELETE FROM collections WHERE id = ?').run(fieldNotes.id)
+
+  const samMaterials = db.prepare(`
+    SELECT c.id FROM collections c
+    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
+    WHERE c.share_token = 'mosaic-demo-material-walks'
+  `).get(samUser.id) as { id: number } | undefined
+  if (samMaterials) {
+    const coastRoad = db.prepare("SELECT id FROM items WHERE collection_id = ? AND source_id = 'coast-road'").get(samMaterials.id) as { id: number } | undefined
+    if (coastRoad) {
+      const replacement = db.prepare('SELECT id FROM items WHERE collection_id = ? AND id != ? ORDER BY id ASC LIMIT 1').get(samMaterials.id, coastRoad.id) as { id: number } | undefined
+      db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ? AND cover_item_id = ?').run(replacement?.id ?? null, samMaterials.id, coastRoad.id)
+      db.prepare('DELETE FROM items WHERE id = ?').run(coastRoad.id)
+    }
+  }
 
   const museum = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number } | undefined
   if (!museum) return
