@@ -118,6 +118,7 @@ export const api = {
   editorInvite: (id: number) => request<{ invite: { token: string; created_at: string } | null }>(`/api/collections/${id}/editor-invite`),
   createEditorInvite: (id: number) => request<{ invite: { token: string } }>(`/api/collections/${id}/editor-invite`, { method: 'POST' }),
   revokeEditorInvite: (id: number) => request<void>(`/api/collections/${id}/editor-invite`, { method: 'DELETE' }),
+  editorInvitePreview: (token: string) => request<{ invite: { collectionId: number; collectionName: string; ownerName: string; alreadyMember: boolean } }>(`/api/collections/editor-invites/${encodeURIComponent(token)}`),
   acceptEditorInvite: (token: string) => request<{ collection: Collection; alreadyMember: boolean }>(`/api/collections/editor-invites/${encodeURIComponent(token)}/accept`, { method: 'POST' }),
   addCollaborator: (id: number, email: string) =>
     request<{ collection: Collection }>(`/api/collections/${id}/collaborators`, {
@@ -126,6 +127,7 @@ export const api = {
     }),
   removeCollaborator: (id: number, userId: number) =>
     request<void>(`/api/collections/${id}/collaborators/${userId}`, { method: 'DELETE' }),
+  leaveCollection: (id: number) => request<void>(`/api/collections/${id}/collaborators/me`, { method: 'DELETE' }),
   notifications: () => request<{ notifications: NotificationItem[] }>('/api/notifications'),
   markNotificationsRead: () => request<void>('/api/notifications/read', { method: 'POST' }),
   messageConversations: () => request<{ conversations: MessageConversation[] }>('/api/messages'),

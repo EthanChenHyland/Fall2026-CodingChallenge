@@ -78,15 +78,26 @@ test('editor invite links require owner control and grant editor access only whi
   assert.ok(token.length >= 40)
   const status = await owner.get(`/api/collections/${collectionId}/editor-invite`).expect(200)
   assert.equal(status.body.invite.token, token)
+  await request(app).get(`/api/collections/editor-invites/${token}`).expect(401)
   await request(app).post(`/api/collections/editor-invites/${token}/accept`).expect(401)
 
   const invitedEmail = `invite-${randomUUID()}@mosaic.local`
   await invited.post('/api/auth/register').send({ name: 'Invite Tester', email: invitedEmail, password: 'demo1234' }).expect(201)
+  const preview = await invited.get(`/api/collections/editor-invites/${token}`).expect(200)
+  assert.equal(preview.body.invite.collectionId, collectionId)
+  assert.equal(preview.body.invite.collectionName, 'Invite link board')
+  assert.equal(preview.body.invite.alreadyMember, false)
   const accepted = await invited.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
   assert.equal(accepted.body.collection.role, 'editor')
   assert.equal(accepted.body.alreadyMember, false)
   const repeated = await invited.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
   assert.equal(repeated.body.alreadyMember, true)
+  assert.equal((await invited.get(`/api/collections/editor-invites/${token}`).expect(200)).body.invite.alreadyMember, true)
+  await invited.delete(`/api/collections/${collectionId}/collaborators/me`).expect(204)
+  await invited.get(`/api/collections/${collectionId}`).expect(404)
+  await owner.delete(`/api/collections/${collectionId}/collaborators/me`).expect(400)
+  const rejoined = await invited.post(`/api/collections/editor-invites/${token}/accept`).expect(200)
+  assert.equal(rejoined.body.alreadyMember, false)
   const invitedId = (db.prepare('SELECT id FROM users WHERE email = ?').get(invitedEmail) as { id: number }).id
   assert.equal((db.prepare('SELECT COUNT(*) AS count FROM collection_members WHERE collection_id = ? AND user_id = ?').get(collectionId, invitedId) as { count: number }).count, 1)
 
@@ -97,6 +108,7 @@ test('editor invite links require owner control and grant editor access only whi
   await owner.delete(`/api/collections/${collectionId}/editor-invite`).expect(204)
   assert.equal((await owner.get(`/api/collections/${collectionId}/editor-invite`).expect(200)).body.invite, null)
   await revokedTarget.post('/api/auth/register').send({ name: 'Revoked Tester', email: `revoked-${randomUUID()}@mosaic.local`, password: 'demo1234' }).expect(201)
+  await revokedTarget.get(`/api/collections/editor-invites/${token}`).expect(404)
   await revokedTarget.post(`/api/collections/editor-invites/${token}/accept`).expect(404)
 })
 

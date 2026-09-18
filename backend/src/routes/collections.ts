@@ -199,6 +199,27 @@ collectionsRouter.post('/editor-invites/:token/accept', (req: AuthedRequest, res
   return res.json({ collection: getCollection(invite.collection_id, req.user!.id), alreadyMember: Boolean(membershipRow) })
 })
 
+collectionsRouter.get('/editor-invites/:token', (req: AuthedRequest, res) => {
+  const invite = db.prepare(`
+    SELECT ci.collection_id, c.name AS collection_name, owner_user.name AS owner_name
+    FROM collection_invites ci
+    JOIN collections c ON c.id = ci.collection_id
+    JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
+    JOIN users owner_user ON owner_user.id = owner.user_id
+    WHERE ci.token = ? AND ci.role = 'editor' AND ci.revoked_at IS NULL
+  `).get(req.params.token) as { collection_id: number; collection_name: string; owner_name: string } | undefined
+  if (!invite) return res.status(404).json({ error: 'This editor invite is invalid or has been revoked.' })
+  const existing = db.prepare('SELECT role FROM collection_members WHERE collection_id = ? AND user_id = ?').get(invite.collection_id, req.user!.id) as { role: 'owner' | 'editor' } | undefined
+  return res.json({
+    invite: {
+      collectionId: invite.collection_id,
+      collectionName: invite.collection_name,
+      ownerName: invite.owner_name,
+      alreadyMember: Boolean(existing),
+    },
+  })
+})
+
 collectionsRouter.post('/:id/follow', (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   if (!Number.isSafeInteger(collectionId) || collectionId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
@@ -628,6 +649,16 @@ collectionsRouter.post('/:id/collaborators', requireMembership, requireOwner, (r
   })()
   if (result.changes === 0) return res.status(409).json({ error: 'That person already collaborates on this collection.' })
   res.status(201).json({ collection: getCollection(collectionId, req.user!.id) })
+})
+
+collectionsRouter.delete('/:id/collaborators/me', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  if (res.locals.membership.role === 'owner') return res.status(400).json({ error: 'Collection owners cannot leave their own collection.' })
+  db.transaction(() => {
+    db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").run(collectionId, req.user!.id)
+    logActivity(collectionId, `${actor(req)} left the collection`, req.user!.id)
+  })()
+  return res.status(204).end()
 })
 
 collectionsRouter.delete('/:id/collaborators/:userId', requireMembership, requireOwner, (req: AuthedRequest, res) => {

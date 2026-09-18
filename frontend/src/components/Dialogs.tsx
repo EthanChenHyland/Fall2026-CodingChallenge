@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Link2, Lock, Plus, Trash2, UploadCloud, UserPlus, Users, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { rememberCollection } from '../lib/recentCollection'
@@ -255,6 +256,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const isOwner = collection.role === 'owner'
   const editorInvite = useQuery({
     queryKey: ['editor-invite', collection.id],
@@ -292,6 +294,17 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
   const remove = useMutation({
     mutationFn: (userId: number) => api.removeCollaborator(collection.id, userId),
     onSuccess: () => { refresh(); toast.success('Editor removed') },
+    onError: (error) => toast.error(error.message),
+  })
+  const leave = useMutation({
+    mutationFn: () => api.leaveCollection(collection.id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['collection', collection.id] })
+      void queryClient.invalidateQueries({ queryKey: ['collections'] })
+      setOpen(false)
+      toast.success('You left the collection')
+      navigate('/collections')
+    },
     onError: (error) => toast.error(error.message),
   })
   const shareUrl = collection.share_token ? `${window.location.origin}/shared/${collection.share_token}` : ''
@@ -360,6 +373,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
                 )}
               </div>
             )}
+            {!isOwner && collection.role === 'editor' && <button className="secondary-button danger-button" disabled={leave.isPending} onClick={() => leave.mutate()}><Trash2 size={15} /> {leave.isPending ? 'Leaving…' : 'Leave collection'}</button>}
           </section>
         </Dialog.Content>
       </Dialog.Portal>
