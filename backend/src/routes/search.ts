@@ -100,7 +100,7 @@ async function searchPixabay(query: string, page: number, apiKey: string): Promi
   if (!reservePixabayRequest()) throw new Error('Pixabay request budget is temporarily exhausted.')
   const url = new URL('https://pixabay.com/api/')
   url.searchParams.set('key', apiKey)
-  url.searchParams.set('q', query)
+  if (query) url.searchParams.set('q', query)
   url.searchParams.set('image_type', 'photo')
   url.searchParams.set('safesearch', 'true')
   url.searchParams.set('per_page', String(PAGE_SIZE))
@@ -322,7 +322,7 @@ searchRouter.get('/', async (req, res) => {
   const page = readPage(req.query.page)
   const apiKey = process.env.PIXABAY_API_KEY?.trim()
 
-  if (!query) return res.json({ results: localSearch(''), source: 'local' } satisfies SearchResponse)
+  if (!query && !apiKey) return res.json({ results: localSearch(''), source: 'local' } satisfies SearchResponse)
 
   const provider = req.query.source === 'wikimedia' ? 'wikimedia' : apiKey ? 'pixabay' : 'wikimedia'
   const cacheKey = `${provider}:${query}:${page}`
@@ -338,7 +338,7 @@ searchRouter.get('/', async (req, res) => {
     catch { console.warn('Pixabay search unavailable.') }
   }
   // A provider must not change halfway through its page sequence.
-  if (!response && (provider === 'wikimedia' || page === 1)) {
+  if (!response && query && (provider === 'wikimedia' || page === 1)) {
     try { response = await searchWikimedia(query, page) }
     catch { console.warn('Wikimedia search unavailable.') }
   }

@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, LoaderCircle, Search, Sparkles } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
@@ -15,12 +15,12 @@ export function DiscoverPage() {
   const initialQuery = searchParams.get('q') ?? ''
   const initialTopic = topics.includes(searchParams.get('topic') ?? '') ? searchParams.get('topic')! : 'All'
   const [query, setQuery] = useState(initialQuery)
-  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery)
   const [activeTopic, setActiveTopic] = useState(initialTopic)
   const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
-  const effectiveQuery = debouncedQuery || (activeTopic === 'All' ? '' : activeTopic)
+  const effectiveQuery = submittedQuery || (activeTopic === 'All' ? '' : activeTopic)
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['search', effectiveQuery],
     queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source),
@@ -28,8 +28,8 @@ export function DiscoverPage() {
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
   })
   const recommendations = useQuery({
-    queryKey: ['search-recommendations', debouncedQuery],
-    queryFn: () => api.searchRecommendations(debouncedQuery),
+    queryKey: ['search-recommendations', submittedQuery],
+    queryFn: () => api.searchRecommendations(submittedQuery),
   })
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
@@ -45,18 +45,6 @@ export function DiscoverPage() {
     })
   }, [data])
   const firstPage = data?.pages[0]
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      const nextQuery = query.trim()
-      setDebouncedQuery(nextQuery)
-      const next = new URLSearchParams()
-      if (nextQuery) next.set('q', nextQuery)
-      else if (activeTopic !== 'All') next.set('topic', activeTopic)
-      setSearchParams(next, { replace: true })
-    }, 250)
-    return () => window.clearTimeout(timeout)
-  }, [query, activeTopic, setSearchParams])
 
   useEffect(() => {
     if ((location.state as { focusSearch?: boolean } | null)?.focusSearch) inputRef.current?.focus()
@@ -83,8 +71,24 @@ export function DiscoverPage() {
   const chooseSuggestion = (suggestion: string) => {
     setActiveTopic('All')
     setQuery(suggestion)
-    setDebouncedQuery(suggestion)
+    setSubmittedQuery(suggestion)
+    setSearchParams({ q: suggestion }, { replace: true })
     inputRef.current?.focus()
+  }
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const nextQuery = query.trim()
+    setActiveTopic('All')
+    setSubmittedQuery(nextQuery)
+    setSearchParams(nextQuery ? { q: nextQuery } : {}, { replace: true })
+  }
+
+  const chooseTopic = (topic: string) => {
+    setActiveTopic(topic)
+    setQuery('')
+    setSubmittedQuery('')
+    setSearchParams(topic === 'All' ? {} : { topic }, { replace: true })
   }
 
   return (
@@ -97,27 +101,27 @@ export function DiscoverPage() {
         </div>
       </section>
 
-      <div className="discover-search">
+      <form className="discover-search" onSubmit={submitSearch}>
         <Search size={20} />
         <input aria-label="Search images" ref={inputRef} value={query} onChange={(event) => { setQuery(event.target.value); setActiveTopic('All') }} placeholder="Try “Tokyo”, “ceramics”, or “architecture”" />
-        <button aria-label="Search" onClick={() => setDebouncedQuery(query.trim())}><ArrowRight size={19} /></button>
-      </div>
+        <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
+      </form>
 
       <div className="topic-row">
-        {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => { setActiveTopic(topic); setQuery(''); setDebouncedQuery('') }}>{topic}</button>)}
+        {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
       </div>
 
-      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{debouncedQuery ? 'Related searches' : 'Suggested for you'}</span>{!debouncedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
+      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
 
-      <SocialSearchResults query={debouncedQuery} />
+      <SocialSearchResults query={submittedQuery} />
 
-      {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{debouncedQuery ? `More around “${debouncedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
+      {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
       <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{effectiveQuery ? `Results for “${effectiveQuery}”` : 'Recent finds'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
       ) : isError ? (
-        <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your collections are safe. Retry the search or browse a saved topic.</p><div className="empty-actions"><button className="primary-button" onClick={() => void refetch()}>Try again</button><button className="secondary-button" onClick={() => { setActiveTopic('Architecture'); setQuery(''); setDebouncedQuery('') }}>Browse architecture</button></div></div>
+        <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your collections are safe. Retry the search or browse a saved topic.</p><div className="empty-actions"><button className="primary-button" onClick={() => void refetch()}>Try again</button><button className="secondary-button" onClick={() => chooseTopic('Architecture')}>Browse architecture</button></div></div>
       ) : results.length ? (
         <>
           <div className="masonry-grid">{results.map((image) => <ImageCard key={image.id} image={image} />)}</div>
@@ -126,7 +130,7 @@ export function DiscoverPage() {
           </div>
         </>
       ) : (
-        <div className="empty-state"><Search size={28} /><h3>No matches for that one.</h3><p>Try a broader phrase, or jump back into a visual trail.</p><div className="empty-topic-actions">{['Travel', 'Interior', 'Nature'].map((topic) => <button key={topic} onClick={() => { setActiveTopic(topic); setQuery(''); setDebouncedQuery('') }}>{topic}</button>)}</div></div>
+        <div className="empty-state"><Search size={28} /><h3>No matches for that one.</h3><p>Try a broader phrase, or jump back into a visual trail.</p><div className="empty-topic-actions">{['Travel', 'Interior', 'Nature'].map((topic) => <button key={topic} onClick={() => chooseTopic(topic)}>{topic}</button>)}</div></div>
       )}
     </>
   )
