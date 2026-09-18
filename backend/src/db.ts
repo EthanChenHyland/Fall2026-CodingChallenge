@@ -40,6 +40,18 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS registration_verifications (
+    email TEXT PRIMARY KEY COLLATE NOCASE,
+    name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    code_salt TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS collections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

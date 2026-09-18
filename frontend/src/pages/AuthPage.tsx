@@ -6,12 +6,19 @@ import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
 import type { User } from '../types'
 
+type AuthResult =
+  | { user: User }
+  | { verificationRequired: false; user: User }
+  | { verificationRequired: true; email: string }
+
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
   const queryClient = useQueryClient()
 
   const finish = ({ user }: { user: User }) => {
@@ -21,11 +28,23 @@ export function AuthPage() {
     queryClient.setQueryData(['me'], { user })
   }
 
-  const auth = useMutation({
-    mutationFn: () =>
+  const auth = useMutation<AuthResult, Error>({
+    mutationFn: (): Promise<AuthResult> =>
       mode === 'login'
         ? api.login({ email, password })
-        : api.register({ name, email, password }),
+        : api.startRegistration({ name, email, password }),
+    onSuccess: (result) => {
+      if ('verificationRequired' in result && result.verificationRequired) {
+        setVerificationEmail(result.email)
+        setVerificationCode('')
+        return
+      }
+      if ('user' in result) finish(result)
+    },
+    onError: () => { /* The form renders the error inline. */ },
+  })
+  const verify = useMutation({
+    mutationFn: () => api.verifyRegistration({ email: verificationEmail, code: verificationCode }),
     onSuccess: finish,
     onError: () => { /* The form renders the error inline. */ },
   })
@@ -37,15 +56,18 @@ export function AuthPage() {
   })
 
   const switchMode = (nextMode: 'login' | 'register') => {
-    if (nextMode === mode || auth.isPending || demo.isPending) return
+    if (nextMode === mode || auth.isPending || verify.isPending || demo.isPending) return
     setMode(nextMode)
     setPassword('')
     setShowPassword(false)
+    setVerificationEmail('')
+    setVerificationCode('')
     auth.reset()
+    verify.reset()
     demo.reset()
   }
 
-  const errorMessage = auth.error?.message ?? demo.error?.message
+  const errorMessage = verify.error?.message ?? auth.error?.message ?? demo.error?.message
   const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || name.trim().length >= 2)
 
   return (
@@ -66,11 +88,18 @@ export function AuthPage() {
             <button type="button" className={mode === 'login' ? 'active' : ''} aria-pressed={mode === 'login'} onClick={() => switchMode('login')}>Sign in</button>
             <button type="button" className={mode === 'register' ? 'active' : ''} aria-pressed={mode === 'register'} onClick={() => switchMode('register')}>Create account</button>
           </div>
-          <span className="eyebrow">{mode === 'login' ? 'WELCOME BACK' : 'MAKE A SPACE'}</span>
-          <h2>{mode === 'login' ? 'Pick up where you left off.' : 'Start collecting.'}</h2>
-          <p>{mode === 'login' ? 'Sign in to your collections and shared boards.' : 'Create an account to save and collaborate.'}</p>
+          <span className="eyebrow">{verificationEmail ? 'CHECK YOUR EMAIL' : mode === 'login' ? 'WELCOME BACK' : 'MAKE A SPACE'}</span>
+          <h2>{verificationEmail ? 'Enter your code.' : mode === 'login' ? 'Pick up where you left off.' : 'Start collecting.'}</h2>
+          <p>{verificationEmail ? `We sent a 6-digit code to ${verificationEmail}. It expires in 10 minutes.` : mode === 'login' ? 'Sign in to your collections and shared boards.' : 'Create an account to save and collaborate.'}</p>
 
-          <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !auth.isPending && !demo.isPending) auth.mutate() }}>
+          {verificationEmail ? (
+            <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (/^\d{6}$/.test(verificationCode) && !verify.isPending) verify.mutate() }}>
+              <label className="field-label" htmlFor="auth-code">Verification code<input id="auth-code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={verificationCode} onChange={(event) => { setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6)); verify.reset() }} placeholder="000000" /></label>
+              {errorMessage && <div className="auth-inline-error" role="alert">{errorMessage}</div>}
+              <button type="submit" className="primary-button full auth-submit" disabled={verify.isPending || !/^\d{6}$/.test(verificationCode)}>{verify.isPending ? 'Checking…' : 'Verify & create account'} <ArrowRight size={16} /></button>
+              <div className="auth-code-actions"><button type="button" className="text-button" disabled={auth.isPending} onClick={() => auth.mutate()}>{auth.isPending ? 'Sending…' : 'Send a new code'}</button><button type="button" className="text-button" onClick={() => { setVerificationEmail(''); setVerificationCode(''); verify.reset(); auth.reset() }}>Use a different email</button></div>
+            </form>
+          ) : <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !auth.isPending && !demo.isPending) auth.mutate() }}>
             {mode === 'register' && (
               <label className="field-label" htmlFor="auth-name">Name<input disabled={auth.isPending || demo.isPending} id="auth-name" name="name" maxLength={80} autoFocus autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); auth.reset(); demo.reset() }} placeholder="Your name" /></label>
             )}
@@ -88,7 +117,7 @@ export function AuthPage() {
             <button type="submit" className="primary-button full auth-submit" disabled={auth.isPending || demo.isPending || !canSubmit}>
               {auth.isPending ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'} <ArrowRight size={16} />
             </button>
-          </form>
+          </form>}
 
           <div className="auth-divider"><span>or</span></div>
           <div className="auth-demo-card">
