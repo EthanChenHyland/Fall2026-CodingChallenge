@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, Plus, Search, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, Search, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -46,7 +46,9 @@ export function AppShell() {
   const [online, setOnline] = useState(() => navigator.onLine)
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   const { data: notifications } = useQuery({ queryKey: ['notifications'], queryFn: api.notifications, refetchInterval: 20_000 })
+  const { data: messageData } = useQuery({ queryKey: ['message-conversations'], queryFn: api.messageConversations, refetchInterval: 15_000 })
   const unread = notifications?.notifications.filter((item) => !item.read_at).length ?? 0
+  const unreadMessages = messageData?.conversations.reduce((total, conversation) => total + Number(conversation.unread_count || 0), 0) ?? 0
   const readNotifications = useMutation({
     mutationFn: api.markNotificationsRead,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
@@ -107,6 +109,9 @@ export function AppShell() {
           </NavLink>
           <NavLink to="/collections" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FolderHeart size={20} /> <span>Collections</span>
+          </NavLink>
+          <NavLink to="/messages" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <MessageCircle size={20} /> <span>Messages</span>{unreadMessages > 0 && <b className="nav-unread">{unreadMessages > 9 ? '9+' : unreadMessages}</b>}
           </NavLink>
         </nav>
         <div className="sidebar-note">
@@ -179,6 +184,7 @@ export function AppShell() {
         <NavLink to="/" end><Compass size={21} /><span>Discover</span></NavLink>
         <NavLink to="/explore"><Globe2 size={21} /><span>Explore</span></NavLink>
         <button onClick={() => navigate('/capture')}><Plus size={22} /><span>Save</span></button>
+        <NavLink to="/messages"><MessageCircle size={21} /><span>Messages</span>{unreadMessages > 0 && <b className="mobile-unread">{unreadMessages > 9 ? '9+' : unreadMessages}</b>}</NavLink>
         <NavLink to="/collections"><FolderHeart size={21} /><span>Collections</span></NavLink>
       </nav>
       <ProductCoach key={coachReplay} replay={coachReplay} />

@@ -15,6 +15,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { PinPage } from './pages/PinPage'
 import { CapturePage } from './pages/CapturePage'
 import { SmartCollectionPage } from './pages/SmartCollectionPage'
+import { MessagesPage } from './pages/MessagesPage'
 
 function handleUnauthorized(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 401) return false
@@ -65,6 +66,8 @@ export default function App() {
             <Route path="/people/:id" element={<ProfilePage />} />
             <Route path="/pin/:id" element={<PinPage />} />
             <Route path="/capture" element={<CapturePage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/messages/:conversationId" element={<MessagesPage />} />
           </Route>
           <Route path="/shared/:token" element={<SharedPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

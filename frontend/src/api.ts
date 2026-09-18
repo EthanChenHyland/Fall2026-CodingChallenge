@@ -1,4 +1,4 @@
-import type { CatalogImage, Collection, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
+import type { CatalogImage, Collection, DirectMessage, MessageConversation, NotificationItem, PinComment, PinDetail, ProfileConnection, PublicPin, PublicProfile, SavedItem, SmartSavedItem, SocialSearchCollection, SocialSearchPerson, User } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -112,6 +112,11 @@ export const api = {
     request<void>(`/api/collections/${id}/collaborators/${userId}`, { method: 'DELETE' }),
   notifications: () => request<{ notifications: NotificationItem[] }>('/api/notifications'),
   markNotificationsRead: () => request<void>('/api/notifications/read', { method: 'POST' }),
+  messageConversations: () => request<{ conversations: MessageConversation[] }>('/api/messages'),
+  startConversation: (userId: number) => request<{ conversationId: number }>(`/api/messages/with/${userId}`, { method: 'POST' }),
+  conversation: (id: number) => request<{ conversation: MessageConversation; messages: DirectMessage[] }>(`/api/messages/${id}`),
+  sendMessage: (id: number, body: string, pinId?: number) => request<{ message: DirectMessage }>(`/api/messages/${id}`, { method: 'POST', body: JSON.stringify({ body, pinId }) }),
+  markConversationRead: (id: number) => request<void>(`/api/messages/${id}/read`, { method: 'POST' }),
   sharedCollection: (token: string) =>
     request<{ collection: Collection }>(`/api/shared/${encodeURIComponent(token)}`),
 }

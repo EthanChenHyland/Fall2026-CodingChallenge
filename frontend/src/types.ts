@@ -145,6 +145,32 @@ export type NotificationItem = {
   created_at: string
 }
 
+export type MessageConversation = {
+  id: number
+  created_at: string
+  updated_at: string
+  other_user_id: number
+  other_user_name: string
+  other_user_avatar: string
+  last_message: string | null
+  last_message_at: string | null
+  unread_count: number
+}
+
+export type DirectMessage = {
+  id: number
+  conversation_id: number
+  sender_id: number
+  sender_name: string
+  sender_avatar: string
+  body: string
+  pin_id: number | null
+  pin_title: string | null
+  pin_image_url: string | null
+  read_at: string | null
+  created_at: string
+}
+
 export type Collection = {
   id: number
   name: string

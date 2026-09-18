@@ -8,6 +8,7 @@ import { EditItemDialog } from '../components/Dialogs'
 import { ImageCard } from '../components/ImageCard'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { QuickSaveControls } from '../components/QuickSaveControls'
+import { SendPinDialog } from '../components/SendPinDialog'
 import type { CatalogImage } from '../types'
 
 export function PinPage() {
@@ -96,6 +97,7 @@ export function PinPage() {
             <QuickSaveControls image={image} />
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}
             <button className="secondary-button" onClick={() => void sharePin()}><Share2 size={15} /> Share</button>
+            {pin.visibility === 'public' && <SendPinDialog pinId={pin.id} pinTitle={pin.title} trigger={<button className="secondary-button"><MessageCircle size={15} /> Send</button>} />}
             {pin.can_edit && <EditItemDialog collectionId={pin.collection_id} item={pin} trigger={<button className="secondary-button"><Pencil size={15} /> Edit</button>} />}
             {pin.can_edit && <button className={removeArmed ? 'danger-button' : 'secondary-button'} disabled={removePin.isPending} onClick={() => removeArmed ? removePin.mutate() : setRemoveArmed(true)} onBlur={() => setRemoveArmed(false)}><Trash2 size={15} /> {removeArmed ? 'Click again to remove' : 'Remove'}</button>}
           </div>
