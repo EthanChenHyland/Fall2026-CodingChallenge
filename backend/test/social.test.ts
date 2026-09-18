@@ -388,6 +388,26 @@ test('pin messages support optional notes while rejecting unavailable attachment
   const thread = await recipient.agent.get(`/api/messages/${conversationId}`).expect(200)
   assert.ok(thread.body.messages.some((message: { body: string; pin_id: number }) => message.body === 'This texture feels like your board.' && message.pin_id === publicPin.id))
   assert.ok(thread.body.messages.some((message: { body: string; pin_id: number }) => message.body === '' && message.pin_id === publicPin.id))
+
+  const privacyBoard = await demo.post('/api/collections').send({ name: `DM privacy ${randomUUID()}` }).expect(201)
+  const privacyPin = await demo.post(`/api/collections/${privacyBoard.body.collection.id}/items`).send({
+    sourceId: `dm-privacy-${randomUUID()}`,
+    imageUrl: 'https://example.com/dm-privacy.jpg',
+    sourcePage: 'https://example.com/dm-privacy',
+    sourceCreator: 'Test',
+    title: 'Temporary public attachment',
+  }).expect(201)
+  await demo.post(`/api/collections/${privacyBoard.body.collection.id}/share`).expect(200)
+  const sent = await demo.post(`/api/messages/${conversationId}`).send({ body: 'Visible while public', pinId: privacyPin.body.item.id }).expect(201)
+  assert.equal(sent.body.message.pin_title, 'Temporary public attachment')
+  await demo.patch(`/api/collections/${privacyBoard.body.collection.id}`).send({ audience: 'private' }).expect(200)
+
+  await recipient.agent.get(`/api/pins/${privacyPin.body.item.id}`).expect(404)
+  const privateThread = await recipient.agent.get(`/api/messages/${conversationId}`).expect(200)
+  const hiddenAttachment = privateThread.body.messages.find((message: { pin_id: number }) => message.pin_id === privacyPin.body.item.id)
+  assert.ok(hiddenAttachment)
+  assert.equal(hiddenAttachment.pin_title, null)
+  assert.equal(hiddenAttachment.pin_image_url, null)
 })
 
 test('likes and comment moderation stay consistent', async () => {

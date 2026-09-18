@@ -54,10 +54,12 @@ messagesRouter.get('/:id', (req: AuthedRequest, res) => {
   const messages = db.prepare(`
     SELECT m.id, m.conversation_id, m.sender_id, m.body, m.pin_id, m.read_at, m.created_at,
       u.name AS sender_name, u.avatar_url AS sender_avatar,
-      pin.title AS pin_title, pin.image_url AS pin_image_url
+      CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.title END AS pin_title,
+      CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.image_url END AS pin_image_url
     FROM messages m
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN items pin ON pin.id = m.pin_id
+    LEFT JOIN collections pin_collection ON pin_collection.id = pin.collection_id
     WHERE m.conversation_id = ?
     ORDER BY m.id ASC
     LIMIT 500
@@ -80,10 +82,12 @@ messagesRouter.post('/:id', (req: AuthedRequest, res) => {
     return db.prepare(`
       SELECT m.id, m.conversation_id, m.sender_id, m.body, m.pin_id, m.read_at, m.created_at,
         u.name AS sender_name, u.avatar_url AS sender_avatar,
-        pin.title AS pin_title, pin.image_url AS pin_image_url
+        CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.title END AS pin_title,
+        CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.image_url END AS pin_image_url
       FROM messages m
       JOIN users u ON u.id = m.sender_id
       LEFT JOIN items pin ON pin.id = m.pin_id
+      LEFT JOIN collections pin_collection ON pin_collection.id = pin.collection_id
       WHERE m.id = ?
     `).get(result.lastInsertRowid)
   })()
