@@ -13,6 +13,7 @@ In development, Vite and Express run separately and Vite proxies `/api` to Expre
 ## Discovery
 
 - `GET /api/search?q=<query>&page=<number>` — paginated live image search.
+- `GET /api/search/recommendations?q=<query>` — personalized query suggestions plus public-pin recommendations derived from saved interests; query-scoped results stay relevant to the active search.
 - `GET /api/search/social?q=<query>` — search Mosaic people and public collections.
 - `GET /api/explore?page=<number>&mode=all|following|trending` — public Mosaic pins with chronological, social-graph, or engagement ranking.
 - `GET /api/explore/recommended` — personalized public-pin recommendations derived from the signed-in user's saved titles, tags, and collections.

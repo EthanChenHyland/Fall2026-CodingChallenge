@@ -72,6 +72,15 @@ test('recommendations are derived from saved interests', async () => {
   assert.ok(recommended.body.basedOn.length > 0)
   assert.ok(recommended.body.pins.length > 0)
   assert.ok(recommended.body.pins.every((pin: { owner_name: string }) => pin.owner_name !== 'Demo Curator'))
+
+  const searchRecommended = await demo.get('/api/search/recommendations').expect(200)
+  assert.ok(searchRecommended.body.suggestions.length > 0)
+  assert.ok(searchRecommended.body.basedOn.length > 0)
+  assert.ok(searchRecommended.body.pins.every((pin: { owner_name: string }) => pin.owner_name !== 'Demo Curator'))
+
+  const materialSearch = await demo.get('/api/search/recommendations?q=material').expect(200)
+  assert.ok(materialSearch.body.pins.length > 0)
+  assert.ok(materialSearch.body.pins.every((pin: { title: string; tags: string; collection_name: string }) => `${pin.title} ${pin.tags} ${pin.collection_name}`.toLowerCase().includes('material')))
 })
 
 test('public pins can be saved into another collection without exposing private pins', async () => {

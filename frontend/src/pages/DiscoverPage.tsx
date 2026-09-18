@@ -1,9 +1,10 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
-import { ArrowRight, LoaderCircle, Search } from 'lucide-react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { ArrowRight, LoaderCircle, Search, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
+import { PublicPinCard } from '../components/PublicPinCard'
 import { SocialSearchResults } from '../components/SocialSearchResults'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
@@ -24,6 +25,10 @@ export function DiscoverPage() {
     queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source),
     initialPageParam: { page: 1, source: '' },
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
+  })
+  const recommendations = useQuery({
+    queryKey: ['search-recommendations', debouncedQuery],
+    queryFn: () => api.searchRecommendations(debouncedQuery),
   })
 
   const results = useMemo(() => {
@@ -68,7 +73,14 @@ export function DiscoverPage() {
       ? 'Images from Wikimedia Commons'
       : firstPage?.fallback
         ? 'Catalog fallback'
-        : 'Mosaic picks'
+      : 'Mosaic picks'
+
+  const chooseSuggestion = (suggestion: string) => {
+    setActiveTopic('All')
+    setQuery(suggestion)
+    setDebouncedQuery(suggestion)
+    inputRef.current?.focus()
+  }
 
   return (
     <>
@@ -90,7 +102,11 @@ export function DiscoverPage() {
         {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => { setActiveTopic(topic); setQuery(''); setDebouncedQuery('') }}>{topic}</button>)}
       </div>
 
+      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{debouncedQuery ? 'Related searches' : 'Suggested for you'}</span>{!debouncedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
+
       <SocialSearchResults query={debouncedQuery} />
+
+      {recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{debouncedQuery ? `More around “${debouncedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} />)}</div></section> : null}
 
       <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{effectiveQuery ? `Results for “${effectiveQuery}”` : 'Recent finds'}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>
       {isLoading ? (

@@ -16,6 +16,7 @@ A first-time reviewer should be able to understand the product without instructi
 - [x] Collaboration: account-based editors, scoped permissions, activity history, notifications, optimistic UI with rollback.
 - [x] Social layer: public profiles, follows, follower/following browser, private direct messages with unread state and public-pin previews, Pin → DM sharing, save-to-collection from public feeds and messages, For You/Following/Trending feeds, personalized “Because you saved…” recommendations, follower-only collections, likes, threaded comment replies, @mentions, moderation, related pins.
 - [x] Unified discovery: live image search plus Mosaic people and public collections.
+- [x] Personalized search discovery: suggested queries before typing, related-search chips, and interest-aware public-pin recommendations alongside search results.
 - [x] Mobile/PWA: responsive shell, safe-area navigation, install manifest, offline shell, native share, incoming share target.
 - [x] Production service: one Node process serves React + API; Docker image; persistent SQLite path; Render Blueprint.
 - [x] Production safeguards: CSP/security headers, compression, rate limits, same-origin production API, graceful shutdown, readiness health check.

@@ -47,6 +47,12 @@ test('reviewer can move through the core product', async ({ page }) => {
   await expect(search).toBeFocused()
   const focusShadow = await page.locator('.discover-search').evaluate((element) => getComputedStyle(element).boxShadow)
   expect(focusShadow).not.toBe('none')
+  const recommendedSearches = page.getByLabel('Recommended searches')
+  await expect(recommendedSearches).toBeVisible()
+  const firstSuggestion = recommendedSearches.getByRole('button').first()
+  const suggestedQuery = await firstSuggestion.innerText()
+  await firstSuggestion.click()
+  await expect(search).toHaveValue(suggestedQuery)
 
   await page.getByRole('link', { name: 'Collections' }).click()
   await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()

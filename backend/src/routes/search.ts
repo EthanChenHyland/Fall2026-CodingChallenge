@@ -21,6 +21,33 @@ const MAX_PAGE = 10
 const PIXABAY_WINDOW_MS = 60_000
 const PIXABAY_REQUEST_LIMIT = 90
 let pixabayRequestTimes: number[] = []
+const recommendationStopWords = new Set(['about', 'after', 'again', 'also', 'and', 'from', 'have', 'into', 'more', 'saved', 'that', 'the', 'this', 'with', 'your'])
+
+function recommendationTerms(value: string) {
+  return value.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((term) => !recommendationStopWords.has(term)) ?? []
+}
+
+function searchInterests(userId?: number) {
+  if (!userId) return [] as Array<[string, number]>
+  const saved = db.prepare(`
+    SELECT i.title, i.tags, c.name AS collection_name
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ?
+    ORDER BY i.created_at DESC
+    LIMIT 200
+  `).all(userId) as Array<{ title: string; tags: string; collection_name: string }>
+  const weights = new Map<string, number>()
+  for (const item of saved) {
+    for (const tag of item.tags.split(',').map((value) => value.trim().toLowerCase()).filter(Boolean)) {
+      weights.set(tag, (weights.get(tag) ?? 0) + 5)
+    }
+    for (const term of recommendationTerms(`${item.title} ${item.collection_name}`)) {
+      weights.set(term, (weights.get(term) ?? 0) + 1)
+    }
+  }
+  return [...weights.entries()].sort((a, b) => b[1] - a[1])
+}
 
 function reservePixabayRequest() {
   const cutoff = Date.now() - PIXABAY_WINDOW_MS
@@ -207,6 +234,68 @@ searchRouter.get('/social', (req: AuthedRequest, res) => {
   `).all(like, like)
 
   return res.json({ people, collections })
+})
+
+searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
+  const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 80)
+  const userId = req.user?.id
+  const interests = searchInterests(userId)
+  const interestMap = new Map(interests)
+  const queryTerms = recommendationTerms(query)
+
+  const suggestionScores = new Map<string, number>()
+  const addSuggestion = (value: string, score: number) => {
+    const suggestion = value.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 60)
+    if (suggestion.length < 2 || suggestion === query) return
+    if (query && !suggestion.includes(query) && !query.includes(suggestion)) return
+    suggestionScores.set(suggestion, Math.max(suggestionScores.get(suggestion) ?? 0, score))
+  }
+
+  for (const [interest, weight] of interests.slice(0, 20)) addSuggestion(interest, 100 + weight)
+  for (const image of catalog) {
+    for (const tag of image.tags) {
+      const normalized = tag.trim().toLowerCase()
+      const affinity = [...interestMap.entries()].reduce((score, [interest, weight]) => score + (normalized.includes(interest) || interest.includes(normalized) ? weight : 0), 0)
+      addSuggestion(normalized, 20 + affinity)
+    }
+  }
+  if (query && interests.length) {
+    for (const [interest, weight] of interests.slice(0, 8)) {
+      if (!query.includes(interest) && !interest.includes(query)) addSuggestion(`${query} ${interest}`, 10 + weight)
+    }
+  }
+  const suggestions = [...suggestionScores.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8)
+    .map(([value]) => value)
+
+  if (!userId) return res.json({ suggestions, pins: [], basedOn: [] })
+
+  const candidates = db.prepare(`
+    SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
+      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      (SELECT COUNT(*) FROM item_likes likes WHERE likes.item_id = i.id) AS like_count,
+      (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    JOIN collection_members owner ON owner.collection_id = c.id AND owner.role = 'owner'
+    JOIN users u ON u.id = owner.user_id
+    WHERE c.visibility = 'public' AND c.share_token IS NOT NULL AND u.id != ?
+    ORDER BY c.updated_at DESC, i.id DESC
+    LIMIT 250
+  `).all(userId) as Array<Record<string, unknown>>
+
+  const ranked = candidates.map((pin) => {
+    const haystack = `${String(pin.title ?? '')} ${String(pin.tags ?? '')} ${String(pin.collection_name ?? '')} ${String(pin.source_creator ?? '')}`.toLowerCase()
+    const queryScore = queryTerms.reduce((score, term) => score + (haystack.includes(term) ? 12 : 0), 0)
+    const affinity = interests.slice(0, 16).reduce((score, [term, weight]) => score + (haystack.includes(term) ? weight : 0), 0)
+    const social = Math.min(8, Number(pin.like_count ?? 0) * 0.5 + Number(pin.comment_count ?? 0) * 0.75)
+    return { pin, queryScore, score: queryScore + affinity + social }
+  }).filter((entry) => query ? entry.queryScore > 0 : entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+
+  return res.json({ suggestions, pins: ranked.map((entry) => entry.pin), basedOn: interests.slice(0, 4).map(([term]) => term) })
 })
 
 searchRouter.get('/', async (req, res) => {
