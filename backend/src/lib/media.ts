@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { databasePath, db } from '../db.js'
@@ -9,7 +9,11 @@ const MAX_BYTES = 10 * 1024 * 1024
 const PIXABAY_HOSTS = new Set(['pixabay.com', 'cdn.pixabay.com'])
 const MAX_REDIRECTS = 3
 const LOCAL_MEDIA_NAME = /^[a-f0-9]{64}\.(jpg|png|webp|gif)$/
+const PORTABLE_MEDIA_MAX_BYTES = 11 * 1024 * 1024
 const pendingMediaNames = new Set<string>()
+const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }
+
+export type PortableMediaAsset = { path: string; contentType: string; data: string }
 
 function pixabayUrl(value: string | URL) {
   const url = value instanceof URL ? value : new URL(value, 'https://mosaic.invalid')
@@ -46,6 +50,87 @@ function localMediaName(value: unknown) {
   if (typeof value !== 'string' || !value.startsWith('/media/')) return null
   const name = value.slice('/media/'.length)
   return LOCAL_MEDIA_NAME.test(name) ? name : null
+}
+
+function verifiedPortableAsset(asset: PortableMediaAsset) {
+  const name = localMediaName(asset.path)
+  if (!name) throw new Error('Invalid embedded media path.')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(asset.data) || asset.data.length % 4 !== 0) throw new Error('Invalid embedded media data.')
+  const bytes = Buffer.from(asset.data, 'base64')
+  const extension = name.slice(name.lastIndexOf('.') + 1)
+  if (CONTENT_TYPE_BY_EXTENSION[extension] !== asset.contentType) throw new Error('Embedded media type does not match its path.')
+  const expectedName = `${createHash('sha256').update(bytes).digest('hex')}.${extension}`
+  if (expectedName !== name) throw new Error('Embedded media checksum does not match its path.')
+  return { name, bytes }
+}
+
+export function exportPortableMedia(imageUrls: unknown[]) {
+  const assets: PortableMediaAsset[] = []
+  const seen = new Set<string>()
+  let totalBytes = 0
+  for (const imageUrl of imageUrls) {
+    const name = localMediaName(imageUrl)
+    if (!name || seen.has(name)) continue
+    const path = join(mediaDir, name)
+    if (!existsSync(path)) throw new Error('A locally stored image is missing. Re-save that pin before exporting.')
+    const bytes = readFileSync(path)
+    const extension = name.slice(name.lastIndexOf('.') + 1)
+    const expectedName = `${createHash('sha256').update(bytes).digest('hex')}.${extension}`
+    if (expectedName !== name) throw new Error('A locally stored image failed its integrity check.')
+    totalBytes += bytes.length
+    if (totalBytes > PORTABLE_MEDIA_MAX_BYTES) throw new Error('This collection contains too much local media for one portable export.')
+    assets.push({ path: `/media/${name}`, contentType: CONTENT_TYPE_BY_EXTENSION[extension], data: bytes.toString('base64') })
+    seen.add(name)
+  }
+  return assets
+}
+
+export function localMediaReferenceExists(imageUrl: unknown) {
+  const name = localMediaName(imageUrl)
+  return !name || existsSync(join(mediaDir, name))
+}
+
+export function stagePortableMedia(assets: PortableMediaAsset[]) {
+  const staged: Array<{ name: string; path: string; created: boolean }> = []
+  const seen = new Set<string>()
+  let totalBytes = 0
+  try {
+    mkdirSync(mediaDir, { recursive: true })
+    for (const asset of assets) {
+      const { name, bytes } = verifiedPortableAsset(asset)
+      if (seen.has(name)) throw new Error('Duplicate embedded media asset.')
+      seen.add(name)
+      totalBytes += bytes.length
+      if (bytes.length > MAX_BYTES || totalBytes > PORTABLE_MEDIA_MAX_BYTES) throw new Error('Embedded media is too large.')
+      pendingMediaNames.add(name)
+      const path = join(mediaDir, name)
+      let created = false
+      try {
+        writeFileSync(path, bytes, { flag: 'wx' })
+        created = true
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+        const existing = readFileSync(path)
+        if (!existing.equals(bytes)) throw new Error('Existing local media failed its integrity check.')
+      }
+      staged.push({ name, path, created })
+    }
+  } catch (error) {
+    for (const file of staged) {
+      pendingMediaNames.delete(file.name)
+      if (file.created) try { unlinkSync(file.path) } catch { /* best effort rollback */ }
+    }
+    throw error
+  }
+  return {
+    commit: () => { for (const file of staged) pendingMediaNames.delete(file.name) },
+    discard: () => {
+      for (const file of staged) {
+        pendingMediaNames.delete(file.name)
+        if (file.created) try { unlinkSync(file.path) } catch { /* best effort rollback */ }
+      }
+    },
+  }
 }
 
 export function pruneUnusedMedia() {

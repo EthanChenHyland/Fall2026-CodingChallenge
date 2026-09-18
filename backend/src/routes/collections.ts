@@ -3,7 +3,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
 import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
-import { persistProviderImage, pruneUnusedMedia } from '../lib/media.js'
+import { exportPortableMedia, localMediaReferenceExists, persistProviderImage, pruneUnusedMedia, stagePortableMedia } from '../lib/media.js'
 import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
 import { copyItemLineage } from '../lib/provenance.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
@@ -49,7 +49,7 @@ const sectionSchema = z.object({ name: z.string().trim().min(1).max(80) })
 
 const collectionImportSchema = z.object({
   format: z.literal('mosaic.collection'),
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   collection: z.object({
     name: z.string().trim().min(1).max(80),
     description: z.string().trim().max(280).default(''),
@@ -73,6 +73,11 @@ const collectionImportSchema = z.object({
     canvasY: z.number().finite().min(0).max(5000).default(40),
     rotation: z.number().finite().min(-12).max(12).default(0),
   })).max(300),
+  media: z.array(z.object({
+    path: z.string().regex(/^\/media\/[a-f0-9]{64}\.(jpg|png|webp|gif)$/),
+    contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
+    data: z.string().max(14_000_000),
+  })).max(300).optional().default([]),
 })
 
 collectionsRouter.get('/', (req: AuthedRequest, res) => {
@@ -152,31 +157,49 @@ collectionsRouter.post('/import', (req: AuthedRequest, res) => {
   }
   const sourceIds = new Set(payload.items.map((item) => item.sourceId))
   if (sourceIds.size !== payload.items.length) return res.status(400).json({ error: 'That collection export contains duplicate pins.' })
+  const referencedLocalPaths = new Set(payload.items.map((item) => item.imageUrl).filter((url) => url.startsWith('/media/')))
+  const embeddedPaths = new Set(payload.media.map((asset) => asset.path))
+  if (payload.media.some((asset) => !referencedLocalPaths.has(asset.path))) {
+    return res.status(400).json({ error: 'That collection export contains unreferenced embedded media.' })
+  }
+  if (payload.items.some((item) => item.imageUrl.startsWith('/media/') && !embeddedPaths.has(item.imageUrl) && !localMediaReferenceExists(item.imageUrl))) {
+    return res.status(400).json({ error: 'That collection export is missing one or more embedded images.' })
+  }
 
-  const collectionId = db.transaction(() => {
-    const created = db.prepare(`
-      INSERT INTO collections (name, description, visibility, audience, share_token, cover_focus_x, cover_focus_y, theme, grid_layout)
-      VALUES (?, ?, 'private', 'private', NULL, ?, ?, ?, ?)
-    `).run(payload.collection.name, payload.collection.description, payload.collection.coverFocusX, payload.collection.coverFocusY, payload.collection.theme, payload.collection.gridLayout)
-    const id = Number(created.lastInsertRowid)
-    db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(id, req.user!.id)
-    const sectionIds = new Map<string, number>()
-    const insertSection = db.prepare('INSERT INTO collection_sections (collection_id, name, position) VALUES (?, ?, ?)')
-    for (const section of payload.sections) sectionIds.set(section.key, Number(insertSection.run(id, section.name, section.position).lastInsertRowid))
-    const insertItem = db.prepare(`
-      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, section_id, canvas_x, canvas_y, rotation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    for (const item of payload.items) {
-      insertItem.run(id, item.sourceId, item.imageUrl, item.sourcePage, item.sourceCreator, item.title, item.note, item.tags, item.sectionKey ? sectionIds.get(item.sectionKey) ?? null : null, item.canvasX, item.canvasY, item.rotation)
-    }
-    if (payload.collection.coverSourceId) {
-      const cover = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(id, payload.collection.coverSourceId) as { id: number } | undefined
-      if (cover) db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ?').run(cover.id, id)
-    }
-    logActivity(id, `${actor(req)} imported this collection`, req.user!.id)
-    return id
-  })()
+  let stagedMedia: ReturnType<typeof stagePortableMedia>
+  try { stagedMedia = stagePortableMedia(payload.media) }
+  catch { return res.status(400).json({ error: 'That collection export contains invalid embedded media.' }) }
+  let collectionId: number
+  try {
+    collectionId = db.transaction(() => {
+      const created = db.prepare(`
+        INSERT INTO collections (name, description, visibility, audience, share_token, cover_focus_x, cover_focus_y, theme, grid_layout)
+        VALUES (?, ?, 'private', 'private', NULL, ?, ?, ?, ?)
+      `).run(payload.collection.name, payload.collection.description, payload.collection.coverFocusX, payload.collection.coverFocusY, payload.collection.theme, payload.collection.gridLayout)
+      const id = Number(created.lastInsertRowid)
+      db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(id, req.user!.id)
+      const sectionIds = new Map<string, number>()
+      const insertSection = db.prepare('INSERT INTO collection_sections (collection_id, name, position) VALUES (?, ?, ?)')
+      for (const section of payload.sections) sectionIds.set(section.key, Number(insertSection.run(id, section.name, section.position).lastInsertRowid))
+      const insertItem = db.prepare(`
+        INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, section_id, canvas_x, canvas_y, rotation)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      for (const item of payload.items) {
+        insertItem.run(id, item.sourceId, item.imageUrl, item.sourcePage, item.sourceCreator, item.title, item.note, item.tags, item.sectionKey ? sectionIds.get(item.sectionKey) ?? null : null, item.canvasX, item.canvasY, item.rotation)
+      }
+      if (payload.collection.coverSourceId) {
+        const cover = db.prepare('SELECT id FROM items WHERE collection_id = ? AND source_id = ?').get(id, payload.collection.coverSourceId) as { id: number } | undefined
+        if (cover) db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ?').run(cover.id, id)
+      }
+      logActivity(id, `${actor(req)} imported this collection`, req.user!.id)
+      return id
+    })()
+    stagedMedia.commit()
+  } catch (error) {
+    stagedMedia.discard()
+    throw error
+  }
   return res.status(201).json({ collection: getCollection(collectionId, req.user!.id) })
 })
 
@@ -262,9 +285,12 @@ collectionsRouter.get('/:id/export', requireMembership, (req: AuthedRequest, res
   const coverSourceId = collection.cover_item_id
     ? String((collection.items ?? []).find((item) => Number(item.id) === Number(collection.cover_item_id))?.source_id ?? '') || null
     : null
+  let media
+  try { media = exportPortableMedia((collection.items ?? []).map((item) => item.image_url)) }
+  catch (error) { return res.status(413).json({ error: error instanceof Error ? error.message : 'Could not package local media for export.' }) }
   return res.json({
     format: 'mosaic.collection',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     collection: {
       name: collection.name,
@@ -289,6 +315,7 @@ collectionsRouter.get('/:id/export', requireMembership, (req: AuthedRequest, res
       canvasY: Number(item.canvas_y ?? 40),
       rotation: Number(item.rotation ?? 0),
     })),
+    media,
   })
 })
 

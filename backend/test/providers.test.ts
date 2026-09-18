@@ -64,6 +64,35 @@ test('provider media GC preserves live and undo references before removing expir
   assert.equal(existsSync(path), false)
 })
 
+test('portable exports embed local provider media and restore it after the source is deleted', async () => {
+  const bytes = new Uint8Array([255, 216, 21, 22, 23, 255, 217])
+  const filename = `${createHash('sha256').update(bytes).digest('hex')}.jpg`
+  globalThis.fetch = (async () => new Response(bytes, { headers: { 'content-type': 'image/jpeg' } })) as typeof fetch
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const board = await owner.post('/api/collections').send({ name: `Portable media ${randomUUID()}` }).expect(201)
+  const saved = await owner.post(`/api/collections/${board.body.collection.id}/items`).send({ sourceId: `portable-media-${randomUUID()}`, imageUrl: 'https://cdn.pixabay.com/portable.jpg', title: 'Portable provider image' }).expect(201)
+  const mediaUrl = `/media/${filename}`
+  assert.equal(saved.body.item.image_url, mediaUrl)
+
+  const exported = await owner.get(`/api/collections/${board.body.collection.id}/export`).expect(200)
+  assert.equal(exported.body.version, 2)
+  assert.equal(exported.body.media.length, 1)
+  assert.equal(exported.body.media[0].path, mediaUrl)
+  assert.equal(Buffer.from(exported.body.media[0].data, 'base64').equals(Buffer.from(bytes)), true)
+
+  await owner.delete(`/api/collections/${board.body.collection.id}`).expect(204)
+  assert.equal(existsSync(join(directory, 'media', filename)), false)
+
+  const missingMedia = { ...exported.body, media: [] }
+  await owner.post('/api/collections/import').send(missingMedia).expect(400)
+
+  const imported = await owner.post('/api/collections/import').send(exported.body).expect(201)
+  assert.equal(imported.body.collection.items[0].image_url, mediaUrl)
+  await request(app).get(mediaUrl).expect(200).expect('Content-Type', /image\/jpeg/)
+  assert.equal(existsSync(join(directory, 'media', filename)), true)
+})
+
 test('Pixabay failures fall back to Wikimedia; oversized titles can still be saved', async () => {
   globalThis.fetch = (async (input: URL | RequestInfo) => {
     if (String(input).startsWith('https://pixabay.com/api/')) return new Response('', { status: 503 })

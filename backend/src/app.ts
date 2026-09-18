@@ -44,6 +44,7 @@ app.use(helmet({
 }))
 app.use(compression())
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : true, credentials: true }))
+app.use('/api/collections/import', express.json({ limit: '20mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
 app.use('/api', rateLimit({ skip: (req) => req.path === '/health', windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))

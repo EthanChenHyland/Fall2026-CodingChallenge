@@ -206,9 +206,14 @@ test('collection export and import preserve organization and layout while import
 
   const exported = await owner.get(`/api/collections/${collectionId}/export`).expect(200)
   assert.equal(exported.body.format, 'mosaic.collection')
-  assert.equal(exported.body.version, 1)
+  assert.equal(exported.body.version, 2)
   assert.equal(exported.body.sections[0].name, 'Materials')
   assert.equal(exported.body.items[0].sectionKey, exported.body.sections[0].key)
+
+  const legacyExport = { ...exported.body, version: 1 }
+  delete legacyExport.media
+  const legacyImported = await owner.post('/api/collections/import').send(legacyExport).expect(201)
+  assert.equal(legacyImported.body.collection.items[0].image_url, image.imageUrl)
 
   const imported = await owner.post('/api/collections/import').send(exported.body).expect(201)
   const importedCollection = imported.body.collection
