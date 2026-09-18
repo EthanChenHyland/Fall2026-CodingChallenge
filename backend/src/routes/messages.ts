@@ -23,7 +23,11 @@ messagesRouter.get('/', (req: AuthedRequest, res) => {
   const conversations = db.prepare(`
     SELECT c.id, c.created_at, c.updated_at,
       u.id AS other_user_id, u.name AS other_user_name, u.avatar_url AS other_user_avatar,
-      (SELECT body FROM messages latest WHERE latest.conversation_id = c.id ORDER BY latest.id DESC LIMIT 1) AS last_message,
+      (SELECT CASE
+        WHEN TRIM(latest.body) != '' THEN latest.body
+        WHEN latest.pin_id IS NOT NULL THEN 'Sent a pin'
+        ELSE ''
+      END FROM messages latest WHERE latest.conversation_id = c.id ORDER BY latest.id DESC LIMIT 1) AS last_message,
       (SELECT created_at FROM messages latest WHERE latest.conversation_id = c.id ORDER BY latest.id DESC LIMIT 1) AS last_message_at,
       (SELECT COUNT(*) FROM messages unread WHERE unread.conversation_id = c.id AND unread.sender_id != ? AND unread.read_at IS NULL) AS unread_count
     FROM conversations c

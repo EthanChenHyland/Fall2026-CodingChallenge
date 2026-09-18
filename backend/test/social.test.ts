@@ -372,6 +372,8 @@ test('pin messages support optional notes while rejecting unavailable attachment
   const pinOnly = await demo.post(`/api/messages/${conversationId}`).send({ body: '', pinId: publicPin.id }).expect(201)
   assert.equal(pinOnly.body.message.body, '')
   assert.equal(pinOnly.body.message.pin_id, publicPin.id)
+  const pinOnlyInbox = await recipient.agent.get('/api/messages').expect(200)
+  assert.equal(pinOnlyInbox.body.conversations.find((entry: { id: number }) => entry.id === conversationId).last_message, 'Sent a pin')
   await demo.post(`/api/messages/${conversationId}`).send({ body: '' }).expect(400)
 
   const privateCollection = await demo.post('/api/collections').send({ name: 'Private DM source' }).expect(201)
