@@ -1,4 +1,5 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { toast, Toaster } from 'sonner'
 import { api, ApiError } from './api'
@@ -6,17 +7,18 @@ import { AppShell } from './components/AppShell'
 import { BrandMark } from './components/BrandMark'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthPage } from './pages/AuthPage'
-import { CollectionPage } from './pages/CollectionPage'
-import { CollectionsPage } from './pages/CollectionsPage'
-import { DiscoverPage } from './pages/DiscoverPage'
-import { ExplorePage } from './pages/ExplorePage'
-import { SharedPage } from './pages/SharedPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { PinPage } from './pages/PinPage'
-import { CapturePage } from './pages/CapturePage'
-import { SmartCollectionPage } from './pages/SmartCollectionPage'
-import { MessagesPage } from './pages/MessagesPage'
-import { InviteAcceptPage } from './pages/InviteAcceptPage'
+
+const CollectionPage = lazy(() => import('./pages/CollectionPage').then((module) => ({ default: module.CollectionPage })))
+const CollectionsPage = lazy(() => import('./pages/CollectionsPage').then((module) => ({ default: module.CollectionsPage })))
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
+const ExplorePage = lazy(() => import('./pages/ExplorePage').then((module) => ({ default: module.ExplorePage })))
+const SharedPage = lazy(() => import('./pages/SharedPage').then((module) => ({ default: module.SharedPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const PinPage = lazy(() => import('./pages/PinPage').then((module) => ({ default: module.PinPage })))
+const CapturePage = lazy(() => import('./pages/CapturePage').then((module) => ({ default: module.CapturePage })))
+const SmartCollectionPage = lazy(() => import('./pages/SmartCollectionPage').then((module) => ({ default: module.SmartCollectionPage })))
+const MessagesPage = lazy(() => import('./pages/MessagesPage').then((module) => ({ default: module.MessagesPage })))
+const InviteAcceptPage = lazy(() => import('./pages/InviteAcceptPage').then((module) => ({ default: module.InviteAcceptPage })))
 
 function handleUnauthorized(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 401) return false
@@ -57,23 +59,25 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          <Route element={<ProtectedApp />}>
-            <Route path="/" element={<DiscoverPage />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/collections" element={<CollectionsPage />} />
-            <Route path="/collections/smart/:mode" element={<SmartCollectionPage />} />
-            <Route path="/collections/:id" element={<CollectionPage />} />
-            <Route path="/people/:id" element={<ProfilePage />} />
-            <Route path="/pin/:id" element={<PinPage />} />
-            <Route path="/capture" element={<CapturePage />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/messages/:conversationId" element={<MessagesPage />} />
-            <Route path="/invite/:token" element={<InviteAcceptPage />} />
-          </Route>
-          <Route path="/shared/:token" element={<SharedPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<div className="app-boot"><BrandMark /><span>Mosaic</span></div>}>
+          <Routes>
+            <Route element={<ProtectedApp />}>
+              <Route path="/" element={<DiscoverPage />} />
+              <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/collections" element={<CollectionsPage />} />
+              <Route path="/collections/smart/:mode" element={<SmartCollectionPage />} />
+              <Route path="/collections/:id" element={<CollectionPage />} />
+              <Route path="/people/:id" element={<ProfilePage />} />
+              <Route path="/pin/:id" element={<PinPage />} />
+              <Route path="/capture" element={<CapturePage />} />
+              <Route path="/messages" element={<MessagesPage />} />
+              <Route path="/messages/:conversationId" element={<MessagesPage />} />
+              <Route path="/invite/:token" element={<InviteAcceptPage />} />
+            </Route>
+            <Route path="/shared/:token" element={<SharedPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
       </ErrorBoundary>
       <Toaster position="bottom-center" richColors />
