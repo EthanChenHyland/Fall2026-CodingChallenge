@@ -73,21 +73,21 @@ The Canvas became the main visual feature. Saved images can be dragged into a fr
 
 ### Sharing and collaboration
 
-Collections can be private, followers-only, or public. Public sharing uses revocable URLs, including a read-only presentation view with social-preview metadata for shared links.
+Collections can be private, followers-only, or public. Public sharing uses revocable URLs, including a read-only presentation view with social-preview metadata for shared links. A signed-in viewer can save a public board as a private copy; sections, layout, cover choices, and pin provenance carry over. Owners get small first-party share counts for views, unique visitors, and copies without storing raw IP addresses.
 
 Owners can also collaborate with other accounts. Editors have scoped permissions, can join through revocable invite links, and can leave a collection. Activity history and notifications make shared changes easier to follow.
 
 ### Social features
 
-I added public profiles, user and collection follows, For You / Following / Trending feeds, likes, threaded comments, mentions, direct messages, pin sharing through messages, privacy-safe repin provenance, and previous/next browsing inside a collection from pin detail pages.
+I added public profiles, user and collection follows, For You / Following / Trending feeds, likes, threaded comments, mentions, direct messages, pin sharing through messages, privacy-safe repin provenance, public-content reporting, and previous/next browsing inside a collection from pin detail pages.
 
 Discover also remembers recent and saved searches, supports live suggestions and result-type filters, and keeps the existing recommendation system based on saved interests plus explicit **More like this / Not interested** feedback.
 
 ### Reliability and privacy
 
-A lot of the work ended up being stuff you do not really see in screenshots. I added transactions, rollback behavior, session handling, permission checks, private-data filtering, rate limiting, security headers, provider fallbacks, media cleanup, and regression tests for cases where data could leak or get out of sync.
+A lot of the work ended up being stuff you do not really see in screenshots. I added transactions, rollback behavior, session handling, permission checks, private-data filtering, rate limiting, security headers, provider fallbacks, media cleanup, public-content reports, and regression tests for cases where data could leak or get out of sync.
 
-Portable collection exports are self-contained for locally stored provider images, so importing an export does not silently create broken image references.
+I also polished the boring states: keyboard skip links, focusable main landmarks, visible saving feedback, retryable presentation/search failures, loading skeletons, mobile layouts, and reduced-motion behavior. Portable collection exports are self-contained for locally stored provider images, so importing an export does not silently create broken image references.
 
 ## Running locally
 

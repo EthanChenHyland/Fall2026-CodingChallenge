@@ -17,13 +17,13 @@ For me, the harder and more useful problem was making the whole save-organize-sh
 The app includes:
 - Live image search with Pixabay when configured, Wikimedia fallback, pagination, autocomplete, recent/saved searches, result-type filters, related searches, and recommendation feedback.
 - Accounts, profile handles, editable profiles/avatars, follows, collection follows, follower counts, and public profiles.
-- Private, followers-only, and public collections; revocable public share links; account collaborators; and revocable editor invite links.
+- Private, followers-only, and public collections; revocable public share links; private copies of public boards that preserve organization/provenance; owner-only first-party share analytics; account collaborators; and revocable editor invite links.
 - Quick Save, multi-select Explore saving, duplicate protection, smart collections, sections, tags, filtering, persistent drag/keyboard reordering, bulk move/copy/delete, and undo.
 - Grid, Gallery, Compact, Masonry, and a draggable Canvas with persisted positions, alignment guides, Remix/Tidy, undo, and redo.
-- Likes, threaded comments, replies, @mentions, categorized activity history, notifications, privacy-safe repin provenance, and previous/next pin navigation inside a collection.
+- Likes, threaded comments, replies, @mentions, categorized activity history, notifications, privacy-safe repin provenance, public-content reporting, and previous/next pin navigation inside a collection.
 - Direct messages with unread state, optional text, attached pin previews, and saving a received pin into a collection.
 - Custom collection covers/crops/themes, collection presentation/share views, rich social-link previews, collection export/import, PWA install/share-target support, keyboard shortcuts, onboarding, and responsive mobile behavior.
-- Optional Cloudinary uploads, Resend email verification, durable local copies of saved Pixabay media, rate limiting, CSP/security headers, and account deletion.
+- Optional Cloudinary uploads, Resend email verification, durable local copies of saved Pixabay media, rate limiting, CSP/security headers, accessible skip/focus landmarks, retry/loading/saving states, and account deletion.
 
 Core functionality does not depend on paid APIs. With no keys configured, Mosaic still runs using Wikimedia and local functionality.
 
@@ -66,6 +66,8 @@ RELIABILITY / SECURITY DETAILS
 - Session cookies, CSP/Helmet headers, input validation, URL checks, login throttling, and stored-content XSS regression coverage are included.
 - Seeded demo accounts cannot be deleted.
 - Production health checks report database and search-provider readiness.
+- Share analytics use a random first-party visitor token that is hashed before storage; raw IP addresses are not stored for these counts.
+- Public-board copies stay private by default and keep section/layout/cover data plus privacy-safe provenance.
 
 QUICK REVIEW PATH
 1. Create an account. With Resend unset locally, registration completes immediately; with Resend configured, Mosaic requires the 6-digit email code.
