@@ -86,7 +86,6 @@ export function AuthPage() {
           <h1>Keep track of what you find.</h1>
           <p>Save images, build collections, and share them when you want to.</p>
         </div>
-        <span className="auth-foot">Mosaic · Fall 2026</span>
       </section>
 
       <section className="auth-panel">

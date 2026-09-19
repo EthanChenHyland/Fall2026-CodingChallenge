@@ -40,6 +40,8 @@ const slides = [
 export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => void }) {
   const [index, setIndex] = useState(0)
   const visualRef = useRef<HTMLDivElement>(null)
+  const tiltTargetRef = useRef({ x: 0, y: 0 })
+  const tiltCurrentRef = useRef({ x: 0, y: 0 })
   const slide = slides[index]
 
   useEffect(() => {
@@ -57,24 +59,38 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let frame = 0
+    const animateTilt = () => {
+      const target = tiltTargetRef.current
+      const current = tiltCurrentRef.current
+      current.x += (target.x - current.x) * 0.075
+      current.y += (target.y - current.y) * 0.075
+      visualRef.current?.style.setProperty('--welcome-x', current.x.toFixed(4))
+      visualRef.current?.style.setProperty('--welcome-y', current.y.toFixed(4))
+      frame = window.requestAnimationFrame(animateTilt)
+    }
+    frame = window.requestAnimationFrame(animateTilt)
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
   const nudgeVisual = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'touch') return
+    if (event.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const box = event.currentTarget.getBoundingClientRect()
-    const x = ((event.clientX - box.left) / box.width - .5) * 2
-    const y = ((event.clientY - box.top) / box.height - .5) * 2
-    visualRef.current?.style.setProperty('--welcome-x', x.toFixed(3))
-    visualRef.current?.style.setProperty('--welcome-y', y.toFixed(3))
+    tiltTargetRef.current.x = ((event.clientX - box.left) / box.width - .5) * 2
+    tiltTargetRef.current.y = ((event.clientY - box.top) / box.height - .5) * 2
   }
 
   const resetVisual = () => {
-    visualRef.current?.style.setProperty('--welcome-x', '0')
-    visualRef.current?.style.setProperty('--welcome-y', '0')
+    tiltTargetRef.current.x = 0
+    tiltTargetRef.current.y = 0
   }
 
   return (
     <main className="welcome-shell">
       <header className="welcome-nav">
-        <span className="welcome-brand"><BrandMark /> Mosaic</span>
+        <span className="welcome-brand"><BrandMark /><span>Mosaic</span></span>
         <div>
           <Link to="/privacy">Privacy</Link>
           <button type="button" className="welcome-text-button" onClick={() => onContinue('login')}>Sign in</button>
@@ -82,10 +98,14 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
       </header>
 
       <section className="welcome-copy" aria-live="polite">
-        <div className="welcome-slide-copy" key={'copy-' + index}>
-          <span className="eyebrow">{slide.eyebrow}</span>
-          <h1>{slide.title}</h1>
-          <p>{slide.copy}</p>
+        <div className="welcome-slide-copy">
+          {slides.map((item, itemIndex) => (
+            <div className={`welcome-copy-panel ${itemIndex === index ? 'active' : ''}`} aria-hidden={itemIndex !== index} key={item.eyebrow}>
+              <span className="eyebrow">{item.eyebrow}</span>
+              <h1>{item.title}</h1>
+              <p>{item.copy}</p>
+            </div>
+          ))}
         </div>
         <div className="welcome-actions">
           <button type="button" className="primary-button welcome-enter" onClick={() => onContinue('register')}>Start collecting <ArrowRight size={17} /></button>
@@ -100,22 +120,22 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
 
       <section className="welcome-visual" onPointerMove={nudgeVisual} onPointerLeave={resetVisual} aria-label={slide.label + ' preview'}>
         <Suspense fallback={null}><AmbientMosaic3D /></Suspense>
-        <div className="welcome-visual-card" ref={visualRef} key={'visual-' + index}>
-          <div className="welcome-visual-topline"><span>{slide.label}</span><span>{String(index + 1).padStart(2, '0')} / 03</span></div>
-          <div className="welcome-collage">
-            <img src={slide.image} alt="" />
-            <img src={slide.imageTwo} alt="" />
-            <img src={slide.imageThree} alt="" />
-          </div>
-          {index === 0 && <div className="welcome-demo-bar"><Search size={15} /><span>Find something to save</span><kbd>/</kbd></div>}
-          {index === 1 && <div className="welcome-demo-meta"><span><Bookmark size={14} /> Alpine mornings</span><span>8 saved</span></div>}
-          {index === 2 && <div className="welcome-demo-message"><span className="welcome-message-avatar"><UsersRound size={15} /></span><span><strong>Material study</strong><small><MessageCircle size={11} /> Maya sent a pin with a note</small></span></div>}
+        <div className="welcome-visual-card" ref={visualRef}>
+          {slides.map((item, itemIndex) => (
+            <div className={`welcome-visual-content ${itemIndex === index ? 'active' : ''}`} aria-hidden={itemIndex !== index} key={item.eyebrow}>
+              <div className="welcome-visual-topline"><span>{item.label}</span><span>{String(itemIndex + 1).padStart(2, '0')} / 03</span></div>
+              <div className="welcome-collage">
+                <img src={item.image} alt="" />
+                <img src={item.imageTwo} alt="" />
+                <img src={item.imageThree} alt="" />
+              </div>
+              {itemIndex === 0 && <div className="welcome-demo-bar"><Search size={15} /><span>Find something to save</span><kbd>/</kbd></div>}
+              {itemIndex === 1 && <div className="welcome-demo-meta"><span><Bookmark size={14} /> Alpine mornings</span><span>8 saved</span></div>}
+              {itemIndex === 2 && <div className="welcome-demo-message"><span className="welcome-message-avatar"><UsersRound size={15} /></span><span><strong>Material study</strong><small><MessageCircle size={11} /> Maya sent a pin with a note</small></span></div>}
+            </div>
+          ))}
         </div>
       </section>
-
-      <footer className="welcome-foot">
-        <span>Mosaic · Fall 2026</span>
-      </footer>
     </main>
   )
 }

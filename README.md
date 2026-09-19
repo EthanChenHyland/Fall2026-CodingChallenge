@@ -10,7 +10,7 @@ The original prompt and scoring rubric are preserved in [original_challenge.md](
 
 I wanted Mosaic to feel like an actual product, not a tech demo.
 
-I could have spent a lot of time adding an AI agent, embeddings/vector search, extra services, or a big Three.js/WebGL intro just because those things sound advanced. I decided not to do that unless they actually made the app better to use.
+I could have spent a lot of time adding an AI agent, embeddings/vector search, extra services, or turning the whole experience into a Three.js/WebGL demo just because those things sound advanced. I decided not to do that unless they actually made the app better to use. The welcome screen does use a small Three.js ambient mosaic, pointer-responsive depth, and restrained transitions, but the product itself stays standard React/CSS UI.
 
 The harder part for me was making the whole save → organize → share flow feel connected: discovery, saving, collaboration, messages, social features, bulk organization, privacy, mobile behavior, error handling, and the Canvas.
 
@@ -43,7 +43,7 @@ I took the same approach with recommendations. Mosaic uses saved interests, soci
 
 ### Why not Three.js / WebGL everywhere?
 
-I thought about going much harder on the Awwwards-style stuff, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. Search, saving, organizing, editing, and collaborating benefit more from being fast and clear than from shader transitions or a 3D hero.
+I thought about going much harder on the Awwwards-style stuff, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. The welcome screen gets a restrained Three.js ambient field and motion polish; search, saving, organizing, editing, and collaborating stay fast, clear, and conventional instead of depending on shader-heavy transitions.
 
 The freeform Canvas is intentionally DOM/CSS instead of WebGL. Pins still need normal focus behavior, text, menus, selection, dragging, saved positions, keyboard controls, and decent mobile behavior. Standard UI primitives made that much easier to keep predictable and testable.
 

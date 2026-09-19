@@ -10,7 +10,7 @@ WHAT I BUILT
 Mosaic is a Pinterest-inspired app for finding, saving, organizing, and sharing images. I started with the challenge requirements — search, collections, saving/editing/removing content, sharing, and collaboration — and then kept building until it felt more like a real product than a basic CRUD demo.
 
 WHY I BUILT IT THIS WAY
-I wanted Mosaic to feel useful, not just technically impressive on paper. I could have spent a lot of time adding an AI chat/agent, embeddings/vector search, extra microservices, or a big Three.js/WebGL intro just because those things sound advanced. I decided not to unless they actually made the app better to use.
+I wanted Mosaic to feel useful, not just technically impressive on paper. I could have spent a lot of time adding an AI chat/agent, embeddings/vector search, extra microservices, or turning the whole experience into a Three.js/WebGL demo just because those things sound advanced. I decided not to unless they actually made the app better to use. The welcome screen uses a restrained Three.js ambient mosaic, pointer-responsive depth, and motion polish; the main product remains standard React/CSS UI.
 
 For me, the harder and more useful problem was making the whole save-organize-share loop work well together: discovery, persistence, collaboration, messages, social features, bulk organization, mobile behavior, error handling, and the Canvas. I'd rather have a lot of useful interactions that fit together than one flashy subsystem that mostly makes the stack diagram longer.
 
@@ -28,7 +28,7 @@ The app includes:
 Core functionality does not depend on paid APIs. With no keys configured, Mosaic still runs using Wikimedia and local functionality.
 
 DESIGN DIRECTION
-I thought about going much harder on Three.js/WebGL and Awwwards-style effects, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. Search, saving, organizing, editing, and collaborating benefit more from being fast and clear than from a 3D hero or shader-heavy transitions.
+I thought about going much harder on Three.js/WebGL and Awwwards-style effects, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. I kept Three.js scoped to a lightweight ambient welcome-screen field and used restrained motion elsewhere so search, saving, organizing, editing, and collaborating stay fast and clear.
 
 The rubric also cares about working features, maintainability, responsiveness, collaboration, reliability, and creativity. I treated “make the application look good” as making the actual app polished, not turning it into a cinematic intro page.
 
@@ -39,7 +39,7 @@ I spent that time on things users keep running into after the first impression: 
 The Canvas is also intentionally DOM/CSS instead of WebGL. Pins still need focus behavior, text, menus, selection, dragging, saved positions, keyboard controls, and decent mobile behavior. Standard UI primitives made that easier to keep predictable and testable.
 
 ENGINEERING CHOICES
-Frontend: React + TypeScript, Vite, TanStack Query, Radix UI primitives, Lucide icons, and hand-written CSS.
+Frontend: React + TypeScript, Vite, TanStack Query, Radix UI primitives, Lucide icons, Three.js for the welcome ambient field, and hand-written CSS.
 Backend: Node.js + Express REST API with separated route/middleware/library modules.
 Database: SQLite in WAL mode with foreign keys, transactions, indexes, ownership/membership rules, and persistent production storage.
 Production: one Docker service on Render; Express serves the compiled frontend and REST API, with a persistent /data volume.
