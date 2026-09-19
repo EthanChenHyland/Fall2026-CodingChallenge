@@ -214,7 +214,7 @@ img { display: block; max-width: 100%; }
 
 .back-link { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; margin: -8px -4px 20px; padding: 8px 4px; font-size: 12px; color: #777169; }
 .collection-hero { display: flex; align-items: end; justify-content: space-between; gap: 30px; padding-bottom: 36px; border-bottom: 1px solid var(--line); }
-.collection-hero h1 { font-size: clamp(48px, 6vw, 84px); line-height: .98; margin: 10px 0 13px; }
+.collection-hero h1 { font-size: clamp(48px, 6vw, 84px); line-height: .98; margin: 10px 0 13px; overflow-wrap: anywhere; }
 .collection-visibility-trigger { min-height: 30px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.66); padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; color: #756f67; cursor: pointer; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .collection-visibility-trigger:hover { border-color: #c8c2b8; background: #fff; color: var(--ink); }
 .collection-visibility-trigger.public { color: #44514b; background: #edf2ee; border-color: #d2ddd4; }
@@ -356,12 +356,12 @@ img { display: block; max-width: 100%; }
 @keyframes riseIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 .hero-copy, .page-title-row, .collection-hero, .related-pin-section { animation: riseIn .18s ease both; }
 
-.shared-shell { min-height: 100vh; background: #f5f1e9; }
+.shared-shell { min-height: 100vh; overflow-x: clip; background: #f5f1e9; }
 .shared-header { height: 66px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; padding: 0 max(24px, calc((100vw - 1100px)/2)); font-size: 11px; color: var(--muted); }
 .shared-header a { display: flex; align-items: center; gap: 9px; color: var(--ink); }
 .shared-main { width: min(1100px, calc(100% - 40px)); margin: 0 auto; padding: 46px 0 80px; }
 .shared-title { text-align: center; max-width: 720px; margin: 15px auto 45px; }
-.shared-title h1 { font-size: clamp(50px, 8vw, 92px); line-height: 1; margin: 11px 0 13px; }
+.shared-title h1 { font-size: clamp(50px, 8vw, 92px); line-height: 1; margin: 11px 0 13px; overflow-wrap: anywhere; }
 .shared-title p { margin-inline: auto; }
 .shared-present-link { width: fit-content; margin: 18px auto 0; }
 .shared-grid { columns: 3 260px; column-gap: 16px; }

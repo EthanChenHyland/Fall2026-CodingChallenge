@@ -818,6 +818,76 @@ test('collection reorder controls persist pin order', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
+test('reporting, public copies and owner share analytics stay usable on mobile', async ({ page, browser }) => {
+  await enterDemo(page)
+  const setup = await page.evaluate(async () => {
+    const created = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Mobile share audit ${Date.now()}`, description: 'Finishing-feature audit.' }),
+    }).then((response) => response.json()) as { collection: { id: number } }
+    const saved = await fetch(`/api/collections/${created.collection.id}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceId: `mobile-audit-${Date.now()}`,
+        imageUrl: 'https://example.com/mobile-audit.jpg',
+        sourcePage: 'https://example.com/mobile-audit',
+        sourceCreator: 'Mosaic audit',
+        title: 'Mobile audit pin',
+      }),
+    }).then((response) => response.json()) as { item: { id: number } }
+    const shared = await fetch(`/api/collections/${created.collection.id}/share`, { method: 'POST' }).then((response) => response.json()) as { token: string }
+    return { collectionId: created.collection.id, pinId: saved.item.id, token: shared.token }
+  })
+
+  await page.goto(`/collections/${setup.collectionId}`)
+  await expect(page.locator('.share-analytics')).toContainText(/0 views · 0 visitors · 0 copies/)
+
+  const viewer = await browser.newContext()
+  const viewerPage = await viewer.newPage()
+  await viewerPage.goto('/')
+  const registered = await viewerPage.evaluate(async () => {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Mobile Audit Viewer', email: `mobile-audit-${Date.now()}@example.test`, password: 'mobile-audit-password', ageConfirmed: true }),
+    })
+    return response.status
+  })
+  expect(registered).toBe(201)
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
+    await viewerPage.setViewportSize(viewport)
+    await viewerPage.goto(`/shared/${setup.token}`)
+    await expect(viewerPage.getByRole('button', { name: 'Save a copy' })).toBeVisible()
+    await expect.poll(() => viewerPage.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+
+    await viewerPage.goto(`/pin/${setup.pinId}`)
+    await viewerPage.getByRole('button', { name: 'Report', exact: true }).click()
+    const dialog = viewerPage.getByRole('dialog', { name: 'Tell us what’s wrong' })
+    await expect(dialog).toBeVisible()
+    const bounds = await dialog.boundingBox()
+    expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0)
+    expect((bounds?.x ?? 0) + (bounds?.width ?? viewport.width)).toBeLessThanOrEqual(viewport.width + 1)
+    expect(await viewerPage.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    await viewerPage.getByRole('button', { name: 'Close dialog' }).click()
+  }
+
+  await viewerPage.goto(`/shared/${setup.token}`)
+  await viewerPage.getByRole('button', { name: 'Save a copy' }).click()
+  await expect(viewerPage).toHaveURL(/\/collections\/\d+$/)
+  await viewer.close()
+
+  await page.reload()
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
+    await page.setViewportSize(viewport)
+    await expect(page.locator('.share-analytics')).toContainText(/\d+ views · \d+ visitors · 1 copies/)
+    await expect(page.locator('.collection-save-status')).toBeAttached()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  }
+})
+
 test('reduced motion disables decorative interaction animations', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await enterDemo(page)
@@ -845,8 +915,9 @@ test('skip links move keyboard focus to the main landmark', async ({ page }) => 
   await expect(page.locator('#main-content')).toBeFocused()
 
   await page.goto('/privacy')
-  await page.keyboard.press('Tab')
   const privacySkip = page.getByRole('link', { name: 'Skip to privacy policy' })
+  await expect(privacySkip).toBeAttached()
+  await page.keyboard.press('Tab')
   await expect(privacySkip).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.locator('#privacy-content')).toBeFocused()
