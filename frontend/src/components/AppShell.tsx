@@ -4,6 +4,7 @@ import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, Messa
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { AvatarFrame } from './AvatarFrame'
 import { BrandMark } from './BrandMark'
 
 type InstallPromptEvent = Event & {
@@ -163,7 +164,7 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}>{me?.user.avatar_url ? <img src={me.user.avatar_url} alt="" /> : initials}</button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user.avatar_url} name={me?.user.name ?? initials} /></button>
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>

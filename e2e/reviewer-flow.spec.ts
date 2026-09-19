@@ -227,6 +227,50 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   }
 })
 
+test('header and profile avatars use the same square crop geometry', async ({ page }) => {
+  await enterDemo(page)
+  const avatarUrl = 'https://example.com/mosaic-avatar.png'
+  const updated = await page.evaluate(async (url) => {
+    const response = await fetch('/api/profiles/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatarUrl: url }),
+    })
+    return response.ok
+  }, avatarUrl)
+  expect(updated).toBe(true)
+
+  await page.goto('/people/demo-curator')
+  await expect(page.locator('.avatar img')).toHaveAttribute('src', avatarUrl)
+  await expect(page.locator('.profile-avatar img')).toHaveAttribute('src', avatarUrl)
+
+  const geometry = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector)!
+      const image = element.querySelector<HTMLImageElement>('img')!
+      const box = element.getBoundingClientRect()
+      const imageBox = image.getBoundingClientRect()
+      const style = getComputedStyle(image)
+      return {
+        box: [box.width, box.height],
+        image: [imageBox.width, imageBox.height],
+        objectFit: style.objectFit,
+        objectPosition: style.objectPosition,
+        src: image.currentSrc || image.src,
+      }
+    }
+    return { header: read('.avatar'), profile: read('.profile-avatar') }
+  })
+
+  expect(geometry.header.box).toEqual([36, 36])
+  expect(geometry.header.image).toEqual([36, 36])
+  expect(geometry.profile.box).toEqual([150, 150])
+  expect(geometry.profile.image).toEqual([150, 150])
+  expect(geometry.header.objectFit).toBe('cover')
+  expect(geometry.header.objectPosition).toBe(geometry.profile.objectPosition)
+  expect(geometry.header.src).toBe(geometry.profile.src)
+})
+
 test('new account can create, capture, edit, share, revoke and undo', async ({ page, browser }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Create account', exact: true }).click()

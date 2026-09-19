@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { AvatarFrame } from '../components/AvatarFrame'
 import { EditProfileDialog } from '../components/EditProfileDialog'
 import { ConnectionsDialog } from '../components/ConnectionsDialog'
 
@@ -29,12 +30,11 @@ export function ProfilePage() {
   if (isError || !data) return <div className="empty-state large"><h3>That profile is not available.</h3><Link className="primary-button" to="/">Back to Mosaic</Link></div>
 
   const { profile, collections } = data
-  const initials = profile.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
 
   return (
     <>
       <section className="profile-hero">
-        <div className="profile-avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : initials}</div>
+        <AvatarFrame className="profile-avatar" src={profile.avatar_url} name={profile.name} />
         <div className="profile-copy">
           <span className="eyebrow">MOSAIC PROFILE</span>
           <h1>{profile.name}</h1>
