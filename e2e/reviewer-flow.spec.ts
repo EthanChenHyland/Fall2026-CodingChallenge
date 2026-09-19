@@ -361,13 +361,13 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
 
   const collectionData = await page.evaluate(async () => {
     const response = await fetch('/api/collections')
-    return response.json() as Promise<{ collections: Array<{ id: number; share_token?: string | null }> }>
+    return response.json() as Promise<{ collections: Array<{ id: number; item_count: number; share_token?: string | null }> }>
   })
-  const collectionId = collectionData.collections[0]!.id
+  const collectionId = [...collectionData.collections].sort((a, b) => b.item_count - a.item_count)[0]!.id
   const shareToken = collectionData.collections.find((collection) => collection.share_token)?.share_token
   await page.goto('/explore')
   const pinHref = await page.locator('.public-pin-image').first().getAttribute('href')
-  const paths = ['/', '/explore', '/collections', `/collections/${collectionId}`, '/people/demo-curator', '/messages', '/capture', '/privacy']
+  const paths = ['/', '/explore', '/collections', `/collections/${collectionId}`, '/people/demo-curator', '/people/sam-rivera', '/messages', '/capture', '/privacy']
   if (pinHref) paths.push(pinHref)
   if (shareToken) paths.push(`/shared/${shareToken}`)
 
