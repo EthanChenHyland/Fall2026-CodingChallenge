@@ -294,6 +294,13 @@ test('Pixabay feeds retry failed next pages and Explore keeps the web feed at th
     return Boolean(communityEnd && webFeed && (communityEnd.compareDocumentPosition(webFeed) & Node.DOCUMENT_POSITION_FOLLOWING))
   })
   expect(webFeedIsAfterCommunityFeed).toBe(true)
+  await page.getByRole('button', { name: 'Trending', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Pins people are talking about' })).toBeVisible()
+  await expect(page.locator('.explore-web-section')).toBeVisible()
+  await page.locator('.explore-web-section .discovery-loader').scrollIntoViewIfNeeded()
+  await expect(page.getByText('Pixabay page 2', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Following', exact: true }).click()
+  await expect(page.locator('.explore-web-section')).toHaveCount(0)
 })
 
 test('Pixabay shuffle stays responsive without turning rapid clicks into provider spam', async ({ page }) => {

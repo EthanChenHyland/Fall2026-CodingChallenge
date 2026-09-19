@@ -45,7 +45,7 @@ export function ExplorePage() {
     queryFn: ({ pageParam }) => api.search('', pageParam.page, pageParam.source, webSeed),
     initialPageParam: { page: 1, source: '' },
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
-    enabled: mode === 'all',
+    enabled: mode !== 'following',
     staleTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData,
   })
@@ -141,7 +141,7 @@ export function ExplorePage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   useEffect(() => {
-    if (!webSentinel.current || !webHasNextPage || webIsFetchNextPageError || mode !== 'all') return
+    if (!webSentinel.current || !webHasNextPage || webIsFetchNextPageError || mode === 'following') return
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !webIsFetchingNextPage) void fetchNextWebPage()
     }, { rootMargin: '500px' })
@@ -186,7 +186,7 @@ export function ExplorePage() {
       ) : null}
       {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => changeMode('all')}>Browse everyone</button>}</div>}
       <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
-      {mode === 'all' ? (
+      {mode !== 'following' ? (
         <section className="explore-web-section">
           <div className="section-head explore-web-head">
             <div><span className="eyebrow">AROUND THE WEB</span><h2>{webSource === 'wikimedia' ? 'Fresh visual finds' : 'Fresh from Pixabay'}</h2></div>
