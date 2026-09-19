@@ -271,6 +271,29 @@ test('header and profile avatars use the same square crop geometry', async ({ pa
   expect(geometry.header.src).toBe(geometry.profile.src)
 })
 
+test('profile collection covers fill their full frame', async ({ page }) => {
+  await enterDemo(page)
+  await page.goto('/people/demo-curator')
+
+  const cover = page.locator('.profile-collection-card .collection-cover').first()
+  const image = cover.locator('img')
+  await expect(image).toBeVisible()
+
+  const geometry = await cover.evaluate((element) => {
+    const image = element.querySelector<HTMLImageElement>('img')!
+    const coverBox = element.getBoundingClientRect()
+    const imageBox = image.getBoundingClientRect()
+    return {
+      cover: [Math.round(coverBox.width), Math.round(coverBox.height)],
+      image: [Math.round(imageBox.width), Math.round(imageBox.height)],
+      objectFit: getComputedStyle(image).objectFit,
+    }
+  })
+
+  expect(geometry.image).toEqual(geometry.cover)
+  expect(geometry.objectFit).toBe('cover')
+})
+
 test('collection visibility is discoverable from the collection header', async ({ page }) => {
   await enterDemo(page)
   const collection = await page.evaluate(async () => {
