@@ -10,6 +10,9 @@ import type { PublicProfile } from '../types'
 export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [deleteMode, setDeleteMode] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [name, setName] = useState(profile.name)
   const [bio, setBio] = useState(profile.bio)
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
@@ -37,9 +40,25 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
     },
     onError: (error) => toast.error(error.message),
   })
+  const removeAccount = useMutation({
+    mutationFn: () => api.deleteAccount(deletePassword, 'DELETE'),
+    onSuccess: () => {
+      queryClient.clear()
+      window.location.assign('/')
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) {
+      setDeleteMode(false)
+      setDeletePassword('')
+      setDeleteConfirmation('')
+    }
+  }
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger asChild><button className="secondary-button"><Pencil size={15} /> Edit profile</button></Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
@@ -56,6 +75,22 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
           <label className="field-label">Bio<textarea maxLength={220} rows={4} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="What are you collecting lately?" /></label>
           <label className="field-label">Photo URL <span className="field-optional">optional</span><input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} placeholder="https://…" /></label>
           <button className="primary-button full" disabled={update.isPending || uploading || name.trim().length < 2} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save profile'}</button>
+          <section className="profile-danger-zone">
+            <div><strong>Delete account</strong><span>Permanently remove your account and collections you own.</span></div>
+            {!deleteMode ? (
+              <button type="button" className="danger-button" onClick={() => setDeleteMode(true)}><Trash2 size={14} /> Delete account</button>
+            ) : (
+              <div className="delete-account-form">
+                <p>This cannot be undone. Collections you own will be deleted. Collections you only collaborate on will remain with their owners.</p>
+                <label className="field-label">Password<input type="password" autoComplete="current-password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} /></label>
+                <label className="field-label">Type DELETE to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
+                <div className="delete-account-actions">
+                  <button type="button" className="secondary-button" disabled={removeAccount.isPending} onClick={() => { setDeleteMode(false); setDeletePassword(''); setDeleteConfirmation('') }}>Cancel</button>
+                  <button type="button" className="danger-button" disabled={removeAccount.isPending || deletePassword.length < 6 || deleteConfirmation !== 'DELETE'} onClick={() => removeAccount.mutate()}>{removeAccount.isPending ? 'Deleting…' : 'Delete permanently'}</button>
+                </div>
+              </div>
+            )}
+          </section>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -39,6 +39,37 @@ test('expired sessions return to auth and do not leak cached account data', asyn
   await expect(page.getByRole('link', { name: /Museum of small things/ })).toHaveCount(0)
 })
 
+test('a user can permanently delete their own account from Edit profile', async ({ page }) => {
+  const email = `delete-ui-${Date.now()}@example.test`
+  const password = 'delete-ui-password'
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Create account', exact: true }).click()
+  await page.getByLabel('Name', { exact: true }).fill('Delete UI')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByLabel('Password', { exact: true }).press('Enter')
+  await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  await page.getByRole('button', { name: 'View profile' }).click()
+  await page.getByRole('button', { name: 'Edit profile' }).click()
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click()
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByLabel('Type DELETE to confirm').fill('DELETE')
+  await page.getByRole('button', { name: 'Delete permanently' }).click()
+
+  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible()
+  const login = await page.evaluate(async ({ email, password }) => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    return response.status
+  }, { email, password })
+  expect(login).toBe(401)
+})
+
 test('reviewer can move through the core product', async ({ page }) => {
   await enterDemo(page)
   const search = page.getByLabel('Search images')
@@ -82,7 +113,8 @@ test('reviewer can move through the core product', async ({ page }) => {
   const saveButton = page.locator('.public-pin-card').first().getByRole('button', { name: 'Save', exact: true })
   await saveButton.click()
   await expect(page.getByRole('heading', { name: 'Choose a collection' })).toBeVisible()
-  const collectionChoice = page.locator('.collection-choice-list > button:not(:disabled)').first()
+  const collectionChoice = page.getByRole('button', { name: /Tokyo after dark/ })
+  await expect(collectionChoice).toBeEnabled()
   await collectionChoice.click()
   await expect(page.getByText('Saved to collection')).toBeVisible()
   const firstPin = page.locator('.public-pin-image').first()

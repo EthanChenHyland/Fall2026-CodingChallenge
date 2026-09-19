@@ -768,6 +768,14 @@ img { display: block; max-width: 100%; }
 
 .danger-button { min-height: 40px; border: 1px solid #cbaeb2; border-radius: 999px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #fff3f3; color: #9b3f4d; cursor: pointer; font-size: 11px; font-weight: 750; }
 .danger-button:hover { background: #f9e5e7; }
+.profile-danger-zone { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+.profile-danger-zone > div:first-child { display: grid; gap: 4px; }
+.profile-danger-zone > div:first-child strong { font-size: 11px; }
+.profile-danger-zone > div:first-child span, .delete-account-form > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.profile-danger-zone > .danger-button { justify-self: start; }
+.delete-account-form { display: grid; gap: 2px; padding: 14px; border: 1px solid #dfc9cd; border-radius: 12px; background: #fbf2f2; }
+.delete-account-form .field-label { margin: 9px 0 0; }
+.delete-account-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 
 .comment-delete { align-self: start; border: 0; background: transparent; color: #9a9288; padding: 4px; cursor: pointer; opacity: .55; }
 .pin-comment:hover .comment-delete, .comment-delete:focus-visible { opacity: 1; color: #95404e; }
