@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Link2, Lock, Plus, Trash2, UploadCloud, UserPlus, Users, X } from 'lucide-react'
+import { Check, Copy, Link2, Lock, Plus, Share2, Trash2, UploadCloud, UserPlus, Users, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -309,6 +309,18 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
   })
   const shareUrl = collection.share_token ? `${window.location.origin}/shared/${collection.share_token}` : ''
   const editorInviteUrl = editorInvite.data?.invite ? `${window.location.origin}/invite/${editorInvite.data.invite.token}` : ''
+  const shareCollection = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: collection.name, text: collection.description || 'A Mosaic collection', url: shareUrl })
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      }
+    }
+    try { await navigator.clipboard.writeText(shareUrl); toast.success('Collection link copied') }
+    catch { toast.error('Could not share. Copy the collection link manually.') }
+  }
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -334,6 +346,7 @@ export function ShareCollectionDialog({ collection, trigger }: { collection: Col
             {collection.share_token ? (
               <div className="share-link-row">
                 <span className="share-url">{shareUrl.replace(/^https?:\/\//, '')}</span>
+                <button className="secondary-button" onClick={() => void shareCollection()}><Share2 size={15} /> Share</button>
                 <button className="secondary-button" onClick={() => { void navigator.clipboard.writeText(shareUrl).then(() => toast.success('Link copied')).catch(() => toast.error('Could not copy. Select the link and copy it manually.')) }}><Copy size={15} /> Copy</button>
               </div>
             ) : <p className="privacy-note">Only collaborators can open this collection while it is private.</p>}

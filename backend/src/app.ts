@@ -59,7 +59,28 @@ app.use('/api/collections/import', express.json({ limit: '20mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
 app.use('/api', rateLimit({ skip: (req) => req.path === '/health', windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))
-app.use(['/api/auth/login', '/api/auth/register', '/api/auth/demo'], rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' },
+}))
+app.use('/api/auth/register/start', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many account or verification-code requests. Try again later.' },
+}))
+app.use('/api/auth/register/verify', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Request a new code.' },
+}))
+app.use('/api/auth/demo', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use(loadUser)
 
 app.get('/api/health', (_req, res) => {

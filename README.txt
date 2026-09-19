@@ -26,6 +26,7 @@ OPTIONAL API KEYS
 Copy .env.example to .env.
 - PIXABAY_API_KEY enables Pixabay as the preferred search provider.
 - VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET enable direct file uploads using an unsigned Cloudinary preset.
+- RESEND_API_KEY + EMAIL_FROM enable required 6-digit email verification for newly created accounts. EMAIL_FROM must be a sender address accepted by your Resend account.
 
 Without Cloudinary, users can add pins from a direct HTTPS image URL. A webpage URL is a source link, not necessarily an image. Restart Vite after editing .env; production VITE_* values are compiled into the frontend and require a rebuild. Never put a Cloudinary API secret in VITE_* variables.
 
