@@ -36,7 +36,7 @@ export function CreateCollectionDialog({ trigger, open: controlledOpen, onOpenCh
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content aria-describedby={undefined} className="dialog-card">
+        <Dialog.Content className="dialog-card">
           <div className="dialog-head">
             <div><span className="eyebrow">NEW COLLECTION</span><Dialog.Title>Start a new mood.</Dialog.Title></div>
             <Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close>

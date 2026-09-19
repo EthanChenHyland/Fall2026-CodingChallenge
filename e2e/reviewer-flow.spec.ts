@@ -306,6 +306,36 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   }
 })
 
+test('shell popovers keep valid accessibility references and dialogs expose descriptions', async ({ page }) => {
+  await enterDemo(page)
+  const account = page.getByRole('button', { name: 'Account menu' })
+  const notifications = page.getByRole('button', { name: /notifications/i })
+
+  await expect(account).not.toHaveAttribute('aria-controls')
+  await expect(notifications).not.toHaveAttribute('aria-controls')
+
+  await account.click()
+  await expect(account).toHaveAttribute('aria-controls', 'account-popover')
+  await expect(page.locator('#account-popover')).toBeVisible()
+  await account.click()
+  await expect(page.locator('#account-popover')).toHaveCount(0)
+  await expect(account).not.toHaveAttribute('aria-controls')
+
+  await notifications.click()
+  await expect(notifications).toHaveAttribute('aria-controls', 'notifications-popover')
+  await expect(page.locator('#notifications-popover')).toBeVisible()
+  await notifications.click()
+  await expect(page.locator('#notifications-popover')).toHaveCount(0)
+  await expect(notifications).not.toHaveAttribute('aria-controls')
+
+  await page.goto('/collections')
+  await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
+  await page.keyboard.press('n')
+  const createDialog = page.getByRole('dialog')
+  await expect(createDialog).toBeVisible()
+  await expect(createDialog).toHaveAttribute('aria-describedby', /.+/)
+})
+
 test('stored user content stays inert instead of executing as HTML', async ({ page }) => {
   await enterDemo(page)
   const payload = '</h1><img src=x onerror="window.__mosaicXss=1">'

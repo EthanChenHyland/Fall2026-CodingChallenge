@@ -141,7 +141,7 @@ export function AppShell() {
                 className="notification-button"
                 aria-label={unread ? `${unread} unread notifications` : 'Notifications'}
                 aria-expanded={notificationsOpen}
-                aria-controls="notifications-popover"
+                aria-controls={notificationsOpen ? 'notifications-popover' : undefined}
                 onClick={() => {
                   const next = !notificationsOpen
                   setNotificationsOpen(next)
@@ -167,7 +167,7 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user?.avatar_url} name={me?.user?.name ?? initials} /></button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls={profileOpen ? 'account-popover' : undefined} onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user?.avatar_url} name={me?.user?.name ?? initials} /></button>
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user?.name}</strong><span>{me?.user?.email}</span></div>
