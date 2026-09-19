@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowLeft, ArrowUp, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, GripVertical, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Play, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, GripVertical, ImagePlus, LayoutDashboard, ListTree, LoaderCircle, Lock, MoveRight, Pencil, Play, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -376,6 +376,8 @@ export function CollectionPage() {
         </div>
       </section>
       <CollectionPresentation collection={collection} open={presentationOpen} onOpenChange={setPresentationOpen} />
+
+      <div className={`collection-save-status ${busy ? 'visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{busy ? <><LoaderCircle size={13} className="spin" /> Saving changes…</> : null}</div>
 
       {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {audience === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}{collection.role === 'owner' && shareAnalytics.data ? <small className="share-analytics">{shareAnalytics.data.analytics.views} views · {shareAnalytics.data.analytics.uniqueVisitors} visitors · {shareAnalytics.data.analytics.clones} copies</small> : null}</span><div className="share-strip-actions"><Link to={`/shared/${collection.share_token}/present`}><Play size={15} /> Presentation link</Link><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div></div>}
 

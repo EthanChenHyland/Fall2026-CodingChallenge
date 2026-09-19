@@ -157,6 +157,8 @@ export function DiscoverPage() {
         <input aria-label="Search images" ref={inputRef} value={query} onChange={(event) => { setQuery(event.target.value); setActiveTopic('All') }} placeholder="Try “Tokyo”, “ceramics”, or “architecture”" />
         <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
       </form>
+      {autocomplete.isFetching && query.trim() !== submittedQuery ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
+      {autocomplete.isError && query.trim() !== submittedQuery ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
       {autocomplete.data?.suggestions.length && query.trim() !== submittedQuery ? <div className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocomplete.data.suggestions.slice(0, 6).map((suggestion) => <button role="option" aria-selected="false" key={suggestion} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
 
       {(recentSearches.length || savedSearches.length) ? <div className="search-memory" aria-label="Saved and recent searches">
