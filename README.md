@@ -37,7 +37,7 @@ I used **React + TypeScript** for the frontend and **Node.js + Express** for the
 
 In production, one Node process serves both the API and the built React app. That keeps deployment simple while still letting the frontend and backend stay separate during development.
 
-For image discovery, Mosaic works without any API keys by using Wikimedia Commons plus a bundled fallback catalog. Pixabay can be enabled as an optional search provider. Cloudinary is also optional for direct file uploads.
+For image discovery, Mosaic works without any API keys by using Wikimedia Commons plus a bundled fallback catalog. Pixabay can be enabled as an optional search provider. Its unfiltered browse feed deliberately uses recent results across all image types, then rotates and shuffles provider pages so discovery is not stuck in one visual niche. Explore also surfaces a live outside-Mosaic discovery section when that provider is available. Cloudinary is optional for direct file uploads.
 
 I took the same approach with recommendations. Mosaic uses saved interests, social signals, popularity, and **More like this / Not interested** feedback without needing a paid model API. I liked that anyone reviewing the project can run it without setting up an AI service first.
 
@@ -81,7 +81,7 @@ Owners can also collaborate with other accounts. Editors have scoped permissions
 
 I added public profiles, user and collection follows, For You / Following / Trending feeds, likes, threaded comments, mentions, direct messages, pin sharing through messages, privacy-safe repin provenance, public-content reporting, and previous/next browsing inside a collection from pin detail pages.
 
-Discover also remembers recent and saved searches, supports live suggestions and result-type filters, and keeps the existing recommendation system based on saved interests plus explicit **More like this / Not interested** feedback.
+Discover also remembers recent and saved searches, supports live suggestions and result-type filters, includes a shuffleable broad Pixabay browse feed, and keeps the existing recommendation system based on saved interests plus explicit **More like this / Not interested** feedback. Explore mixes Mosaic's public social feed with a separate shuffleable provider-discovery section on the For You view.
 
 ### Reliability and privacy
 

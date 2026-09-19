@@ -50,7 +50,7 @@ Recommendations work the same way: saved interests, follows, popularity, and Mor
 
 EXTERNAL SERVICES / INTEGRATIONS
 - Render — production hosting, health checks, and persistent disk storage.
-- Pixabay API — preferred live image discovery provider when an API key is configured.
+- Pixabay API — preferred live image discovery provider when an API key is configured; unfiltered discovery rotates recent results across all image types instead of staying in one popularity niche.
 - Wikimedia Commons — keyless live image-search fallback so discovery still works out of the box.
 - Cloudinary — optional direct image uploads from the browser through a restricted unsigned upload preset.
 - Resend — optional 6-digit signup verification email delivery.
@@ -75,7 +75,7 @@ QUICK REVIEW PATH
 3. Open Collections and try Recently saved / Most liked / Unsorted, then enter a normal collection.
 4. Create a Section, use Select for bulk organization, then switch to Canvas and drag pins until an alignment guide appears. Try Undo, Redo, Remix, and Tidy.
 5. Use Edit to change the cover/crop, theme, and layout. Reorder a few saves, try Present, then use Activity and Share to publish a read-only link or invite an editor.
-6. Open Explore and switch among For You, Following, and Trending. Try multi-select saving and More like this / Not interested.
+6. Open Explore and shuffle the outside-Mosaic discovery section, then switch among For You, Following, and Trending. Try multi-select saving and More like this / Not interested.
 7. Open a public pin to Like, Comment, Reply/@mention, Share, or Send it into Messages with an optional note.
 8. Visit another profile to follow/message them or follow one of their public collections.
 9. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search.
