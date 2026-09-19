@@ -44,6 +44,12 @@ export function DiscoverPage() {
     queryKey: ['search-recommendations', submittedQuery],
     queryFn: () => api.searchRecommendations(submittedQuery),
   })
+  const autocomplete = useQuery({
+    queryKey: ['search-autocomplete', query.trim()],
+    queryFn: () => api.searchRecommendations(query.trim()),
+    enabled: query.trim().length >= 2 && query.trim() !== submittedQuery,
+    staleTime: 30_000,
+  })
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['search-recommendations'] }); void queryClient.invalidateQueries({ queryKey: ['recommendations'] }) },
@@ -151,6 +157,7 @@ export function DiscoverPage() {
         <input aria-label="Search images" ref={inputRef} value={query} onChange={(event) => { setQuery(event.target.value); setActiveTopic('All') }} placeholder="Try “Tokyo”, “ceramics”, or “architecture”" />
         <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
       </form>
+      {autocomplete.data?.suggestions.length && query.trim() !== submittedQuery ? <div className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocomplete.data.suggestions.slice(0, 6).map((suggestion) => <button role="option" aria-selected="false" key={suggestion} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
 
       {(recentSearches.length || savedSearches.length) ? <div className="search-memory" aria-label="Saved and recent searches">
         {savedSearches.length ? <div><span className="eyebrow">SAVED</span><div>{savedSearches.map((entry) => <button key={`saved-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}<Bookmark size={11} fill="currentColor" /></button>)}</div></div> : null}
