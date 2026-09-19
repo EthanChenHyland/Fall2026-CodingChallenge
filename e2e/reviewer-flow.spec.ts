@@ -406,8 +406,8 @@ test('direct messages persist between accounts and surface unread threads', asyn
 test('mobile shell stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
+  await expect(page.locator('.topbar-search')).toHaveCount(0)
   for (const control of [
-    page.getByRole('button', { name: 'Search ideas' }),
     page.getByRole('button', { name: /notifications/i }),
     page.getByRole('button', { name: 'Account menu' }),
   ]) {
@@ -902,6 +902,9 @@ test('discover remembers searches and filters result types and image shape', asy
   const memory = page.getByLabel('Saved and recent searches')
   await expect(memory).toBeVisible()
   await expect(memory.getByRole('button', { name: /ceramics/ }).first()).toBeVisible()
+  const searchBounds = await page.locator('.discover-search').boundingBox()
+  const memoryBounds = await memory.boundingBox()
+  expect((memoryBounds?.y ?? 0) - ((searchBounds?.y ?? 0) + (searchBounds?.height ?? 0))).toBeGreaterThanOrEqual(12)
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
     await page.setViewportSize(viewport)
     const mobileFilterButton = page.getByRole('button', { name: /Discovery filters/ })

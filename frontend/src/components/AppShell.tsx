@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, Search, ShieldCheck, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -137,11 +137,6 @@ export function AppShell() {
         <header className="topbar">
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
             <BrandMark compact /> Mosaic
-          </button>
-          <button className="topbar-search" aria-label={location.pathname === '/' ? 'Search ideas' : 'Find something to save'} onClick={() => navigate('/', { state: { focusSearch: true } })}>
-            <Search size={17} />
-            <span>{location.pathname === '/' ? 'Search ideas' : 'Find something to save'}</span>
-            <kbd>/</kbd>
           </button>
           <div className="topbar-actions">
             {!online && <span className="offline-badge" title="Reconnect to load or save changes"><WifiOff size={13} /> Offline</span>}
