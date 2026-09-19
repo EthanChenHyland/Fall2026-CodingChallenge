@@ -34,6 +34,7 @@ export const api = {
   deleteAccount: (password: string, confirmation: 'DELETE') => request<void>('/api/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirmation }) }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
   recommendations: () => request<{ pins: PublicPin[]; basedOn: string[]; personalized: boolean }>('/api/explore/recommended'),
+  exploreCollections: () => request<{ collections: Collection[] }>('/api/explore/collections'),
   recommendationFeedback: (id: number, signal: 'more' | 'not_interested') => request<void>(`/api/pins/${id}/recommendation-feedback`, { method: 'POST', body: JSON.stringify({ signal }) }),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),

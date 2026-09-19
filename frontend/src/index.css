@@ -46,6 +46,9 @@ img { display: block; max-width: 100%; }
 .main-area { margin-left: 230px; min-height: 100vh; }
 .topbar { height: 68px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 16px; padding: 0 28px; position: sticky; top: 0; z-index: 15; background: rgba(245, 245, 242, 0.92); backdrop-filter: blur(14px); }
 .mini-brand { display: none; }
+.topbar-quick-actions { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; }
+.topbar-quick-actions button { min-height: 36px; border: 1px solid var(--line); border-radius: 9px; padding: 0 10px; display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.62); color: #69655e; cursor: pointer; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.topbar-quick-actions button:hover, .topbar-quick-actions button:focus-visible { border-color: #bfc1dd; background: #f7f6ff; color: var(--accent-dark); }
 .avatar { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 .avatar-frame { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 50%; background: #23221f; color: #fff; display: grid; place-items: center; }
 .avatar-frame > img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block; object-fit: cover; object-position: 50% 50%; }
@@ -423,6 +426,9 @@ img { display: block; max-width: 100%; }
   .brand { padding: 0; }
   .nav-item { justify-content: center; padding-inline: 0; width: 46px; }
   .main-area { margin-left: 78px; }
+  .topbar-quick-actions span { display: none; }
+  .topbar-quick-actions button { width: 38px; padding: 0; justify-content: center; }
+  .explore-collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .saved-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -433,6 +439,8 @@ img { display: block; max-width: 100%; }
   .main-area { margin-left: 0; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .topbar { height: 60px; padding: 0 16px; }
   .mini-brand { display: inline-flex; margin-right: auto; font-size: 17px; }
+  .topbar-quick-actions { display: none; }
+  .explore-collection-grid { grid-template-columns: 1fr; }
   .avatar { width: 44px; height: 44px; }
   .page-wrap { width: calc(100% - 28px); padding: 30px 0 34px; }
   .mobile-nav { position: fixed; display: grid; grid-template-columns: repeat(5, 1fr); left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; min-height: 60px; border: 1px solid #d9d9d3; border-radius: 10px; background: rgba(250,250,247,.97); backdrop-filter: blur(16px); box-shadow: 0 8px 28px rgba(33,33,30,.12); }
@@ -665,6 +673,16 @@ img { display: block; max-width: 100%; }
 .privacy-note + .privacy-note { margin-top: 7px; }
 .followers-only-label { display: inline-block; margin-top: 5px; color: var(--accent); font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
 .recommendation-section { margin: 4px 0 58px; padding-bottom: 42px; border-bottom: 1px solid var(--line); }
+.explore-collections-section { margin: -10px 0 58px; padding-bottom: 42px; border-bottom: 1px solid var(--line); }
+.explore-collection-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.explore-collection-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.58); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.explore-collection-card:hover, .explore-collection-card:focus-visible { transform: translateY(-2px); border-color: #c5c2d5; box-shadow: 0 12px 28px rgba(35,31,26,.07); }
+.explore-collection-card:hover .collection-cover-mosaic img { transform: scale(1.018); }
+.explore-collection-cover { aspect-ratio: 4 / 3; overflow: hidden; border-bottom: 1px solid var(--line); background: #e5dfd4; }
+.explore-collection-copy { min-width: 0; padding: 11px 12px 13px; display: grid; gap: 5px; }
+.explore-collection-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-family: Georgia, serif; font-size: 15px; font-weight: 400; }
+.explore-collection-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 9px; }
+.explore-collection-copy p { margin: 2px 0 0; max-height: 3em; overflow: hidden; color: #767169; font-size: 10px; line-height: 1.45; }
 .recommendation-grid { columns: 4 220px; }
 .explore-web-section { margin: 52px 0 18px; padding-top: 34px; border-top: 1px solid var(--line); }
 .explore-web-grid { columns: 4 220px; }

@@ -1,12 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Compass, Download, FolderHeart, FolderPlus, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, Upload, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { AvatarFrame } from './AvatarFrame'
 import { BrandMark } from './BrandMark'
 import { CommandPalette } from './CommandPalette'
+import { ImportDialog } from './ImportDialog'
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -138,6 +139,11 @@ export function AppShell() {
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
             <BrandMark compact /> Mosaic
           </button>
+          <nav className="topbar-quick-actions" aria-label="Quick actions">
+            <button aria-label="Quick save" onClick={() => navigate('/capture')}><Plus size={15} /><span>Save</span></button>
+            <button aria-label="Quick new collection" onClick={() => navigate('/collections?new=1')}><FolderPlus size={15} /><span>New collection</span></button>
+            <ImportDialog trigger={<button aria-label="Quick import"><Upload size={15} /><span>Import</span></button>} />
+          </nav>
           <div className="topbar-actions">
             {!online && <span className="offline-badge" title="Reconnect to load or save changes"><WifiOff size={13} /> Offline</span>}
             <div className="popover-wrap">

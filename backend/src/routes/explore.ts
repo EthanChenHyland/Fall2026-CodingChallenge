@@ -99,6 +99,30 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
   })
 })
 
+exploreRouter.get('/collections', (req: AuthedRequest, res) => {
+  const viewerId = req.user?.id ?? -1
+  const collections = db.prepare(`
+    SELECT c.id, c.name, c.description, c.visibility, c.audience, c.share_token, c.created_at, c.updated_at,
+      COUNT(DISTINCT i.id) AS item_count,
+      (SELECT image_url FROM items cover_item WHERE cover_item.collection_id = c.id ORDER BY cover_item.id DESC LIMIT 1) AS cover_url,
+      u.id AS owner_id, u.name AS owner_name, u.avatar_url AS owner_avatar,
+      (SELECT COUNT(*) FROM collection_follows followers WHERE followers.collection_id = c.id) AS follower_count,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM collection_follows mine WHERE mine.collection_id = c.id AND mine.follower_id = ?
+      ) THEN 1 ELSE 0 END AS followed_by_me
+    FROM collections c
+    JOIN collection_members owner_member ON owner_member.collection_id = c.id AND owner_member.role = 'owner'
+    JOIN users u ON u.id = owner_member.user_id
+    LEFT JOIN items i ON i.collection_id = c.id
+    WHERE c.visibility = 'public' AND c.share_token IS NOT NULL AND u.id != ?
+    GROUP BY c.id
+    HAVING COUNT(DISTINCT i.id) > 0
+    ORDER BY follower_count DESC, c.updated_at DESC
+    LIMIT 6
+  `).all(viewerId, viewerId)
+  return res.json({ collections })
+})
+
 exploreRouter.get('/', (req: AuthedRequest, res) => {
   const page = Number(req.query.page ?? 1)
   if (!Number.isSafeInteger(page) || page < 1 || page > 10000) return res.status(400).json({ error: 'Invalid page.' })

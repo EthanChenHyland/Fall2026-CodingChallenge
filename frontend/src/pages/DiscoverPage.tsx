@@ -8,12 +8,13 @@ import { ImageCard } from '../components/ImageCard'
 import { ImageFilterControls } from '../components/ImageFilterControls'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { SocialSearchResults } from '../components/SocialSearchResults'
-import { applyImageFilters, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
+import { applyImageFilters, shuffleImages, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
 const searchKinds = ['All', 'Images', 'People', 'Collections', 'Pins'] as const
 type SearchKind = typeof searchKinds[number]
 const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
+const PROVIDER_SHUFFLE_INTERVAL_MS = 3_000
 const readStoredSearches = (key: string) => {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? '[]')
@@ -40,17 +41,20 @@ export function DiscoverPage() {
   const [autocompleteOpen, setAutocompleteOpen] = useState(false)
   const [searchMemoryVersion, setSearchMemoryVersion] = useState(0)
   const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
+  const [browseDisplaySeed, setBrowseDisplaySeed] = useState(randomBrowseSeed)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim())
   const inputRef = useRef<HTMLInputElement>(null)
   const searchWrapRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const lastProviderShuffleRef = useRef(0)
   const location = useLocation()
   const effectiveQuery = submittedQuery || (activeTopic === 'All' ? '' : activeTopic)
-  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
     queryKey: ['search', effectiveQuery, browseSeed],
     queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source, browseSeed),
     initialPageParam: { page: 1, source: '' },
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
+    placeholderData: (previousData) => previousData,
   })
   const recommendations = useQuery({
     queryKey: ['search-recommendations', submittedQuery],
@@ -76,7 +80,12 @@ export function DiscoverPage() {
       return true
     })
   }, [data])
-  const filteredResults = useMemo(() => applyImageFilters(results, imageOrientation, imageOrder), [imageOrder, imageOrientation, results])
+  const filteredResults = useMemo(() => {
+    const filtered = applyImageFilters(results, imageOrientation, imageOrder)
+    return imageOrder === 'default' && !effectiveQuery && data?.pages[0]?.source === 'pixabay'
+      ? shuffleImages(filtered, browseDisplaySeed)
+      : filtered
+  }, [browseDisplaySeed, data?.pages, effectiveQuery, imageOrder, imageOrientation, results])
   const firstPage = data?.pages[0]
   const showImages = searchKind === 'All' || searchKind === 'Images'
   const showPeople = searchKind === 'All' || searchKind === 'People'
@@ -160,7 +169,9 @@ export function DiscoverPage() {
     setAutocompleteOpen(false)
     setActiveTopic('All')
     setSubmittedQuery(nextQuery)
-    setBrowseSeed(randomBrowseSeed())
+    const nextSeed = randomBrowseSeed()
+    setBrowseSeed(nextSeed)
+    setBrowseDisplaySeed(nextSeed)
     setSearchParams(nextQuery ? { q: nextQuery } : {}, { replace: true })
     rememberSearch(nextQuery)
   }
@@ -170,8 +181,20 @@ export function DiscoverPage() {
     setActiveTopic(topic)
     setQuery('')
     setSubmittedQuery('')
-    setBrowseSeed(randomBrowseSeed())
+    const nextSeed = randomBrowseSeed()
+    setBrowseSeed(nextSeed)
+    setBrowseDisplaySeed(nextSeed)
     setSearchParams(topic === 'All' ? {} : { topic }, { replace: true })
+  }
+
+  const shuffleBrowse = () => {
+    const nextSeed = randomBrowseSeed()
+    setBrowseDisplaySeed(nextSeed)
+    const now = Date.now()
+    if (!isFetching && now - lastProviderShuffleRef.current >= PROVIDER_SHUFFLE_INTERVAL_MS) {
+      lastProviderShuffleRef.current = now
+      setBrowseSeed(nextSeed)
+    }
   }
 
   return (
@@ -250,7 +273,7 @@ export function DiscoverPage() {
 
       {showPins && recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
-      {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {filteredResults.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" onClick={() => setBrowseSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
+      {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {filteredResults.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" aria-label="Shuffle Pixabay finds" onClick={shuffleBrowse}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
       {showImages && firstPage?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so Mosaic is showing local picks for now.</span><button className="secondary-button" onClick={() => void refetch()}>Retry Pixabay</button></div> : null}
       {showImages && (isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>

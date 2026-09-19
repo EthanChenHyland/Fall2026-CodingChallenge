@@ -285,12 +285,63 @@ test('Pixabay feeds retry failed next pages and Explore keeps the web feed at th
 
   await page.goto('/explore')
   await expect(page.getByRole('heading', { name: 'Fresh from Pixabay' })).toBeVisible()
+  const featuredCollections = page.getByRole('region', { name: 'Featured public collections' })
+  await expect(featuredCollections).toBeVisible()
+  expect(await featuredCollections.locator('.explore-collection-card').count()).toBeGreaterThan(0)
   const webFeedIsAfterCommunityFeed = await page.evaluate(() => {
     const communityEnd = document.querySelector('.feed-sentinel')
     const webFeed = document.querySelector('.explore-web-section')
     return Boolean(communityEnd && webFeed && (communityEnd.compareDocumentPosition(webFeed) & Node.DOCUMENT_POSITION_FOLLOWING))
   })
   expect(webFeedIsAfterCommunityFeed).toBe(true)
+})
+
+test('Pixabay shuffle stays responsive without turning rapid clicks into provider spam', async ({ page }) => {
+  let searchRequests = 0
+  await page.route(/\/api\/search\?/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname !== '/api/search') return route.continue()
+    searchRequests += 1
+    const batch = searchRequests
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        source: 'pixabay',
+        results: Array.from({ length: 8 }, (_, index) => ({
+          id: `pixabay-${batch}-${index}`,
+          title: `Shuffle ${batch}-${index}`,
+          creator: 'E2E',
+          imageUrl: `https://example.com/shuffle-${batch}-${index}.jpg`,
+          pageUrl: `https://pixabay.com/images/id-${batch}-${index}/`,
+          tags: ['shuffle', 'test'],
+          width: 640 + index,
+          height: 480,
+        })),
+      }),
+    })
+  })
+
+  await enterDemo(page)
+  const discoverShuffle = page.getByRole('button', { name: 'Shuffle Pixabay finds' })
+  await expect(discoverShuffle).toBeVisible()
+  const discoverBefore = await page.locator('.image-card .image-meta strong').allTextContents()
+  const discoverRequestsBefore = searchRequests
+  for (let index = 0; index < 8; index += 1) await discoverShuffle.click()
+  await expect(discoverShuffle).toBeEnabled()
+  await page.waitForTimeout(250)
+  const discoverAfter = await page.locator('.image-card .image-meta strong').allTextContents()
+  expect(discoverAfter).not.toEqual(discoverBefore)
+  expect(searchRequests - discoverRequestsBefore).toBeLessThanOrEqual(1)
+
+  await page.goto('/explore')
+  const exploreShuffle = page.getByRole('button', { name: 'Shuffle Pixabay finds' })
+  await expect(exploreShuffle).toBeVisible()
+  const exploreRequestsBefore = searchRequests
+  for (let index = 0; index < 8; index += 1) await exploreShuffle.click()
+  await expect(exploreShuffle).toBeEnabled()
+  await page.waitForTimeout(250)
+  expect(searchRequests - exploreRequestsBefore).toBeLessThanOrEqual(1)
 })
 
 test('explore supports multi-select saves into one collection', async ({ page }) => {
@@ -773,6 +824,30 @@ test('390px capture, dialog focus and offline reload have usable recovery', asyn
   await context.setOffline(false)
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByRole('heading', { name: 'Save something new.' })).toBeVisible()
+})
+
+test('topbar quick actions expose save, new collection and import without crowding mobile', async ({ page }) => {
+  await enterDemo(page)
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+
+  const quickActions = page.getByRole('navigation', { name: 'Quick actions' })
+  await expect(quickActions).toBeVisible()
+  await expect(quickActions.getByRole('button', { name: 'Quick save' })).toBeVisible()
+  await expect(quickActions.getByRole('button', { name: 'Quick new collection' })).toBeVisible()
+  await quickActions.getByRole('button', { name: 'Quick import' }).click()
+  await expect(page.getByRole('dialog', { name: 'Bring things into Mosaic.' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Bring things into Mosaic.' })).toHaveCount(0)
+
+  await quickActions.getByRole('button', { name: 'Quick save' }).click()
+  await expect(page.getByRole('heading', { name: 'Save something new.' })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Quick actions' }).getByRole('button', { name: 'Quick new collection' }).click()
+  await expect(page.getByRole('dialog', { name: 'Start a new mood.' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole('navigation', { name: 'Quick actions' })).toBeHidden()
 })
 
 test('command palette opens collections and launches presentation mode', async ({ page }) => {

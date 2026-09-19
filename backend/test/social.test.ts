@@ -70,6 +70,23 @@ test('public collections can be followed independently and feed Following', asyn
   assert.ok(!after.body.pins.some((pin: { collection_id: number }) => pin.collection_id === collectionId))
 })
 
+test('Explore surfaces public collections as a separate discovery section', async () => {
+  const viewer = await makeCurator('Collection Explorer')
+  const curator = await makeCurator('Featured Board Owner')
+  const created = await curator.agent.post('/api/collections').send({ name: 'Featured material board', description: 'A public board for Explore.' }).expect(201)
+  const collectionId = created.body.collection.id as number
+  const result = fixtureImage('featured material')
+  await curator.agent.post(`/api/collections/${collectionId}/items`).send({ sourceId: result.id, imageUrl: result.imageUrl, sourcePage: result.pageUrl, sourceCreator: result.creator, title: 'Featured material pin' }).expect(201)
+  await curator.agent.post(`/api/collections/${collectionId}/share`).expect(200)
+
+  const response = await viewer.agent.get('/api/explore/collections').expect(200)
+  const featured = response.body.collections.find((collection: { id: number }) => collection.id === collectionId)
+  assert.ok(featured)
+  assert.equal(featured.owner_name, 'Featured Board Owner')
+  assert.equal(featured.item_count, 1)
+  assert.ok(featured.share_token)
+})
+
 test('followers-only collections require a follower relationship', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)

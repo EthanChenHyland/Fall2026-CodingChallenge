@@ -1,16 +1,19 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare2, Compass, LoaderCircle, Shuffle, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { CollectionCover } from '../components/CollectionCover'
 import { FilterMenu } from '../components/FilterMenu'
 import { ImageCard } from '../components/ImageCard'
 import { ImageFilterControls } from '../components/ImageFilterControls'
 import { PublicPinCard } from '../components/PublicPinCard'
-import { applyImageFilters, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
+import { applyImageFilters, shuffleImages, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
 import { rememberCollection } from '../lib/recentCollection'
 
 const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
+const PROVIDER_SHUFFLE_INTERVAL_MS = 3_000
 
 export function ExplorePage() {
   const [mode, setMode] = useState<'all' | 'following' | 'trending'>('all')
@@ -18,17 +21,21 @@ export function ExplorePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [destinationId, setDestinationId] = useState('')
   const [webSeed, setWebSeed] = useState(randomBrowseSeed)
+  const [webDisplaySeed, setWebDisplaySeed] = useState(randomBrowseSeed)
   const [webOrientation, setWebOrientation] = useState<ImageOrientation>('all')
   const [webOrder, setWebOrder] = useState<ImageOrder>('default')
   const sentinel = useRef<HTMLDivElement>(null)
   const webSentinel = useRef<HTMLDivElement>(null)
+  const lastProviderShuffleRef = useRef(0)
   const queryClient = useQueryClient()
   const recommendations = useQuery({ queryKey: ['recommendations'], queryFn: api.recommendations })
+  const featuredCollections = useQuery({ queryKey: ['explore-collections'], queryFn: api.exploreCollections, enabled: mode === 'all', staleTime: 60_000 })
   const {
     data: webData,
     isLoading: webIsLoading,
     isError: webIsError,
     refetch: webRefetch,
+    isFetching: webIsFetching,
     fetchNextPage: fetchNextWebPage,
     hasNextPage: webHasNextPage,
     isFetchingNextPage: webIsFetchingNextPage,
@@ -40,6 +47,7 @@ export function ExplorePage() {
     getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
     enabled: mode === 'all',
     staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
   })
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
@@ -58,8 +66,13 @@ export function ExplorePage() {
     getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
   })
   const pins = [...new Map((data?.pages.flatMap((page) => page.pins) ?? []).map((pin) => [pin.id, pin])).values()]
-  const webResults = [...new Map((webData?.pages.flatMap((page) => page.results) ?? []).map((image) => [image.id, image])).values()]
-  const filteredWebResults = applyImageFilters(webResults, webOrientation, webOrder)
+  const webResults = useMemo(() => [...new Map((webData?.pages.flatMap((page) => page.results) ?? []).map((image) => [image.id, image])).values()], [webData?.pages])
+  const filteredWebResults = useMemo(() => {
+    const filtered = applyImageFilters(webResults, webOrientation, webOrder)
+    return webOrder === 'default' && webData?.pages[0]?.source === 'pixabay'
+      ? shuffleImages(filtered, webDisplaySeed)
+      : filtered
+  }, [webData?.pages, webDisplaySeed, webOrder, webOrientation, webResults])
   const webSource = webData?.pages[0]?.source
   const collections = collectionsQuery.data?.collections ?? []
   const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId) ? destinationId : ''
@@ -108,6 +121,16 @@ export function ExplorePage() {
     setMode(nextMode)
   }
 
+  const shuffleWeb = () => {
+    const nextSeed = randomBrowseSeed()
+    setWebDisplaySeed(nextSeed)
+    const now = Date.now()
+    if (!webIsFetching && now - lastProviderShuffleRef.current >= PROVIDER_SHUFFLE_INTERVAL_MS) {
+      lastProviderShuffleRef.current = now
+      setWebSeed(nextSeed)
+    }
+  }
+
   useEffect(() => {
     if (!sentinel.current) return
     const observer = new IntersectionObserver(([entry]) => {
@@ -148,13 +171,26 @@ export function ExplorePage() {
           <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
         </section>
       ) : null}
+      {mode === 'all' && featuredCollections.data?.collections.length ? (
+        <section className="explore-collections-section" aria-label="Featured public collections">
+          <div className="section-head"><div><span className="eyebrow">PUBLIC COLLECTIONS</span><h2>Boards worth opening</h2></div><span className="result-count">Curated by Mosaic members</span></div>
+          <div className="explore-collection-grid">
+            {featuredCollections.data.collections.slice(0, 4).map((collection) => (
+              <Link className="explore-collection-card" to={`/shared/${collection.share_token}`} key={collection.id}>
+                <div className="explore-collection-cover"><CollectionCover collection={collection} /></div>
+                <div className="explore-collection-copy"><strong>{collection.name}</strong><span>{collection.owner_name ?? 'Mosaic curator'} · {collection.item_count} {collection.item_count === 1 ? 'save' : 'saves'}</span><p>{collection.description || 'A public collection from the Mosaic community.'}</p></div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => changeMode('all')}>Browse everyone</button>}</div>}
       <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
       {mode === 'all' ? (
         <section className="explore-web-section">
           <div className="section-head explore-web-head">
             <div><span className="eyebrow">AROUND THE WEB</span><h2>{webSource === 'wikimedia' ? 'Fresh visual finds' : 'Fresh from Pixabay'}</h2></div>
-            <div className="explore-web-actions"><FilterMenu activeCount={Number(webOrientation !== 'all') + Number(webOrder !== 'default')} label="Web image filters"><ImageFilterControls orientation={webOrientation} order={webOrder} onOrientationChange={setWebOrientation} onOrderChange={setWebOrder} showHeading={false} onReset={() => { setWebOrientation('all'); setWebOrder('default') }} /></FilterMenu><button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button></div>
+            <div className="explore-web-actions"><FilterMenu activeCount={Number(webOrientation !== 'all') + Number(webOrder !== 'default')} label="Web image filters"><ImageFilterControls orientation={webOrientation} order={webOrder} onOrientationChange={setWebOrientation} onOrderChange={setWebOrder} showHeading={false} onReset={() => { setWebOrientation('all'); setWebOrder('default') }} /></FilterMenu><button className="secondary-button" aria-label="Shuffle Pixabay finds" onClick={shuffleWeb}><Shuffle size={14} /> Shuffle</button></div>
           </div>
           {webData?.pages[0]?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so these are Mosaic picks while it recovers.</span><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : null}
           {webIsLoading ? <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : webIsError && !webResults.length ? <div className="empty-state compact"><h3>Could not reach Pixabay.</h3><p>Try again in a moment.</p><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : webResults.length ? <>{filteredWebResults.length ? <div className="masonry-grid explore-web-grid">{filteredWebResults.map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div> : <div className="empty-state compact"><h3>No loaded images match these filters.</h3><button className="secondary-button" onClick={() => { setWebOrientation('all'); setWebOrder('default') }}>Clear filters</button></div>}<div className="discovery-loader" ref={webSentinel} aria-live="polite">{webIsFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more from Pixabay…</> : webIsFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextWebPage()}>Retry loading more</button></> : null}</div></> : null}
