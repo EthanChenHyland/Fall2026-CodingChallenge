@@ -5,7 +5,7 @@ import { db } from '../db.js'
 import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
 import { exportPortableMedia, localMediaReferenceExists, persistProviderImage, pruneUnusedMedia, stagePortableMedia } from '../lib/media.js'
 import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
-import { copyItemLineage } from '../lib/provenance.js'
+import { copyItemLineage, recordRepinLineage } from '../lib/provenance.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
 import {
   requireAuth,
@@ -152,6 +152,66 @@ collectionsRouter.post('/', (req: AuthedRequest, res) => {
   })
   const id = create()
   res.status(201).json({ collection: getCollection(id, req.user!.id) })
+})
+
+collectionsRouter.post('/:id/clone', (req: AuthedRequest, res) => {
+  const sourceId = Number(req.params.id)
+  if (!Number.isSafeInteger(sourceId) || sourceId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
+  const source = db.prepare(`
+    SELECT c.*
+    FROM collections c
+    WHERE c.id = ? AND c.audience = 'public' AND c.share_token IS NOT NULL
+  `).get(sourceId) as Record<string, unknown> | undefined
+  if (!source) return res.status(404).json({ error: 'Public collection not found.' })
+
+  const sourceSections = db.prepare('SELECT * FROM collection_sections WHERE collection_id = ? ORDER BY position ASC, id ASC').all(sourceId) as Array<{ id: number; name: string; position: number }>
+  const sourceItems = db.prepare(`
+    SELECT * FROM items WHERE collection_id = ?
+    ORDER BY CASE WHEN position = 0 THEN 0 ELSE 1 END ASC, position ASC, id DESC
+  `).all(sourceId) as Array<Record<string, unknown> & { id: number; section_id: number | null }>
+
+  const clonedId = db.transaction(() => {
+    const suffix = ' — copy'
+    const sourceName = String(source.name)
+    const name = sourceName.length + suffix.length <= 80 ? sourceName + suffix : sourceName.slice(0, 80 - suffix.length).trimEnd() + suffix
+    const created = db.prepare(`
+      INSERT INTO collections (name, description, visibility, audience, share_token, cover_focus_x, cover_focus_y, theme, grid_layout)
+      VALUES (?, ?, 'private', 'private', NULL, ?, ?, ?, ?)
+    `).run(name, source.description, source.cover_focus_x, source.cover_focus_y, source.theme, source.grid_layout)
+    const id = Number(created.lastInsertRowid)
+    db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'owner')").run(id, req.user!.id)
+
+    const sectionMap = new Map<number, number>()
+    const insertSection = db.prepare('INSERT INTO collection_sections (collection_id, name, position) VALUES (?, ?, ?)')
+    for (const section of sourceSections) {
+      sectionMap.set(section.id, Number(insertSection.run(id, section.name, section.position).lastInsertRowid))
+    }
+
+    const itemMap = new Map<number, number>()
+    const insertItem = db.prepare(`
+      INSERT INTO items (collection_id, source_id, image_url, source_page, source_creator, title, note, tags, section_id, position, canvas_x, canvas_y, rotation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const item of sourceItems) {
+      const inserted = insertItem.run(
+        id, item.source_id, item.image_url, item.source_page, item.source_creator, item.title, item.note, item.tags,
+        item.section_id ? sectionMap.get(item.section_id) ?? null : null,
+        item.position, item.canvas_x, item.canvas_y, item.rotation,
+      )
+      const newItemId = Number(inserted.lastInsertRowid)
+      itemMap.set(item.id, newItemId)
+      recordRepinLineage(newItemId, item.id)
+    }
+
+    const sourceCoverId = Number(source.cover_item_id ?? 0)
+    if (sourceCoverId && itemMap.has(sourceCoverId)) {
+      db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ?').run(itemMap.get(sourceCoverId), id)
+    }
+    logActivity(id, `${actor(req)} copied “${sourceName}” into a private collection`, req.user!.id)
+    return id
+  })()
+
+  return res.status(201).json({ collection: getCollection(clonedId, req.user!.id) })
 })
 
 collectionsRouter.post('/import', (req: AuthedRequest, res) => {

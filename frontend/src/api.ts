@@ -60,6 +60,7 @@ export const api = {
   collections: () => request<{ collections: Collection[] }>('/api/collections'),
   smartCollection: (view: 'recent' | 'popular' | 'unsorted') => request<{ view: string; items: SmartSavedItem[] }>(`/api/collections/smart/${view}`),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
+  cloneCollection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}/clone`, { method: 'POST' }),
   exportCollection: (id: number) => request<Record<string, unknown>>(`/api/collections/${id}/export`),
   importCollection: (payload: unknown) => request<{ collection: Collection }>('/api/collections/import', { method: 'POST', body: JSON.stringify(payload) }),
   createCollection: (body: { name: string; description?: string }) =>
