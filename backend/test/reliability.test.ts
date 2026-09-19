@@ -48,6 +48,19 @@ test('browser security headers block common XSS escalation paths', async () => {
   assert.equal(response.headers['permissions-policy'], 'camera=(), microphone=(), geolocation=()')
 })
 
+test('auth cookies, oversized payloads and unauthenticated writes fail safely', async () => {
+  const login = await request(app).post('/api/auth/login').send({ email: 'demo@mosaic.local', password: 'demo1234' }).expect(200)
+  const cookie = String(login.headers['set-cookie']?.[0] ?? '')
+  assert.match(cookie, /HttpOnly/i)
+  assert.match(cookie, /SameSite=Lax/i)
+
+  await request(app).post('/api/collections').send({ name: 'Should not exist' }).expect(401)
+  await request(app)
+    .post('/api/auth/login')
+    .send({ email: 'oversized@example.test', password: 'x'.repeat(1_100_000) })
+    .expect(413)
+})
+
 test('registration rolls back if a session cannot be created', async () => {
   const email = `atomic-register-${randomUUID()}@example.test`
   db.exec(`CREATE TRIGGER fail_test_registration_session BEFORE INSERT ON sessions

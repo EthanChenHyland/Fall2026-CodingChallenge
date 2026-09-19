@@ -115,7 +115,6 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
 
       <footer className="welcome-foot">
         <span>Mosaic · Fall 2026</span>
-        <span>Use ← → to explore</span>
       </footer>
     </main>
   )

@@ -413,6 +413,14 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Find it once. Keep it.' })).toBeVisible()
   expect(await overflowReport()).toEqual({ overflow: 0, offenders: [] })
+  const actionTop = async () => page.locator('.welcome-actions').evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY))
+  const actionTops = [await actionTop()]
+  await page.getByRole('button', { name: 'Show slide 2' }).click()
+  actionTops.push(await actionTop())
+  await page.getByRole('button', { name: 'Show slide 3' }).click()
+  actionTops.push(await actionTop())
+  expect(Math.max(...actionTops) - Math.min(...actionTops)).toBeLessThanOrEqual(2)
+  await page.getByRole('button', { name: 'Show slide 1' }).click()
   for (const control of await page.locator('.welcome-actions button, .welcome-arrow').all()) {
     const box = await control.boundingBox()
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)

@@ -20,26 +20,28 @@ export function AmbientMosaic3D() {
 
     const group = new THREE.Group()
     scene.add(group)
-    const geometry = new THREE.PlaneGeometry(0.9, 0.62)
-    const colors = [0xd9d2c7, 0x4d5bd1, 0xb7afa3, 0xe6dfd5, 0x857f77]
-    const meshes = Array.from({ length: 18 }, (_, index) => {
+    const geometry = new THREE.PlaneGeometry(1.02, 0.7)
+    const colors = [0xd9d2c7, 0x4d5bd1, 0xb7afa3, 0xe6dfd5, 0x7d78c9, 0x857f77]
+    const meshes = Array.from({ length: 22 }, (_, index) => {
       const material = new THREE.MeshBasicMaterial({
         color: colors[index % colors.length],
         transparent: true,
-        opacity: 0.12 + (index % 4) * 0.025,
+        opacity: 0.2 + (index % 4) * 0.03,
         side: THREE.DoubleSide,
         depthWrite: false,
       })
       const mesh = new THREE.Mesh(geometry, material)
-      const column = index % 6
-      const row = Math.floor(index / 6)
+      const column = index % 7
+      const row = Math.floor(index / 7)
       mesh.position.set(
-        (column - 2.5) * 1.34 + Math.sin(index * 1.7) * 0.26,
-        (row - 1) * 1.4 + Math.cos(index * 0.9) * 0.34,
+        (column - 3) * 1.26 + Math.sin(index * 1.7) * 0.3,
+        (row - 1.15) * 1.5 + Math.cos(index * 0.9) * 0.36,
         -1.5 + (index % 4) * 0.42,
       )
       mesh.rotation.z = (index % 2 ? -1 : 1) * (0.05 + (index % 5) * 0.018)
+      mesh.userData.baseX = mesh.position.x
       mesh.userData.baseY = mesh.position.y
+      mesh.userData.baseRotation = mesh.rotation.z
       mesh.userData.phase = index * 0.72
       group.add(mesh)
       return mesh
@@ -68,10 +70,14 @@ export function AmbientMosaic3D() {
     const animate = (time: number) => {
       current.x += (target.x - current.x) * 0.045
       current.y += (target.y - current.y) * 0.045
-      group.rotation.y = current.x * 0.075
-      group.rotation.x = current.y * -0.05
-      meshes.forEach((mesh) => {
-        mesh.position.y = Number(mesh.userData.baseY) + Math.sin(time * 0.00042 + Number(mesh.userData.phase)) * 0.11
+      group.rotation.y = current.x * 0.095
+      group.rotation.x = current.y * -0.065
+      group.position.y = Math.sin(time * 0.00018) * 0.08
+      meshes.forEach((mesh, index) => {
+        const phase = Number(mesh.userData.phase)
+        mesh.position.x = Number(mesh.userData.baseX) + Math.cos(time * 0.0003 + phase) * 0.12
+        mesh.position.y = Number(mesh.userData.baseY) + Math.sin(time * 0.00048 + phase) * 0.18
+        mesh.rotation.z = Number(mesh.userData.baseRotation) + Math.sin(time * 0.00024 + index) * 0.025
       })
       renderer.render(scene, camera)
       frame = window.requestAnimationFrame(animate)
