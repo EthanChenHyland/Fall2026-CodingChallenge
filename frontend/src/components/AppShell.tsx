@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Command, Compass, Download, FolderHeart, FolderPlus, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, Upload, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Compass, Download, FolderHeart, FolderPlus, Globe2, HelpCircle, Keyboard, LogOut, MessageCircle, Plus, ShieldCheck, Upload, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -145,7 +145,7 @@ export function AppShell() {
             <button aria-label="Quick save" onClick={() => navigate('/capture')}><Plus size={15} /><span>Save</span></button>
             <button aria-label="Quick new collection" onClick={() => navigate('/collections?new=1')}><FolderPlus size={15} /><span>New collection</span></button>
             <ImportDialog trigger={<button aria-label="Quick import"><Upload size={15} /><span>Import</span></button>} />
-            <button aria-label="Open commands" title="Command palette · ⌘ K / Ctrl K" onClick={() => { setCommandOpen(true); setProfileOpen(false); setNotificationsOpen(false); setQuickActionsOpen(false) }}><Command size={15} /><span>Commands</span></button>
+            <button aria-label="Open commands" title="Command palette · ⌘ K / Ctrl K" onClick={() => { setCommandOpen(true); setProfileOpen(false); setNotificationsOpen(false); setQuickActionsOpen(false) }}><Keyboard size={15} /><span>Commands</span></button>
           </nav>
           <div className="topbar-actions">
             {!online && <span className="offline-badge" title="Reconnect to load or save changes"><WifiOff size={13} /> Offline</span>}
@@ -157,7 +157,7 @@ export function AppShell() {
                   <button className="popover-action" onClick={() => { setQuickActionsOpen(false); navigate('/capture') }}><Plus size={16} /> Save</button>
                   <button className="popover-action" onClick={() => { setQuickActionsOpen(false); navigate('/collections?new=1') }}><FolderPlus size={16} /> New collection</button>
                   <ImportDialog trigger={<button className="popover-action" onClick={() => setQuickActionsOpen(false)}><Upload size={16} /> Import</button>} />
-                  <button className="popover-action" onClick={() => { setQuickActionsOpen(false); setCommandOpen(true) }}><Command size={16} /> Commands <small>⌘ K / Ctrl K</small></button>
+                  <button className="popover-action" onClick={() => { setQuickActionsOpen(false); setCommandOpen(true) }}><Keyboard size={16} /> Commands <small>⌘ K / Ctrl K</small></button>
                 </div>
               </div>}
             </div>
