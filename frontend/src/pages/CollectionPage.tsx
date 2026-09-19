@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Play, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, GripVertical, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Play, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -113,6 +113,8 @@ export function CollectionPage() {
   const [addingSection, setAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
   const [presentationOpen, setPresentationOpen] = useState(false)
+  const [draggedItemId, setDraggedItemId] = useState<number | null>(null)
+  const [draggedSectionId, setDraggedSectionId] = useState<number | null>(null)
   const [undoStack, setUndoStack] = useState<LayoutChange[][]>([])
   const [redoStack, setRedoStack] = useState<LayoutChange[][]>([])
   const [busy, setBusy] = useState(false)
@@ -264,9 +266,55 @@ export function CollectionPage() {
     toast.success('Section renamed')
   }
 
-  const renderSavedItem = (item: SavedItem) => {
+  const persistItemOrder = async (groupItems: SavedItem[], fromId: number, toId: number) => {
+    if (fromId === toId) return
+    const ids = groupItems.map((item) => item.id)
+    const from = ids.indexOf(fromId)
+    const to = ids.indexOf(toId)
+    if (from < 0 || to < 0) return
+    const next = [...ids]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    await api.reorderItems(id, next)
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+  }
+
+  const moveItemInGroup = async (groupItems: SavedItem[], itemId: number, delta: number) => {
+    const index = groupItems.findIndex((item) => item.id === itemId)
+    const target = groupItems[index + delta]
+    if (index < 0 || !target) return
+    await persistItemOrder(groupItems, itemId, target.id)
+  }
+
+  const persistSectionOrder = async (fromId: number, toId: number) => {
+    if (fromId === toId) return
+    const ids = sections.map((section) => section.id)
+    const from = ids.indexOf(fromId)
+    const to = ids.indexOf(toId)
+    if (from < 0 || to < 0) return
+    const next = [...ids]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    await api.reorderSections(id, next)
+    await queryClient.invalidateQueries({ queryKey: ['collection', id] })
+  }
+
+  const moveSection = async (sectionId: number, delta: number) => {
+    const index = sections.findIndex((section) => section.id === sectionId)
+    const target = sections[index + delta]
+    if (index < 0 || !target) return
+    await persistSectionOrder(sectionId, target.id)
+  }
+
+  const renderSavedItem = (item: SavedItem, groupItems: SavedItem[]) => {
     const selectedItem = selected.has(item.id)
-    return <article className={`saved-card ${selectedItem ? 'selected' : ''}`} key={item.id}>
+    const orderIndex = groupItems.findIndex((entry) => entry.id === item.id)
+    return <article className={`saved-card ${selectedItem ? 'selected' : ''} ${draggedItemId === item.id ? 'is-dragging' : ''}`} key={item.id} onDragOver={(event) => { if (draggedItemId !== null) event.preventDefault() }} onDrop={(event) => { event.preventDefault(); const fromId = draggedItemId; setDraggedItemId(null); if (fromId !== null) void runAction(() => persistItemOrder(groupItems, fromId, item.id)) }}>
+      {!selecting && <div className="saved-card-order" aria-label={`Reorder ${item.title}`}>
+        <button className="reorder-handle" draggable aria-label={`Drag ${item.title} to reorder`} onDragStart={(event) => { setDraggedItemId(item.id); event.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => setDraggedItemId(null)}><GripVertical size={15} /></button>
+        <button aria-label={`Move ${item.title} earlier`} disabled={busy || orderIndex <= 0} onClick={() => void runAction(() => moveItemInGroup(groupItems, item.id, -1))}><ArrowUp size={13} /></button>
+        <button aria-label={`Move ${item.title} later`} disabled={busy || orderIndex >= groupItems.length - 1} onClick={() => void runAction(() => moveItemInGroup(groupItems, item.id, 1))}><ArrowDown size={13} /></button>
+      </div>}
       {selecting && <button className="selection-toggle" aria-label={`${selectedItem ? 'Deselect' : 'Select'} ${item.title}`} aria-pressed={selectedItem} onClick={() => toggleSelected(item.id)}>{selectedItem ? <Check size={15} /> : null}</button>}
       <SavedItemDetailDialog item={item} sections={sections} disabled={busy} onMove={(sectionId) => runAction(() => moveItemToSection(item, sectionId))} />
       <div className="saved-card-copy">
@@ -325,7 +373,7 @@ export function CollectionPage() {
             {addingSection && <form className="section-create-row" onSubmit={(event) => { event.preventDefault(); void runAction(createSection) }}><ListTree size={15} /><input aria-label="Section name" maxLength={80} autoFocus value={newSectionName} onChange={(event) => setNewSectionName(event.target.value)} placeholder="Materials, Places, Ideas…" /><button className="primary-button" type="submit" disabled={busy || !newSectionName.trim()}>Create</button><button className="secondary-button" type="button" onClick={() => { setAddingSection(false); setNewSectionName('') }}>Cancel</button></form>}
             {!!tags.length && <div className="collection-tag-filter"><button className={!activeTag ? 'active' : ''} onClick={() => setActiveTag('')}>All</button>{tags.map((tag) => <button className={activeTag === tag ? 'active' : ''} key={tag} onClick={() => setActiveTag(tag)}>{tag}</button>)}</div>}
             {selecting && <div className="bulk-action-bar"><strong>{selected.size} selected</strong><select aria-label="Destination collection" value={targetCollectionId} onChange={(event) => setTargetCollectionId(event.target.value)}><option value="">Choose board…</option>{collectionsQuery.data?.collections.filter((option) => option.id !== id).map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkMove)}><MoveRight size={14} /> Move</button><button disabled={busy || !selected.size || !targetCollectionId} onClick={() => void runAction(bulkCopy)}><Copy size={14} /> Copy</button>{sections.length > 0 && <><select aria-label="Assign selected pins to section" value={targetSectionId} onChange={(event) => setTargetSectionId(event.target.value)}><option value="">Section…</option><option value="unsorted">Unsorted</option>{sections.map((section) => <option value={section.id} key={section.id}>{section.name}</option>)}</select><button disabled={busy || !selected.size || !targetSectionId} onClick={() => void runAction(bulkSection)}><ListTree size={14} /> Organize</button></>}<button className="danger" disabled={busy || !selected.size} onClick={() => void runAction(bulkDelete)}><Trash2 size={14} /> Delete</button></div>}
-            {filteredItems.length ? <div className="sectioned-grid">{groupedItems.map((group) => <section className="collection-section" key={group.section?.id ?? 'unsorted'}><div className="collection-section-head"><div><span className="eyebrow">{group.section ? 'SECTION' : 'UNSORTED'}</span><h3>{group.section?.name ?? 'Unsorted'}</h3><small>{group.items.length} {group.items.length === 1 ? 'pin' : 'pins'}</small></div>{group.section && <div className="section-actions"><button aria-label={`Rename ${group.section.name}`} onClick={() => void runAction(() => renameSection(group.section!.id, group.section!.name))}><Pencil size={13} /></button><button aria-label={`Remove ${group.section.name}`} onClick={() => void runAction(() => removeSection(group.section!.id))}><Trash2 size={13} /></button></div>}</div>{group.items.length ? <div className={`saved-grid layout-${collection.grid_layout ?? 'gallery'}`}>{group.items.map(renderSavedItem)}</div> : <div className="section-empty">Select pins and use Organize to add them here.</div>}</section>)}</div> : <div className="empty-state compact"><Search size={24} /><h3>No saves match that filter.</h3><button className="secondary-button" onClick={() => { setFilter(''); setActiveTag('') }}>Clear filters</button></div>}
+            {filteredItems.length ? <div className="sectioned-grid">{groupedItems.map((group) => <section className={`collection-section ${group.section && draggedSectionId === group.section.id ? 'is-dragging' : ''}`} key={group.section?.id ?? 'unsorted'} onDragOver={(event) => { if (group.section && draggedSectionId !== null) event.preventDefault() }} onDrop={(event) => { if (!group.section) return; event.preventDefault(); const fromId = draggedSectionId; setDraggedSectionId(null); if (fromId !== null) void runAction(() => persistSectionOrder(fromId, group.section!.id)) }}><div className="collection-section-head"><div><span className="eyebrow">{group.section ? 'SECTION' : 'UNSORTED'}</span><h3>{group.section?.name ?? 'Unsorted'}</h3><small>{group.items.length} {group.items.length === 1 ? 'pin' : 'pins'}</small></div>{group.section && <div className="section-actions"><button className="reorder-handle" draggable aria-label={`Drag ${group.section.name} section to reorder`} onDragStart={(event) => { setDraggedSectionId(group.section!.id); event.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => setDraggedSectionId(null)}><GripVertical size={13} /></button><button aria-label={`Move ${group.section.name} section earlier`} disabled={busy || sections.findIndex((section) => section.id === group.section!.id) <= 0} onClick={() => void runAction(() => moveSection(group.section!.id, -1))}><ArrowUp size={13} /></button><button aria-label={`Move ${group.section.name} section later`} disabled={busy || sections.findIndex((section) => section.id === group.section!.id) >= sections.length - 1} onClick={() => void runAction(() => moveSection(group.section!.id, 1))}><ArrowDown size={13} /></button><button aria-label={`Rename ${group.section.name}`} onClick={() => void runAction(() => renameSection(group.section!.id, group.section!.name))}><Pencil size={13} /></button><button aria-label={`Remove ${group.section.name}`} onClick={() => void runAction(() => removeSection(group.section!.id))}><Trash2 size={13} /></button></div>}</div>{group.items.length ? <div className={`saved-grid layout-${collection.grid_layout ?? 'gallery'}`}>{group.items.map((item) => renderSavedItem(item, group.items))}</div> : <div className="section-empty">Select pins and use Organize to add them here.</div>}</section>)}</div> : <div className="empty-state compact"><Search size={24} /><h3>No saves match that filter.</h3><button className="secondary-button" onClick={() => { setFilter(''); setActiveTag('') }}>Clear filters</button></div>}
           </Tabs.Content>
           <Tabs.Content value="canvas">
             <div className="canvas-intro"><div><strong>Make it yours.</strong><span>Drag, nudge, align, undo, and remix your saves into a visual story.</span></div><div className="canvas-tools"><button className="canvas-reset" disabled={busy || !undoStack.length} onClick={() => void runAction(undoLayout)} title="Undo canvas change"><Undo2 size={14} /> Undo</button><button className="canvas-reset" disabled={busy || !redoStack.length} onClick={() => void runAction(redoLayout)} title="Redo canvas change"><Redo2 size={14} /> Redo</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('remix'))}><Shuffle size={14} /> Remix board</button><button disabled={busy} className="canvas-reset" onClick={() => void runAction(() => runPresetLayout('tidy'))}><RotateCcw size={14} /> Tidy up</button></div></div>

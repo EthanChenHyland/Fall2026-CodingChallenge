@@ -108,6 +108,10 @@ export const api = {
     }),
   updateLayout: (collectionId: number, positions: Array<{ itemId: number; x: number; y: number; rotation: number }>) =>
     request<void>(`/api/collections/${collectionId}/layout`, { method: 'PATCH', body: JSON.stringify({ positions }) }),
+  reorderItems: (collectionId: number, itemIds: number[]) =>
+    request<void>(`/api/collections/${collectionId}/items/order`, { method: 'PATCH', body: JSON.stringify({ itemIds }) }),
+  reorderSections: (collectionId: number, sectionIds: number[]) =>
+    request<void>(`/api/collections/${collectionId}/sections-order`, { method: 'PATCH', body: JSON.stringify({ sectionIds }) }),
   createSection: (collectionId: number, name: string) => request<{ section: { id: number; name: string } }>(`/api/collections/${collectionId}/sections`, { method: 'POST', body: JSON.stringify({ name }) }),
   updateSection: (collectionId: number, sectionId: number, name: string) => request<{ section: { id: number; name: string } }>(`/api/collections/${collectionId}/sections/${sectionId}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   deleteSection: (collectionId: number, sectionId: number) => request<void>(`/api/collections/${collectionId}/sections/${sectionId}`, { method: 'DELETE' }),

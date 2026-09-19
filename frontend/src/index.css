@@ -1087,8 +1087,17 @@ img { display: block; max-width: 100%; }
 .section-actions { display: flex; gap: 4px; }
 .section-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .section-actions button:hover { background: #ece8e0; color: var(--ink); }
+.section-actions button:disabled, .saved-card-order button:disabled { opacity: .3; cursor: default; }
+.reorder-handle { cursor: grab !important; }
+.reorder-handle:active { cursor: grabbing !important; }
+.saved-card { position: relative; }
+.saved-card-order { position: absolute; z-index: 4; top: 9px; left: 9px; display: flex; gap: 3px; padding: 3px; border: 1px solid rgba(210,204,194,.9); border-radius: 9px; background: rgba(253,251,246,.94); box-shadow: 0 3px 12px rgba(35,31,25,.08); opacity: 0; transform: translateY(-3px); transition: opacity .15s ease, transform .15s ease; }
+.saved-card:hover .saved-card-order, .saved-card:focus-within .saved-card-order { opacity: 1; transform: none; }
+.saved-card-order button { width: 27px; height: 27px; border: 0; border-radius: 6px; display: grid; place-items: center; background: transparent; color: #6f6960; cursor: pointer; }
+.saved-card-order button:hover:not(:disabled) { background: #ece8e0; color: var(--ink); }
+.saved-card.is-dragging, .collection-section.is-dragging { opacity: .48; }
 .section-empty { min-height: 82px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 10px; }
-@media (max-width: 700px) { .collection-grid-actions { width: 100%; } .collection-grid-actions > button { flex: 1; } .section-create-row { grid-template-columns: auto 1fr; } .section-create-row .primary-button, .section-create-row .secondary-button { width: 100%; } .collection-section-head > div:first-child { flex-wrap: wrap; } }
+@media (max-width: 700px) { .collection-grid-actions { width: 100%; } .collection-grid-actions > button { flex: 1; } .section-create-row { grid-template-columns: auto 1fr; } .section-create-row .primary-button, .section-create-row .secondary-button { width: 100%; } .collection-section-head > div:first-child { flex-wrap: wrap; } .saved-card-order { opacity: 1; transform: none; } .saved-card-order .reorder-handle, .section-actions .reorder-handle { display: none; } }
 .bulk-action-bar button.danger { color: #944451; }
 .bulk-action-bar button:disabled { opacity: .45; cursor: not-allowed; }
 .saved-card { position: relative; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }

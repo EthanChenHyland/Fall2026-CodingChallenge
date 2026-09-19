@@ -45,7 +45,7 @@ export function getCollection(id: number, userId?: number) {
       (SELECT COUNT(*) FROM comments comments WHERE comments.item_id = i.id) AS comment_count
     FROM items i
     WHERE i.collection_id = ?
-    ORDER BY i.id DESC
+    ORDER BY CASE WHEN i.position = 0 THEN 0 ELSE 1 END ASC, i.position ASC, i.id DESC
   `).all(id)
   const activity = db.prepare('SELECT * FROM activity WHERE collection_id = ? ORDER BY id DESC LIMIT 20').all(id)
   const sections = db.prepare('SELECT * FROM collection_sections WHERE collection_id = ? ORDER BY position ASC, id ASC').all(id)

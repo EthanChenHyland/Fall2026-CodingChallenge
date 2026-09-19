@@ -20,6 +20,7 @@ export type SavedItem = {
   note: string
   tags: string
   section_id: number | null
+  position: number
   canvas_x: number
   canvas_y: number
   rotation: number

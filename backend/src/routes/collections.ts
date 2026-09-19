@@ -418,6 +418,45 @@ collectionsRouter.delete('/:id/sections/:sectionId', requireMembership, (req: Au
   return res.status(204).end()
 })
 
+collectionsRouter.patch('/:id/sections-order', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const parsed = z.object({ sectionIds: z.array(z.number().int().positive()).max(100) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid section order.' })
+  const expected = db.prepare('SELECT id FROM collection_sections WHERE collection_id = ? ORDER BY id').all(collectionId) as Array<{ id: number }>
+  const received = [...new Set(parsed.data.sectionIds)]
+  if (received.length !== expected.length || expected.some((row) => !received.includes(row.id))) return res.status(400).json({ error: 'Section order is incomplete. Reload and try again.' })
+  db.transaction(() => {
+    const update = db.prepare('UPDATE collection_sections SET position = ? WHERE id = ? AND collection_id = ?')
+    received.forEach((sectionId, index) => update.run(index, sectionId, collectionId))
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} reordered the sections`, req.user!.id)
+  })()
+  return res.status(204).end()
+})
+
+collectionsRouter.patch('/:id/items/order', requireMembership, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const parsed = z.object({ itemIds: z.array(z.number().int().positive()).min(1).max(1000) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid pin order.' })
+  const received = [...new Set(parsed.data.itemIds)]
+  if (received.length !== parsed.data.itemIds.length) return res.status(400).json({ error: 'Pin order contains duplicates.' })
+  const placeholders = received.map(() => '?').join(',')
+  const rows = db.prepare(`SELECT id, section_id FROM items WHERE collection_id = ? AND id IN (${placeholders})`).all(collectionId, ...received) as Array<{ id: number; section_id: number | null }>
+  if (rows.length !== received.length) return res.status(404).json({ error: 'One or more pins are no longer in this collection.' })
+  const sectionIds = new Set(rows.map((row) => row.section_id ?? 0))
+  if (sectionIds.size !== 1) return res.status(400).json({ error: 'Pins can only be reordered within one section at a time.' })
+  const sectionId = rows[0]?.section_id ?? null
+  const expected = db.prepare('SELECT id FROM items WHERE collection_id = ? AND section_id IS ?').all(collectionId, sectionId) as Array<{ id: number }>
+  if (expected.length !== received.length || expected.some((row) => !received.includes(row.id))) return res.status(400).json({ error: 'Pin order is incomplete. Reload and try again.' })
+  db.transaction(() => {
+    const update = db.prepare('UPDATE items SET position = ? WHERE id = ? AND collection_id = ?')
+    received.forEach((itemId, index) => update.run(index + 1, itemId, collectionId))
+    db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(collectionId)
+    logActivity(collectionId, `${actor(req)} reordered ${received.length} ${received.length === 1 ? 'pin' : 'pins'}`, req.user!.id)
+  })()
+  return res.status(204).end()
+})
+
 collectionsRouter.post('/:id/items', requireMembership, async (req: AuthedRequest, res) => {
   const collectionId = Number(req.params.id)
   const parsed = itemSchema.safeParse(req.body)
