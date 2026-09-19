@@ -97,6 +97,8 @@ img { display: block; max-width: 100%; }
 .section-head { display: flex; align-items: end; justify-content: space-between; margin-bottom: 21px; }
 .section-head h2 { margin: 7px 0 0; font-family: Georgia, serif; font-weight: 400; font-size: 28px; letter-spacing: -.02em; }
 .result-count { font-size: 12px; color: var(--muted); }
+.browse-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.browse-head-actions .secondary-button, .explore-web-head .secondary-button { min-height: 36px; }
 
 
 .feed-switch { display: inline-grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 11px; background: #e8e4dc; }
@@ -406,6 +408,9 @@ img { display: block; max-width: 100%; }
   .search-suggestions-title { align-items: flex-start; flex-wrap: wrap; }
   .search-suggestions-title small { width: 100%; max-width: none; margin-left: 21px; }
   .section-head h2 { font-size: 23px; }
+  .browse-section-head, .explore-web-head { align-items: flex-start; gap: 12px; }
+  .browse-head-actions { align-items: flex-end; flex-direction: column; gap: 7px; }
+  .browse-head-actions .result-count { text-align: right; }
   .explore-section-head { align-items: start; gap: 14px; }
   .feed-switch button { padding-inline: 10px; font-size: 10px; }
   .masonry-grid { columns: 2 140px; column-gap: 10px; }
@@ -604,6 +609,8 @@ img { display: block; max-width: 100%; }
 .followers-only-label { display: inline-block; margin-top: 5px; color: var(--accent); font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
 .recommendation-section { margin: 4px 0 58px; padding-bottom: 42px; border-bottom: 1px solid var(--line); }
 .recommendation-grid { columns: 4 220px; }
+.explore-web-section { margin: 4px 0 58px; padding-bottom: 34px; border-bottom: 1px solid var(--line); }
+.explore-web-grid { columns: 4 220px; }
 .text-danger-button { border: 0; background: transparent; padding: 9px; color: #9b4553; cursor: pointer; font-size: 10px; font-weight: 700; }
 .owner-only-note { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
 .collaborator-list { display: grid; gap: 4px; }

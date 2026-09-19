@@ -1,19 +1,29 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare2, Compass, X } from 'lucide-react'
+import { CheckSquare2, Compass, Shuffle, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { ImageCard } from '../components/ImageCard'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { rememberCollection } from '../lib/recentCollection'
+
+const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
 
 export function ExplorePage() {
   const [mode, setMode] = useState<'all' | 'following' | 'trending'>('all')
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [destinationId, setDestinationId] = useState('')
+  const [webSeed, setWebSeed] = useState(randomBrowseSeed)
   const sentinel = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const recommendations = useQuery({ queryKey: ['recommendations'], queryFn: api.recommendations })
+  const webDiscovery = useQuery({
+    queryKey: ['explore-web', webSeed],
+    queryFn: () => api.search('', 1, '', webSeed),
+    enabled: mode === 'all',
+    staleTime: 5 * 60 * 1000,
+  })
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
     onSuccess: (_result, variables) => {
@@ -95,6 +105,15 @@ export function ExplorePage() {
         <section className="recommendation-section">
           <div className="section-head"><div><span className="eyebrow">BECAUSE YOU SAVED</span><h2>More in your orbit</h2></div><span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span></div>
           <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
+        </section>
+      ) : null}
+      {mode === 'all' && webDiscovery.data?.results.length ? (
+        <section className="explore-web-section">
+          <div className="section-head explore-web-head">
+            <div><span className="eyebrow">AROUND THE WEB</span><h2>{webDiscovery.data.source === 'pixabay' ? 'Fresh from Pixabay' : 'Fresh visual finds'}</h2></div>
+            <button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button>
+          </div>
+          <div className="masonry-grid explore-web-grid">{webDiscovery.data.results.slice(0, 8).map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div>
         </section>
       ) : null}
       <section className="section-head explore-section-head"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>

@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Bookmark, LoaderCircle, Search, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Bookmark, LoaderCircle, Search, Shuffle, Sparkles, X } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
@@ -178,7 +178,7 @@ export function DiscoverPage() {
 
       {showPins && recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
-      {showImages && <section className="section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span></section>}
+      {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" onClick={() => setBrowseSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
       {showImages && (isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
       ) : isError ? (

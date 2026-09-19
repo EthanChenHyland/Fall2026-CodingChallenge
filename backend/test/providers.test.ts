@@ -120,6 +120,40 @@ test('cached Pixabay searches do not consume extra provider requests', async () 
   assert.equal(calls, 1)
 })
 
+test('unfiltered Pixabay browse rotates latest all-image pages for broader discovery', async () => {
+  const urls: URL[] = []
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    const url = new URL(String(input))
+    if (url.hostname !== 'pixabay.com') throw new Error('Unexpected fetch')
+    urls.push(url)
+    const page = Number(url.searchParams.get('page') ?? 1)
+    return Response.json({
+      totalHits: 10_000,
+      hits: [{
+        id: 9000 + page,
+        tags: 'digital art, sports car, illustration',
+        user: 'Variety Maker',
+        webformatURL: `https://cdn.pixabay.com/browse-${page}.jpg`,
+        pageURL: `https://pixabay.com/images/id-${9000 + page}/`,
+        webformatWidth: 640,
+        webformatHeight: 480,
+      }],
+    })
+  }) as typeof fetch
+
+  const first = await request(app).get('/api/search?seed=1234&page=1').expect(200)
+  const second = await request(app).get('/api/search?seed=1234&page=2').expect(200)
+
+  assert.equal(urls.length, 2)
+  assert.equal(urls[0]?.searchParams.get('image_type'), 'all')
+  assert.equal(urls[0]?.searchParams.get('order'), 'latest')
+  assert.equal(urls[0]?.searchParams.has('q'), false)
+  assert.equal(urls[0]?.searchParams.get('page'), '5')
+  assert.equal(urls[1]?.searchParams.get('page'), '6')
+  assert.equal(first.body.nextPage, 2)
+  assert.equal(second.body.nextPage, 3)
+})
+
 test('provider failure cannot create a half-saved pin', async () => {
   const owner = request.agent(app)
   await owner.post('/api/auth/demo').expect(200)

@@ -133,7 +133,11 @@ async function searchPixabay(query: string, page: number, apiKey: string): Promi
   const url = new URL('https://pixabay.com/api/')
   url.searchParams.set('key', apiKey)
   if (query) url.searchParams.set('q', query)
-  url.searchParams.set('image_type', 'photo')
+  // Discovery should be broad enough to include illustrations, vectors,
+  // cars, art, anime-style work, and other non-photo results. Explicit
+  // searches still stay relevant because Pixabay ranks by `q`.
+  url.searchParams.set('image_type', 'all')
+  if (!query) url.searchParams.set('order', 'latest')
   url.searchParams.set('safesearch', 'true')
   url.searchParams.set('per_page', String(PAGE_SIZE))
   url.searchParams.set('page', String(page))
@@ -358,21 +362,28 @@ searchRouter.get('/', async (req, res) => {
   if (!query && !apiKey) return res.json({ results: localSearch(''), source: 'local' } satisfies SearchResponse)
 
   const provider = req.query.source === 'wikimedia' ? 'wikimedia' : apiKey ? 'pixabay' : 'wikimedia'
-  // Pixabay defaults to a fixed popularity order. For the unfiltered browse
-  // feed, start each client session on one of the first five provider pages so
-  // returning visitors see a different pool while still leaving room to load
-  // more pages. Search queries stay on their requested page, then get a stable
-  // per-session shuffle below so narrow searches cannot accidentally land on
-  // an empty random page.
-  const page = provider === 'pixabay' && !query && requestedPage === 1 && seed != null
-    ? 1 + (seed % Math.min(5, MAX_PAGE))
+  // Treat the browser's page number as a logical page. For an unfiltered
+  // Pixabay browse session, rotate that sequence across all ten provider
+  // pages. Together with latest ordering and the stable shuffle below, this
+  // avoids repeatedly opening on the same nature-heavy popularity slice.
+  const isPixabayBrowse = provider === 'pixabay' && !query
+  const page = isPixabayBrowse && seed != null
+    ? 1 + ((requestedPage - 1 + (seed % MAX_PAGE)) % MAX_PAGE)
     : requestedPage
-  const cacheKey = `${provider}:${query}:${page}`
+  const cacheKey = `${provider}:${query}:${isPixabayBrowse ? 'latest:' : ''}${page}`
+  const logicalNextPage = isPixabayBrowse
+    ? (requestedPage < MAX_PAGE ? requestedPage + 1 : undefined)
+    : undefined
   db.prepare('DELETE FROM search_cache WHERE expires_at <= ?').run(Date.now())
   const cached = db.prepare('SELECT payload FROM search_cache WHERE key = ?').get(cacheKey) as { payload: string } | undefined
   if (cached) {
     const payload = JSON.parse(cached.payload) as SearchResponse
-    return res.json({ ...payload, results: shuffledResults(payload.results, seed, `${query}:${page}`), cached: true })
+    return res.json({
+      ...payload,
+      nextPage: isPixabayBrowse ? logicalNextPage : payload.nextPage,
+      results: shuffledResults(payload.results, seed, `${query}:${requestedPage}:${page}`),
+      cached: true,
+    })
   }
 
   const cacheCount = (db.prepare('SELECT COUNT(*) AS count FROM search_cache').get() as { count: number }).count
@@ -391,5 +402,9 @@ searchRouter.get('/', async (req, res) => {
   const expiry = Date.now() + (response.fallback ? 60_000 : CACHE_MS)
   // Bound disk use without evicting live 24-hour provider cache entries.
   db.prepare('INSERT OR REPLACE INTO search_cache VALUES (?, ?, ?)').run(cacheKey, JSON.stringify(response), expiry)
-  return res.json({ ...response, results: shuffledResults(response.results, seed, `${query}:${page}`) })
+  return res.json({
+    ...response,
+    nextPage: isPixabayBrowse ? logicalNextPage : response.nextPage,
+    results: shuffledResults(response.results, seed, `${query}:${requestedPage}:${page}`),
+  })
 })
