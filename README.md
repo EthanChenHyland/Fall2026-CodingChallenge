@@ -6,19 +6,19 @@ Mosaic is my response to the **Change++ Fall 2026 Coding Challenge**: build an i
 
 The original prompt and scoring rubric are preserved in [original_challenge.md](original_challenge.md). The required submission-format instructions, setup details, and short reflection are also available in [README.txt](README.txt).
 
-## Product philosophy
+## Why I built it this way
 
-Mosaic deliberately prioritizes **product depth over technical spectacle**.
+I wanted Mosaic to feel like an actual product, not a tech demo.
 
-It would have been easy to make the submission look more sophisticated on paper by attaching a separate AI chat/agent service, an embeddings/vector-search pipeline, extra microservices, or a cinematic Three.js/WebGL layer. I chose not to treat those technologies as accomplishments by themselves. A stack being harder to explain does not make the product better; complexity earns its place only when it materially improves the user's job.
+I could have spent a lot of time adding an AI agent, embeddings/vector search, extra services, or a big Three.js/WebGL intro just because those things sound advanced. I decided not to do that unless they actually made the app better to use.
 
-For Mosaic, the more useful challenge was making the entire save → organize → share loop feel complete: fast discovery, reliable persistence, collaboration, messaging, social interactions, bulk organization, privacy controls, mobile behavior, failure recovery, and a Canvas that users can actually manipulate.
+The harder part for me was making the whole save → organize → share flow feel connected: discovery, saving, collaboration, messages, social features, bulk organization, privacy, mobile behavior, error handling, and the Canvas.
 
-I would rather have ten product interactions that work together cleanly than one flashy subsystem that mainly makes an architecture diagram longer. The goal was a product someone could keep using after the demo, not a simpler core surrounded by advanced-sounding side systems.
+I'd rather have a bunch of useful features that work well together than one flashy subsystem that mostly looks good in a stack diagram. The goal was to build something people could keep using after the demo.
 
-## My approach
+## What I focused on
 
-I did not want to stop at the minimum CRUD requirements. My goal was to make the challenge feel like a small real product: something a reviewer could open, understand quickly, and actually use.
+I did not want to stop at the minimum CRUD requirements. I wanted a reviewer to be able to open Mosaic, understand it quickly, and actually use it without feeling like they were clicking through a coding challenge.
 
 I started with the core loop the prompt asked for:
 
@@ -29,25 +29,25 @@ I started with the core loop the prompt asked for:
 - view collections
 - share collections
 
-From there, I kept asking what would make each part feel closer to a real consumer app rather than a coding-challenge demo. That led to accounts, privacy controls, collaboration, social discovery, direct messages, recommendations, collection organization tools, and a draggable visual Canvas.
+From there, I kept asking what would make it feel more complete. That led to accounts, privacy controls, collaboration, social discovery, direct messages, recommendations, collection tools, and a draggable visual Canvas.
 
-## Technical decisions
+## Tech choices
 
-I used **React + TypeScript** for the frontend and **Node.js + Express** for the REST API. I chose **SQLite** because it keeps the project simple to run while still giving the application real persistent relational data instead of relying on local storage.
+I used **React + TypeScript** for the frontend and **Node.js + Express** for the REST API. I went with **SQLite** because it keeps setup simple while still giving the app a real persistent relational database instead of localStorage.
 
-The production app is served from one Node process. Express serves both the API and the compiled React frontend, which makes deployment simpler while keeping the frontend/backend REST boundary clear during development.
+In production, one Node process serves both the API and the built React app. That keeps deployment simple while still letting the frontend and backend stay separate during development.
 
 For image discovery, Mosaic works without any API keys by using Wikimedia Commons plus a bundled fallback catalog. Pixabay can be enabled as an optional search provider. Cloudinary is also optional for direct file uploads.
 
-The same principle shaped the recommendation system. Mosaic uses saved interests, social signals, popularity, and explicit **More like this / Not interested** feedback without requiring a paid model API. I preferred a recommendation system every reviewer can run over making the core experience dependent on an external AI service.
+I took the same approach with recommendations. Mosaic uses saved interests, social signals, popularity, and **More like this / Not interested** feedback without needing a paid model API. I liked that anyone reviewing the project can run it without setting up an AI service first.
 
 ### Why not Three.js / WebGL everywhere?
 
-I considered a much heavier Awwwards-style presentation, but Mosaic is a repeated-use image product, not a portfolio landing page. Search, scanning, saving, organizing, editing, and collaborating all benefit more from responsiveness and clarity than from shader transitions or a 3D hero.
+I thought about going much harder on the Awwwards-style stuff, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. Search, saving, organizing, editing, and collaborating benefit more from being fast and clear than from shader transitions or a 3D hero.
 
-The freeform Canvas is intentionally DOM/CSS-based rather than WebGL. Pins need normal focus behavior, text, menus, selection, drag state, persisted coordinates, keyboard interaction, and reliable mobile behavior. Using standard interface primitives made those interactions easier to keep accessible and testable.
+The freeform Canvas is intentionally DOM/CSS instead of WebGL. Pins still need normal focus behavior, text, menus, selection, dragging, saved positions, keyboard controls, and decent mobile behavior. Standard UI primitives made that much easier to keep predictable and testable.
 
-Likewise, I did not bolt on an AI-agent service, model-dependent chat layer, embedding pipeline, or separate microservice simply to increase the apparent sophistication of the stack. Those are useful when they solve a real problem; otherwise they add credentials, latency, setup cost, and new failure modes while doing little for the core product.
+Same idea with AI agents, embeddings, and extra microservices: I did not want to add them just to make the stack sound more complicated. They are useful when they solve a real problem. Here, they would mostly add setup, latency, API keys, and more ways for the app to break.
 
 ## External services and integrations
 
@@ -59,11 +59,11 @@ Likewise, I did not bolt on an AI-agent service, model-dependent chat layer, emb
 - **GitHub** — source control and deployment source.
 - **Docker** — reproducible production build/runtime packaging.
 
-These are integrations around the product, not requirements for the core experience. Mosaic can be cloned and run without a paid AI/model service.
+These are add-ons around the product, not things the app needs just to work. You can clone Mosaic and run it without a paid AI/model service.
 
-## How the project evolved
+## How it grew
 
-The challenge only required the basic image-saving workflow, but I expanded the project in areas that seemed useful rather than adding features only for feature count.
+The challenge only required the basic image-saving workflow, but I kept building in areas that felt useful instead of adding random features just to make the list longer.
 
 ### Collections and organization
 
@@ -85,7 +85,7 @@ Recommendations use a user's saved interests and explicit **More like this / Not
 
 ### Reliability and privacy
 
-A lot of the work ended up being less visible than the UI. I added transactional database operations, rollback behavior, session handling, permission checks, private-data filtering, rate limiting, security headers, provider fallbacks, media cleanup, and regression tests for cases where data could otherwise leak or become inconsistent.
+A lot of the work ended up being stuff you do not really see in screenshots. I added transactions, rollback behavior, session handling, permission checks, private-data filtering, rate limiting, security headers, provider fallbacks, media cleanup, and regression tests for cases where data could leak or get out of sync.
 
 Portable collection exports are self-contained for locally stored provider images, so importing an export does not silently create broken image references.
 
@@ -138,13 +138,13 @@ The database is persistent and is not reset on every restart.
 
 ## Thought process
 
-The biggest shift in my thinking during this challenge was realizing that getting a feature to work is different from making it trustworthy.
+The biggest shift in my thinking during this challenge was realizing that getting a feature to work once is very different from making it reliable.
 
 A basic save button is straightforward. A save flow that handles duplicates, permissions, provider failures, undo, collaboration, privacy, and stale data is much more interesting. The same was true for sharing: making a public URL was easy; making public, followers-only, private, collaborator, invite, and direct-message behavior agree with each other required much more careful design.
 
 I also learned to prefer features that reinforce the core product loop. The Canvas, sections, recommendations, collaboration, and social discovery all give users another reason to return to the same saved content instead of existing as isolated extras.
 
-That is also why I resisted adding technology simply because it sounds advanced. An AI agent, vector database, extra service boundary, or WebGL scene can be excellent when it is the right solution. In this project, I thought the stronger engineering decision was to spend that complexity budget on the parts users actually touch and on the reliability work underneath them.
+That is also why I tried not to add technology just because it sounds advanced. An AI agent, vector database, extra service, or WebGL scene can be great when it is actually the right tool. For this project, I thought it made more sense to spend that time on the parts users touch and the reliability work underneath them.
 
 ## Reflection
 
