@@ -12,7 +12,15 @@ const { app } = await import('../src/app.js')
 const { db } = await import('../src/db.js')
 const { persistProviderImage, pruneUnusedMedia } = await import('../src/lib/media.js')
 const originalFetch = globalThis.fetch
-test.afterEach(() => { globalThis.fetch = originalFetch })
+const originalOpenRouterKey = process.env.OPENROUTER_API_KEY
+const originalOpenRouterModel = process.env.OPENROUTER_MODEL
+test.afterEach(() => {
+  globalThis.fetch = originalFetch
+  if (originalOpenRouterKey == null) delete process.env.OPENROUTER_API_KEY
+  else process.env.OPENROUTER_API_KEY = originalOpenRouterKey
+  if (originalOpenRouterModel == null) delete process.env.OPENROUTER_MODEL
+  else process.env.OPENROUTER_MODEL = originalOpenRouterModel
+})
 test.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }) })
 
 test('provider cache lasts 24 hours and saved Pixabay images use durable local media', async () => {
@@ -323,4 +331,71 @@ test('search suggestions expand from Pixabay tags and cache provider lookups', a
   assert.ok(first.body.suggestions.some((suggestion: string) => suggestion.includes('night city')))
   assert.deepEqual(second.body.suggestions, first.body.suggestions)
   assert.equal(calls, 1)
+})
+
+test('optional AI expands typed search suggestions through OpenRouter', async () => {
+  process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
+  process.env.OPENROUTER_MODEL = 'test/model'
+  let openRouterBody = ''
+  let openRouterAuthorization = ''
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const url = String(input)
+    if (url.startsWith('https://pixabay.com/api/')) {
+      return Response.json({
+        totalHits: 20,
+        hits: [{
+          id: 99124,
+          tags: 'tokyo, night city, street photography',
+          user: 'Suggestion Maker',
+          webformatURL: 'https://cdn.pixabay.com/suggestion-ai.jpg',
+          pageURL: 'https://pixabay.com/photos/suggestion-ai-99124/',
+          webformatWidth: 640,
+          webformatHeight: 480,
+        }],
+      })
+    }
+    if (url === 'https://openrouter.ai/api/v1/chat/completions') {
+      openRouterBody = String(init?.body ?? '')
+      openRouterAuthorization = new Headers(init?.headers).get('Authorization') ?? ''
+      return Response.json({ choices: [{ message: { content: '{"suggestions":["tokyo neon alleys","tokyo night markets","tokyo rainy streets"]}' } }] })
+    }
+    throw new Error(`Unexpected fetch: ${url}`)
+  }) as typeof fetch
+
+  const query = `tokyo-${randomUUID().slice(0, 8)}`
+  const result = await request(app).get(`/api/search/recommendations?q=${encodeURIComponent(query)}`).expect(200)
+  assert.equal(result.body.aiEnhanced, true)
+  assert.ok(result.body.suggestions.includes('tokyo neon alleys'))
+  assert.equal(openRouterAuthorization, 'Bearer test-openrouter-key')
+  assert.match(openRouterBody, /"model":"test\/model"/)
+  assert.match(openRouterBody, new RegExp(query))
+  assert.doesNotMatch(openRouterBody, /test-openrouter-key/)
+})
+
+test('AI provider failures preserve normal search suggestions', async () => {
+  process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    const url = String(input)
+    if (url.startsWith('https://pixabay.com/api/')) {
+      return Response.json({
+        totalHits: 20,
+        hits: [{
+          id: 99125,
+          tags: 'fallback topic, night city, street photography',
+          user: 'Fallback Maker',
+          webformatURL: 'https://cdn.pixabay.com/suggestion-fallback.jpg',
+          pageURL: 'https://pixabay.com/photos/suggestion-fallback-99125/',
+          webformatWidth: 640,
+          webformatHeight: 480,
+        }],
+      })
+    }
+    if (url === 'https://openrouter.ai/api/v1/chat/completions') return new Response('', { status: 503 })
+    throw new Error(`Unexpected fetch: ${url}`)
+  }) as typeof fetch
+
+  const query = `fallback-${randomUUID().slice(0, 8)}`
+  const result = await request(app).get(`/api/search/recommendations?q=${encodeURIComponent(query)}`).expect(200)
+  assert.equal(result.body.aiEnhanced, false)
+  assert.ok(result.body.suggestions.some((suggestion: string) => suggestion.includes('night city')))
 })

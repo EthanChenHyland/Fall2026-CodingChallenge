@@ -28,13 +28,13 @@ The demo database is persistent and is not reset on every restart.
 
 ## What to try
 
-- **Discover:** search Pixabay/Wikimedia, use autocomplete and saved/recent searches, shuffle broad visual discovery, and save with Quick Save.
+- **Discover:** search Pixabay/Wikimedia, use autocomplete and saved/recent searches, optionally expand typed searches with a lightweight AI helper, shuffle broad visual discovery, and save with Quick Save.
 - **Organize:** create collections and sections, tag/filter pins, reorder them, use bulk actions, customize covers/themes/layouts, or switch to the draggable Canvas.
 - **Share:** publish revocable links, invite editors, copy public boards, present a collection full-screen, and view first-party share counts.
 - **Social:** follow people or collections, browse For You / Following / Trending, like and discuss pins, send pins through Messages, and use mentions/notifications.
 - **Privacy/reliability:** private, followers-only, and public visibility; permission checks; undo/recovery; provider fallbacks; rate limiting; XSS protections; responsive mobile layouts; reduced motion; and keyboard support.
 
-Mosaic deliberately puts complexity into product behavior people can actually use rather than making one showcase subsystem carry the whole submission. Advanced infrastructure is valuable when the product needs it; otherwise it is just more setup and more failure modes. The architecture notes explain where I chose simplicity and where I chose to spend complexity instead.
+Mosaic deliberately puts complexity into product behavior people can actually use rather than making one showcase subsystem carry the whole submission. The optional AI search helper is intentionally narrow: one model call can improve related search phrasing without turning discovery into an agent or making the product depend on AI. The architecture notes explain where I chose simplicity and where I chose to spend complexity instead.
 
 ## Run locally
 
@@ -51,11 +51,15 @@ No API key is required. Optional integrations are documented in `.env.example`:
 
 ```text
 PIXABAY_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=google/gemini-2.5-flash-lite
 VITE_CLOUDINARY_CLOUD_NAME=
 VITE_CLOUDINARY_UPLOAD_PRESET=
 RESEND_API_KEY=
 EMAIL_FROM=
 ```
+
+`OPENROUTER_API_KEY` enables AI-expanded related searches. It is intentionally a small search helper rather than an agent: Mosaic sends the typed query plus public catalog terms, keeps private/saved collection data in the local recommendation engine, and falls back to the existing Pixabay/database suggestions if OpenRouter is unavailable.
 
 Production runs as one Docker service on **Render** with a persistent `/data` volume for SQLite and locally persisted media.
 

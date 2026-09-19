@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { catalog } from '../catalog.js'
 import { db } from '../db.js'
+import { aiDiscoverySuggestions } from '../lib/aiDiscovery.js'
 import type { AuthedRequest } from '../middleware/auth.js'
 
 export const searchRouter = Router()
@@ -414,6 +415,7 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
   const queryTerms = recommendationTerms(query)
 
   const suggestionScores = new Map<string, number>()
+  const publicAiContext = new Set<string>()
   const addSuggestion = (value: string, score: number, trustedRelated = false) => {
     const suggestion = value.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 60)
     if (suggestion.length < 2 || suggestion === query) return
@@ -438,24 +440,34 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
     for (const tag of item.tags.split(',').map((value) => value.trim().toLowerCase()).filter(Boolean)) {
       const affinity = [...interestMap.entries()].reduce((score, [interest, weight]) => score + (tag.includes(interest) || interest.includes(tag) ? weight : 0), 0)
       addSuggestion(tag, 35 + affinity)
+      if (!query || tag.includes(query) || queryTerms.some((term) => tag.includes(term) || term.includes(tag))) publicAiContext.add(tag)
     }
-    for (const term of recommendationTerms(`${item.title} ${item.collection_name}`)) addSuggestion(term, 18)
+    for (const term of recommendationTerms(`${item.title} ${item.collection_name}`)) {
+      addSuggestion(term, 18)
+      if (queryTerms.some((queryTerm) => term.includes(queryTerm) || queryTerm.includes(term))) publicAiContext.add(term)
+    }
   }
   for (const image of catalog) {
     for (const tag of image.tags) {
       const normalized = tag.trim().toLowerCase()
       const affinity = [...interestMap.entries()].reduce((score, [interest, weight]) => score + (normalized.includes(interest) || interest.includes(normalized) ? weight : 0), 0)
       addSuggestion(normalized, 20 + affinity)
+      if (!query || normalized.includes(query) || queryTerms.some((term) => normalized.includes(term) || term.includes(normalized))) publicAiContext.add(normalized)
     }
   }
 
-  if (query.length >= 2 && process.env.PIXABAY_API_KEY?.trim()) {
-    const providerTerms = await pixabaySuggestionTerms(query, process.env.PIXABAY_API_KEY.trim())
-    for (const term of providerTerms) {
-      if (term.includes(query) || query.includes(term)) addSuggestion(term, 90, true)
-      else addSuggestion(`${query} ${term}`, 70, true)
-    }
+  const pixabayKey = process.env.PIXABAY_API_KEY?.trim()
+  const [providerTerms, aiTerms] = query.length >= 2
+    ? await Promise.all([
+        pixabayKey ? pixabaySuggestionTerms(query, pixabayKey) : Promise.resolve([]),
+        aiDiscoverySuggestions(query, [...publicAiContext].slice(0, 12)),
+      ])
+    : [[], []]
+  for (const term of providerTerms) {
+    if (term.includes(query) || query.includes(term)) addSuggestion(term, 90, true)
+    else addSuggestion(`${query} ${term}`, 70, true)
   }
+  for (const term of aiTerms) addSuggestion(term, 115, true)
 
   if (!query) {
     for (const [index, topic] of DISCOVERY_THEME_PAIRS.flat().entries()) addSuggestion(topic, 12 - Math.floor(index / 4))
@@ -465,7 +477,7 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
     .slice(0, 8)
     .map(([value]) => value)
 
-  if (!userId) return res.json({ suggestions, pins: [], basedOn: [] })
+  if (!userId) return res.json({ suggestions, pins: [], basedOn: [], aiEnhanced: aiTerms.length > 0 })
 
   const candidates = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
@@ -495,7 +507,7 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
 
-  return res.json({ suggestions, pins: ranked.map((entry) => entry.pin), basedOn: interests.filter(([, weight]) => weight > 0).slice(0, 4).map(([term]) => term) })
+  return res.json({ suggestions, pins: ranked.map((entry) => entry.pin), basedOn: interests.filter(([, weight]) => weight > 0).slice(0, 4).map(([term]) => term), aiEnhanced: aiTerms.length > 0 })
 })
 
 searchRouter.get('/', async (req, res) => {

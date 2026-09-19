@@ -17,6 +17,7 @@ In development, Vite and Express run separately and Vite proxies `/api` to Expre
 - `GET /api/search/social?q=<query>` — search Mosaic people and public collections.
 - `GET /api/explore?page=<number>&mode=all|following|trending` — public Mosaic pins with chronological, social-graph, or engagement ranking.
 - `GET /api/explore/recommended` — personalized public-pin recommendations derived from the signed-in user's saved titles, tags, and collections.
+- `GET /api/search/recommendations?q=...` — related search phrases plus locally ranked public pins. When `OPENROUTER_API_KEY` is configured, typed queries can be expanded with AI; failures fall back to the normal provider/database suggestions.
 
 Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searches Wikimedia Commons. A bundled catalog is the final reliability fallback.
 

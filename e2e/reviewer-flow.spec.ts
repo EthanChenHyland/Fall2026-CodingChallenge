@@ -1050,6 +1050,39 @@ test('search suggestions stay usable at 320px and 390px', async ({ page }) => {
   }
 })
 
+test('back to top stays reachable on desktop and above the mobile nav', async ({ page }) => {
+  await enterDemo(page)
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }, { width: 320, height: 568 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    await page.evaluate(() => {
+      document.querySelector('[data-back-to-top-spacer]')?.remove()
+      const spacer = document.createElement('div')
+      spacer.dataset.backToTopSpacer = 'true'
+      spacer.style.height = '1800px'
+      spacer.style.pointerEvents = 'none'
+      document.body.append(spacer)
+      window.scrollTo(0, 0)
+    })
+    await expect(page.getByRole('button', { name: 'Back to top' })).toHaveCount(0)
+    await page.evaluate(() => window.scrollTo(0, 900))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(640)
+    const button = page.getByRole('button', { name: 'Back to top' })
+    await expect(button).toBeVisible()
+    const bounds = await button.boundingBox()
+    expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44)
+    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44)
+    expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(viewport.width)
+    if (viewport.width <= 700) {
+      const nav = await page.locator('.mobile-nav').boundingBox()
+      expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual((nav?.y ?? viewport.height) - 4)
+    }
+    await button.click()
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(20)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  }
+})
+
 
 test('skip links move keyboard focus to the main landmark', async ({ page }) => {
   await enterDemo(page)

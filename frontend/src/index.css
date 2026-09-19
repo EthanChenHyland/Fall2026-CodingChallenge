@@ -79,6 +79,7 @@ img { display: block; max-width: 100%; }
 .search-suggestions { margin: 0 0 48px; padding: 14px 15px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.58); }
 .search-suggestions-title { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; font-weight: 750; }
 .search-suggestions-title small { margin-left: auto; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; font-weight: 600; }
+.ai-assist-badge { margin-left: 2px; padding: 4px 7px; border: 1px solid #d8d9ef; border-radius: 999px; background: #f3f2ff; color: var(--accent-dark); font-size: 8px; font-weight: 800; letter-spacing: .03em; }
 .search-suggestion-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .search-suggestion-chips button { border: 1px solid #d8d3ca; border-radius: 999px; background: #fff; padding: 7px 11px; color: var(--ink); cursor: pointer; font-size: 10px; }
 .search-suggestion-chips button:hover, .search-suggestion-chips button:focus-visible { border-color: #aeb5ea; background: #f4f3ff; }
@@ -162,6 +163,8 @@ img { display: block; max-width: 100%; }
 .page-title-actions { display: flex; align-items: center; gap: 8px; }
 .full { width: 100%; }
 .icon-button { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--white); cursor: pointer; padding: 0; }
+.back-to-top { position: fixed; right: 22px; bottom: 22px; z-index: 39; width: 46px; height: 46px; border: 1px solid #d5d0c7; border-radius: 50%; display: grid; place-items: center; background: rgba(250,248,243,.96); color: var(--ink); box-shadow: 0 10px 30px rgba(35,31,25,.14); backdrop-filter: blur(12px); cursor: pointer; animation: riseIn .18s ease both; }
+.back-to-top:hover, .back-to-top:focus-visible { border-color: #b8b1a6; background: #fff; transform: translateY(-2px); }
 
 .collection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 24px; }
 .collection-card { --card-rx: 0deg; --card-ry: 0deg; --card-px: 50%; --card-py: 50%; display: block; min-width: 0; transform: perspective(900px) rotateX(var(--card-rx)) rotateY(var(--card-ry)); transform-style: preserve-3d; transition: transform .18s ease; animation: collectionCardIn .42s cubic-bezier(.2,.7,.2,1) both; will-change: transform; }
@@ -420,6 +423,8 @@ img { display: block; max-width: 100%; }
   .mobile-nav button svg { width: 32px; height: 32px; border-radius: 8px; padding: 7px; background: var(--accent); color: white; }
   .mobile-nav a { position: relative; }
   .mobile-unread { position: absolute; top: 7px; left: calc(50% + 7px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; display: grid; place-items: center; background: var(--accent); color: white; font-size: 8px; }
+  .back-to-top { right: 14px; bottom: calc(82px + env(safe-area-inset-bottom)); width: 44px; height: 44px; }
+  body:has(.product-coach) .back-to-top { top: 74px; bottom: auto; }
   .hero-copy { padding-top: 4px; padding-bottom: 28px; }
   .hero-copy h1 { font-size: 48px; }
   .hero-copy-main > p { margin-top: 18px; max-width: 300px; font-size: 14px; }
@@ -1597,6 +1602,7 @@ img { display: block; max-width: 100%; }
   .presentation-media,
   .presentation-overlay { animation: none !important; }
   .presentation-progress i { transition: none !important; }
+  .back-to-top { animation: none !important; }
 }
 @media (max-width: 600px) {
   .field-label input, .field-label textarea, .field-label select { font-size: 16px; }

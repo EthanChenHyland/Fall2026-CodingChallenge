@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { toast, Toaster } from 'sonner'
 import { api, ApiError } from './api'
 import { AppShell } from './components/AppShell'
+import { BackToTop } from './components/BackToTop'
 import { BrandMark } from './components/BrandMark'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthPage } from './pages/AuthPage'
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="/shared/:token/present" element={<SharedPresentationPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <BackToTop />
         </Suspense>
       </BrowserRouter>
       </ErrorBoundary>

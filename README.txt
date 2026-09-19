@@ -28,7 +28,7 @@ From the repository root:
 Frontend: normally http://127.0.0.1:5173
 API:      http://127.0.0.1:3001
 
-No API key is required. Optional integrations are configured through .env.example: Pixabay for preferred live image discovery, Cloudinary for direct uploads, and Resend for signup verification.
+No API key is required. Optional integrations are configured through .env.example: Pixabay for preferred live image discovery, OpenRouter for AI-expanded typed search suggestions, Cloudinary for direct uploads, and Resend for signup verification. The AI helper is not an agent and is never required for search to work.
 
 Production runs as one Docker service on Render with a persistent /data volume for SQLite and locally persisted media.
 
@@ -42,7 +42,7 @@ QUICK REVIEW PATH
 7. Visit another profile to follow/message them or follow one of their public collections.
 
 DESIGN NOTE
-I tried to put complexity where a reviewer can actually feel it: saving, organization, collaboration, privacy, social behavior, recovery, mobile behavior, and the Canvas. A model call, vector database, extra service, or heavier rendering stack can be the right answer when a product needs it; when it does not, it can mostly add setup and failure modes. The full architecture notes explain those tradeoffs in detail.
+I tried to put complexity where a reviewer can actually feel it: saving, organization, collaboration, privacy, social behavior, recovery, mobile behavior, and the Canvas. Mosaic now uses one deliberately narrow model call to improve typed search phrasing, while the core ranking and fallback path remain local. I avoided turning that into an agent or adding infrastructure that would make the main product depend on an AI service. The full architecture notes explain those tradeoffs in detail.
 
 VALIDATION
   npm run typecheck

@@ -209,7 +209,7 @@ export function DiscoverPage() {
         {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
       </div>
 
-      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
+      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{submittedQuery && recommendations.data.aiEnhanced ? <span className="ai-assist-badge">AI expanded</span> : null}{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
 
       {(showPeople || showCollections) && <SocialSearchResults query={submittedQuery} showPeople={showPeople} showCollections={showCollections} />}
 
