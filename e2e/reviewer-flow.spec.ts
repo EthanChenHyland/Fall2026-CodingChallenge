@@ -687,3 +687,149 @@ test('command palette opens collections and launches presentation mode', async (
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
+
+test('public collection presentation works without an account', async ({ page, browser }) => {
+  await enterDemo(page)
+  const shared = await page.evaluate(async () => {
+    const listResponse = await fetch('/api/collections')
+    const list = await listResponse.json() as { collections: Array<{ id: number; item_count: number; audience: string }> }
+    const candidate = list.collections.find((collection) => collection.item_count > 0)!
+    const response = await fetch(`/api/collections/${candidate.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audience: 'public' }),
+    })
+    const body = await response.json() as { collection: { id: number; name: string; share_token: string } }
+    return { ...body.collection, previousAudience: candidate.audience }
+  })
+
+  const guest = await browser.newContext()
+  const presentation = await guest.newPage()
+  await presentation.goto(`http://127.0.0.1:3199/shared/${shared.share_token}/present`)
+  const dialog = presentation.locator('.presentation-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: shared.name })).toBeVisible()
+  await expect(dialog.locator('.presentation-progress')).toContainText(/\d{2} \/ \d{2}/)
+  await expect(presentation.getByLabel('Email')).toHaveCount(0)
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
+    await presentation.setViewportSize(viewport)
+    expect(await presentation.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  }
+  await guest.close()
+
+  await page.evaluate(async ({ id, audience }) => {
+    await fetch(`/api/collections/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audience }),
+    })
+  }, { id: shared.id, audience: shared.previousAudience })
+})
+
+test('pin detail supports collection-order keyboard navigation', async ({ page }) => {
+  await enterDemo(page)
+  const sequence = await page.evaluate(async () => {
+    const listResponse = await fetch('/api/collections')
+    const list = await listResponse.json() as { collections: Array<{ id: number; item_count: number }> }
+    const candidate = list.collections.find((collection) => collection.item_count >= 2)!
+    const detailResponse = await fetch(`/api/collections/${candidate.id}`)
+    const detail = await detailResponse.json() as { collection: { items: Array<{ id: number; title: string }> } }
+    return detail.collection.items.slice(0, 2)
+  })
+  expect(sequence).toHaveLength(2)
+
+  await page.goto(`/pin/${sequence[0].id}`)
+  await expect(page.getByRole('button', { name: 'Next pin in collection' })).toBeEnabled()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(new RegExp(`/pin/${sequence[1].id}$`))
+  await expect(page.getByRole('heading', { name: sequence[1].title })).toBeVisible()
+  await page.keyboard.press('ArrowLeft')
+  await expect(page).toHaveURL(new RegExp(`/pin/${sequence[0].id}$`))
+  await expect(page.getByRole('heading', { name: sequence[0].title })).toBeVisible()
+  await page.setViewportSize({ width: 320, height: 568 })
+  await expect(page.locator('.pin-sequence-controls')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+})
+
+test('discover remembers searches and filters result types', async ({ page }) => {
+  await enterDemo(page)
+  await page.evaluate(() => {
+    localStorage.removeItem('mosaic:recent-searches')
+    localStorage.removeItem('mosaic:saved-searches')
+  })
+  await page.reload()
+
+  const search = page.getByLabel('Search images')
+  await search.fill('ceramics')
+  await search.press('Enter')
+  const filters = page.getByLabel('Search result type')
+  await expect(filters).toBeVisible()
+  await filters.getByRole('button', { name: 'Save search' }).click()
+  await expect(filters.getByRole('button', { name: 'Saved search' })).toBeVisible()
+  await filters.getByRole('button', { name: 'People', exact: true }).click()
+  await expect(filters.getByRole('button', { name: 'People', exact: true })).toHaveClass(/active/)
+  await expect(page.getByRole('heading', { name: 'Results for “ceramics”' })).toHaveCount(0)
+  await filters.getByRole('button', { name: 'Images', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Results for “ceramics”' })).toBeVisible()
+
+  await page.goto('/explore')
+  await page.goto('/')
+  const memory = page.getByLabel('Saved and recent searches')
+  await expect(memory).toBeVisible()
+  await expect(memory.getByRole('button', { name: /ceramics/ }).first()).toBeVisible()
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
+    await page.setViewportSize(viewport)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  }
+})
+
+test('collection reorder controls persist pin order', async ({ page }) => {
+  await enterDemo(page)
+  const setup = await page.evaluate(async () => {
+    const listResponse = await fetch('/api/collections')
+    const list = await listResponse.json() as { collections: Array<{ id: number; item_count: number }> }
+    const candidate = list.collections.find((collection) => collection.item_count >= 2)!
+    const detailResponse = await fetch(`/api/collections/${candidate.id}`)
+    const detail = await detailResponse.json() as { collection: { items: Array<{ id: number; title: string }> } }
+    const pair = detail.collection.items.slice(0, 2)
+    await fetch(`/api/collections/${candidate.id}/items/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'section', itemIds: pair.map((item) => item.id), sectionId: null }),
+    })
+    const refreshedResponse = await fetch(`/api/collections/${candidate.id}`)
+    const refreshed = await refreshedResponse.json() as { collection: { items: Array<{ id: number; title: string; section_id: number | null }> } }
+    const unsorted = refreshed.collection.items.filter((item) => item.section_id === null)
+    return { collectionId: candidate.id, first: unsorted[0], second: unsorted[1] }
+  })
+  expect(setup.first).toBeTruthy()
+  expect(setup.second).toBeTruthy()
+
+  await page.goto(`/collections/${setup.collectionId}`)
+  await page.getByRole('button', { name: `Move ${setup.first.title} later` }).click()
+  await expect.poll(async () => page.evaluate(async ({ collectionId }) => {
+    const response = await fetch(`/api/collections/${collectionId}`)
+    const body = await response.json() as { collection: { items: Array<{ id: number; section_id: number | null }> } }
+    return body.collection.items.filter((item) => item.section_id === null).slice(0, 2).map((item) => item.id)
+  }, { collectionId: setup.collectionId })).toEqual([setup.second.id, setup.first.id])
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole('button', { name: `Move ${setup.first.title} earlier` })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Drag ${setup.first.title} to reorder` })).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+})
+
+test('reduced motion disables decorative interaction animations', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await enterDemo(page)
+  await expect(page.locator('.route-stage')).toBeVisible()
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true)
+  const routeAnimation = await page.locator('.route-stage').evaluate((element) => ({
+    duration: getComputedStyle(element).animationDuration,
+    iterations: getComputedStyle(element).animationIterationCount,
+  }))
+  const durationMs = routeAnimation.duration.endsWith('ms')
+    ? Number.parseFloat(routeAnimation.duration)
+    : Number.parseFloat(routeAnimation.duration) * 1000
+  expect(durationMs).toBeLessThanOrEqual(0.01)
+  expect(routeAnimation.iterations).toBe('1')
+})
