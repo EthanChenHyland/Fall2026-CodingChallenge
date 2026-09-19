@@ -3,91 +3,114 @@ MOSAIC — CHANGE++ FALL 2026 CODING CHALLENGE
 Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
-ABOUT
-Mosaic is an image discovery, saving, collaboration, and social curation app inspired by Pinterest. It includes live web search with personalized and related-query recommendations, tunable public-pin recommendations with More like this / Not interested feedback, social feeds, profile and collection follows, privacy-safe repin provenance, multi-select Explore saving, profiles, direct messages with custom Pin → DM notes and attached previews, likes/threaded comments with @mentions, Quick Save, smart collections, board sections, tags/filtering, bulk move/copy organization, customizable boards, portable private-by-default collection export/import, a draggable Canvas with alignment guides and undo/redo, private/followers/public sharing, account collaboration with revocable editor invite links, notifications, PWA capture/install support, and activity history.
+LIVE DEPLOYMENT
+https://mosaic-f33m.onrender.com/
 
-REQUIREMENTS
+WHAT I BUILT
+Mosaic is a Pinterest-inspired image discovery, saving, organization, collaboration, and social curation app. The required challenge flow — search, create collections, save/edit/remove content, share by URL, and collaborate with accounts — is the foundation. I then pushed the project toward a fuller product rather than stopping at CRUD.
+
+The app includes:
+- Live image search with Pixabay when configured, Wikimedia fallback, pagination, related searches, and recommendation feedback.
+- Accounts, profile handles, editable profiles/avatars, follows, collection follows, follower counts, and public profiles.
+- Private, followers-only, and public collections; revocable public share links; account collaborators; and revocable editor invite links.
+- Quick Save, multi-select Explore saving, duplicate protection, smart collections, sections, tags, filtering, bulk move/copy/delete, and undo.
+- Grid, Gallery, Compact, Masonry, and a draggable Canvas with persisted positions, alignment guides, Remix/Tidy, undo, and redo.
+- Likes, threaded comments, replies, @mentions, activity history, notifications, and privacy-safe repin provenance.
+- Direct messages with unread state, optional text, attached pin previews, and saving a received pin into a collection.
+- Custom collection covers/crops/themes, collection export/import, PWA install/share-target support, keyboard shortcuts, onboarding, and responsive mobile behavior.
+- Optional Cloudinary uploads, Resend email verification, durable local copies of saved Pixabay media, rate limiting, CSP/security headers, and account deletion.
+
+Core functionality does not depend on paid APIs. With no keys configured, Mosaic still runs using Wikimedia and local functionality.
+
+DESIGN DIRECTION — PRODUCT UI OVER THREE.JS / AWWWARDS-STYLE EFFECTS
+I considered a heavier WebGL/Three.js presentation, but chose not to make visual spectacle the center of Mosaic. The challenge is an image-saving/sharing product with repeated workflows: search, scan many images, save quickly, organize precisely, collaborate, and use the same interface on a phone. A 3D hero or shader-heavy transition would add bundle/runtime cost and motion complexity without improving those tasks.
+
+That choice also matches the rubric: it rewards working features, maintainable code, responsive polish, collaboration, reliability, and creativity without prescribing a rendering technique. I treated “make the application look good” as a product-design requirement rather than a requirement to turn the app into a cinematic landing page.
+
+I spent that complexity budget on interactions that remain useful after the first impression: a real draggable Canvas, multi-select organization, optimistic actions with recovery, responsive layouts, collection customization, social feedback, collaboration, and mobile/offline/error states. The visual language is intentionally closer to a polished consumer app than an Awwwards portfolio landing page. Motion is restrained so the content stays primary and the interface remains understandable, fast, keyboard-usable, and responsive.
+
+The Canvas is also intentionally DOM/CSS based instead of WebGL. Pins need normal focus behavior, selection, text, menus, drag state, persisted coordinates, and reliable mobile interaction. Using ordinary interface primitives made those behaviors easier to keep accessible and testable while still giving collections a spatial mode.
+
+ENGINEERING CHOICES
+Frontend: React + TypeScript, Vite, TanStack Query, Radix UI primitives, Lucide icons, and hand-written CSS.
+Backend: Node.js + Express REST API with separated route/middleware/library modules.
+Database: SQLite in WAL mode with foreign keys, transactions, indexes, ownership/membership rules, and persistent production storage.
+Production: one Docker service on Render; Express serves the compiled frontend and REST API, with a persistent /data volume.
+
+SQLite was deliberate for this submission. Mosaic is deployed as one application instance, so an embedded transactional database keeps setup small, makes the repository easy to run, and still provides real persistence and rollback behavior. The code does not use localStorage as its database. If the product needed horizontal multi-instance scaling, the next infrastructure step would be moving the persistence layer to PostgreSQL/object storage rather than pretending the current deployment has that requirement.
+
+Recommendations are similarly designed to degrade cleanly. Mosaic learns from saved interests, follows, popularity, and explicit More like this / Not interested feedback without requiring an AI key. I preferred a recommendation system that every reviewer can run over making the core experience depend on an external model service.
+
+RELIABILITY / SECURITY DETAILS
+- Database writes that span related records use transactions and rollback on failure.
+- Delete/undo preserves pin identity and discussion during the undo window.
+- Provider search is cached and rate guarded; downloaded provider media is validated and stored durably.
+- Session cookies, CSP/Helmet headers, input validation, URL checks, login throttling, and stored-content XSS regression coverage are included.
+- Seeded demo accounts are locked in production by default. A private reviewer password can be supplied through DEMO_ACCESS_PASSWORD without committing a credential.
+- Production health checks report database and search-provider readiness.
+
+QUICK REVIEW PATH
+1. Create an account. With Resend unset locally, registration completes immediately; with Resend configured, Mosaic requires the 6-digit email code.
+2. Search in Discover and save an image. Quick Save remembers the last collection; the adjacent menu lets you choose another.
+3. Open Collections and try Recently saved / Most liked / Unsorted, then enter a normal collection.
+4. Create a Section, use Select for bulk organization, then switch to Canvas and drag pins until an alignment guide appears. Try Undo, Redo, Remix, and Tidy.
+5. Use Edit to change the cover/crop, theme, and layout. Use Activity and Share to publish a read-only link or invite an editor.
+6. Open Explore and switch among For You, Following, and Trending. Try multi-select saving and More like this / Not interested.
+7. Open a public pin to Like, Comment, Reply/@mention, Share, or Send it into Messages with an optional note.
+8. Visit another profile to follow/message them or follow one of their public collections.
+9. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search.
+
+RUN LOCALLY
+Requirements:
 - Node.js 20.19+ or 22.12+
 - npm
 
-RUNNING THE APP
-1. From the repository root, install dependencies:
-   npm ci
+From the repository root:
+  npm ci
+  npm run dev
 
-2. Start the frontend and backend together:
-   npm run dev
+Open the frontend URL printed by Vite (normally http://127.0.0.1:5173).
+The Express REST API runs separately at http://127.0.0.1:3001 during development.
 
-3. Open the frontend URL printed by Vite (normally http://127.0.0.1:5173).
-   The Express API runs on http://127.0.0.1:3001.
+No API key is required.
 
-No API key is required. Use Node 22 LTS for the same runtime as Docker. Search uses Wikimedia Commons automatically and falls back to Mosaic's bundled catalog if a remote provider is unavailable.
+OPTIONAL SERVICES
+Copy .env.example to .env when using optional providers:
+- PIXABAY_API_KEY — preferred live image provider.
+- VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET — browser image uploads through an unsigned preset.
+- RESEND_API_KEY + EMAIL_FROM — required 6-digit verification for new accounts when both are configured.
+- DEMO_ACCESS_PASSWORD — optional private production access to the seeded reviewer accounts; leave blank to keep them disabled.
 
-OPTIONAL API KEYS
-Copy .env.example to .env.
-- PIXABAY_API_KEY enables Pixabay as the preferred search provider.
-- VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET enable direct file uploads using an unsigned Cloudinary preset.
-- RESEND_API_KEY + EMAIL_FROM enable required 6-digit email verification for newly created accounts. EMAIL_FROM must be a sender address accepted by your Resend account.
+Cloudinary should use an unsigned preset restricted to JPEG/PNG/WebP/GIF, a sensible dimension cap, max_file_size 10485760 (10 MB), and disallow_public_id. Never put the Cloudinary API secret in a VITE_* variable.
 
-Without Cloudinary, users can add pins from a direct HTTPS image URL. A webpage URL is a source link, not necessarily an image. Restart Vite after editing .env; production VITE_* values are compiled into the frontend and require a rebuild. Never put a Cloudinary API secret in VITE_* variables.
-
-Use an unsigned Cloudinary preset restricted to JPEG/PNG/WebP/GIF, max_file_size 10485760 (10 MB), disallow_public_id, and appropriate incoming dimension limits. The cloud name and preset are public client settings; monitor account usage. Uploads are optional and need a real configured account to verify end-to-end.
-
-Pixabay search responses are cached in SQLite for 24 hours, provider calls are guarded below Pixabay's published per-key rate limit, and Pixabay is named directly anywhere its search results are shown. New saved Pixabay pins are copied to the media directory beside the database instead of permanently hotlinking provider URLs; approved Pixabay/CDN redirects are validated on every hop before download. Keep that media directory with your database backups. Wikimedia/source pages retain attribution links. External images and services can still be unavailable.
-
-REVIEWER DEMO
-Mosaic seeds example content on a new database so the product has realistic public material to browse. Production access to those seeded demo accounts is disabled by default. If a private reviewer demo is needed, set DEMO_ACCESS_PASSWORD in the host environment and share that credential privately; never commit it to the repository.
-
-Suggested walkthrough:
-1. Discover an image and use one-click Save. Mosaic remembers the last collection; the small arrow still lets you choose another.
-2. Open Collections and try the Recently saved / Most liked / Unsorted smart views, then open a normal collection.
-3. Filter that collection by title, note, or tag. Use Select to bulk move/delete pins, with Undo available after destructive actions.
-4. Choose Edit to set the cover/crop plus a restrained board theme and Gallery/Compact/Masonry layout.
-5. In Grid, create a named Section, select one or more pins, and Organize them; selected pins can also be moved or copied to another collection. Then open Canvas, drag until an alignment guide appears, and try Undo, Redo, Remix, and Tidy.
-6. Open Activity, then Share to create a polished view-only URL or add another Mosaic account as an editor.
-7. Open Explore to see the “Because you saved…” recommendation shelf, then switch between For You, Following, and Trending. Use Select to choose up to 30 public pins and save them to one collection in a batch; duplicate sources are skipped cleanly. Individual Save still supports duplicate warnings, a private note, and Undo.
-8. Open a public pin to Like, Comment, Share, or Send it into a recent conversation as a tappable pin preview, then keep scrolling through both Mosaic-related pins and the live "More like this" discovery trail.
-9. Open Sam Rivera's profile and choose Message. The Messages inbox keeps private one-to-one threads, shared-pin previews, unread counts, and a Save action for shared pins separate from collection notifications.
-10. Press ? for keyboard help. N creates a collection, S opens Quick Capture, and / focuses search. The account menu can also replay the first-run tour.
-11. Use Quick Capture to save an image URL or receive content through the installed PWA share target. With Cloudinary configured, local file upload is also available.
-12. Reply to a pin comment or type an exact `@Name`, then check Notifications for reply/mention alerts alongside shared edits, follows, and likes.
+Pixabay responses are cached in SQLite for 24 hours. Newly saved Pixabay images are copied into Mosaic's media directory instead of relying permanently on the provider URL. Wikimedia/source pages retain attribution links.
 
 PRODUCTION / HOSTING
-- npm run build
-- npm start
+Build and run the production application with:
+  npm run build
+  npm start
 
-In production, Express serves the built React app and API from one process on PORT (default 3001). Dockerfile provides the same one-service setup and uses /data/mosaic.sqlite for persistent storage. Mount /data as a persistent volume on the host. `render.yaml` is a ready-to-connect Render Blueprint with the health check, disk, Docker build, graceful shutdown window, and optional API-key placeholders already declared. It selects a paid Starter service because persistent disks are not available on free instances. Keep one instance: SQLite and local media are not a multi-instance deployment.
+The Dockerfile and render.yaml provide the production setup. Render mounts /data for the SQLite database and local media. Keep one application instance with this SQLite deployment. Public production traffic should use HTTPS; TRUST_PROXY_HOPS must match the real proxy topology.
 
-Render setup:
-1. Connect the reviewed repository to a Render Blueprint. Confirm the /data persistent disk is attached.
-2. Leave optional provider values blank or configure them in Render. Render passes Docker service environment variables as build arguments; changing VITE_* values requires rebuilding.
-3. TRUST_PROXY_HOPS=1 is for the single trusted reverse proxy. For another host, configure the actual trusted topology; leave 0 for direct hosting. Serve public production traffic over HTTPS (production session cookies are Secure).
-4. Verify /api/health, create a test account/pin, redeploy, and verify the same data remains.
-5. Back up SQLite with its online backup API (do not copy only an open WAL database file) and /data/media together. Test restore before relying on backups. Deleted image files are retained so restored/shared pins do not break; monitor disk usage.
+For backups, use SQLite's online backup mechanism and preserve /data/media with the database. Do not copy only an open WAL database file and assume it is a complete backup.
 
-Local container check:
-  docker build -t mosaic .
-  docker run --rm -p 3001:3001 -v mosaic-data:/data mosaic
-Open http://localhost:3001. Public hosting requires HTTPS. Stop gracefully so SQLite closes cleanly.
+VALIDATION
+Useful commands:
+  npm run test        Backend permissions, social, persistence, security, and rollback tests
+  npm run test:e2e    Production Chrome reviewer flows, mobile, XSS, offline/error, and UI regressions
+  npm run typecheck   Frontend + backend TypeScript checks
+  npm run lint        Frontend lint
+  npm run build       Production frontend + backend build
 
-USEFUL COMMANDS
-- npm run test       Backend permissions, social, integrity and restart regression tests
-- npm run typecheck  TypeScript checks for frontend and backend
-- npm run lint       Frontend lint
-- npm run build      Production builds for frontend and backend
-- npm run test:e2e   Production Chrome reviewer flows + 390px + offline/error regression tests (requires Chrome; install with npx playwright install chrome)
+The Playwright suite starts the production server against an isolated database. Mobile checks include 390px and 320px viewports, and security tests verify stored user content remains inert rather than executing as HTML.
 
-ARCHITECTURE AND LIMITS
-React/TypeScript + Radix frontend; separate Express REST backend; SQLite WAL persistence. API endpoints are documented in backend/API.md. Development uses two servers; production serves compiled static assets from Express while keeping the REST boundary.
+ARCHITECTURE / LIMITS
+API endpoints are documented in backend/API.md. Development keeps frontend and backend as separate servers as requested by the challenge. Production serves the compiled frontend from Express while preserving the REST API boundary.
 
-Search results are paginated; the initial 12 Mosaic picks are a curated catalog. Smart views show the newest/top 60 saves. Collaboration is account-based, with updates fetched on navigation/refetch rather than a live multiplayer connection. Canvas layouts are atomic, and delete Undo preserves pin identity and discussion for 10 minutes.
+Collaboration uses normal API refetch/navigation rather than live multiplayer sockets. Smart views intentionally cap their newest/top result sets. The PWA caches the application shell, not private API responses or arbitrary third-party images. Offline writes fail clearly instead of being queued for later. Share-target behavior depends on browser support.
 
-The PWA caches its app shell, not private API data or third-party images. Already loaded views may remain visible offline; fresh navigation asks you to reconnect. Writes fail with a message and are not queued. Installed share-target support varies by browser and accepts title/text/URLs, not automatic webpage image extraction.
-
-SUBMISSION
-Review and push the final working tree, then submit the completion form linked in original_challenge.md before the deadline. Local tests cannot verify form submission.
-
-REFLECTION
-This challenge pushed me beyond a basic CRUD app into account permissions, collaboration, optimistic UI updates, rollback behavior, and responsive design. I reinforced React, TypeScript, Express, REST APIs, and database modeling while learning how much product polish depends on small interaction details. The most interesting part was building collaboration safely: owner/editor permissions, revocable public links, notifications, and activity history all had to work together without making the interface feel complicated.
+REFLECTION (under 100 words)
+This challenge pushed me beyond CRUD into permissions, collaboration, optimistic UI, rollback behavior, responsive design, and product tradeoffs. I reinforced React, TypeScript, Express, REST APIs, and database modeling while learning that polish is often less about adding visual effects and more about making many small states behave consistently. The most interesting part was connecting sharing, ownership, notifications, social features, and recovery behavior without making the interface feel fragmented. I also learned to choose complexity based on what improves the product rather than what is most visually impressive or technically fashionable.
 
 FEEDBACK
-I liked that the prompt left room for interpretation and rewarded both solid engineering and creativity. The rubric also made it clear which extensions were worth prioritizing once the core requirements worked.
+I liked that the prompt left room for interpretation and made functionality the priority while still rewarding creativity. That flexibility encouraged me to go well beyond the base requirements. The only thing I would add is a little more guidance about how reviewers weigh deep product extensions versus infrastructure/architecture experiments, because both are interesting ways to take the challenge.
