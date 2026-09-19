@@ -826,7 +826,7 @@ test('390px capture, dialog focus and offline reload have usable recovery', asyn
   await expect(page.getByRole('heading', { name: 'Save something new.' })).toBeVisible()
 })
 
-test('topbar quick actions expose save, new collection and import without crowding mobile', async ({ page }) => {
+test('topbar quick actions work on desktop and collapse into a usable mobile menu', async ({ page }) => {
   await enterDemo(page)
   const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
   if (await dismiss.count()) await dismiss.click()
@@ -848,9 +848,24 @@ test('topbar quick actions expose save, new collection and import without crowdi
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByRole('navigation', { name: 'Quick actions' })).toBeHidden()
+  const mobileQuick = page.getByRole('button', { name: 'Quick actions menu' })
+  await expect(mobileQuick).toBeVisible()
+  const mobileQuickBox = await mobileQuick.boundingBox()
+  expect(mobileQuickBox?.width ?? 0).toBeGreaterThanOrEqual(44)
+  expect(mobileQuickBox?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await mobileQuick.click()
+  const mobileMenu = page.locator('#mobile-quick-actions')
+  await expect(mobileMenu).toBeVisible()
+  await expect(mobileMenu.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
+  await expect(mobileMenu.getByRole('button', { name: 'New collection', exact: true })).toBeVisible()
+  await expect(mobileMenu.getByRole('button', { name: 'Import', exact: true })).toBeVisible()
+  await expect(mobileMenu.getByRole('button', { name: /Commands/ })).toContainText('⌘ K / Ctrl K')
+  await mobileMenu.getByRole('button', { name: /Commands/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
-test('command palette opens collections and launches presentation mode', async ({ page }) => {
+test('command palette supports both Windows and Mac shortcuts and launches presentation mode', async ({ page }) => {
   await enterDemo(page)
   const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
   if (await dismiss.count()) await dismiss.click()
@@ -860,6 +875,23 @@ test('command palette opens collections and launches presentation mode', async (
   await expect(palette).toBeVisible()
   const search = page.getByLabel('Search commands and collections')
   await expect(search).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(palette).toHaveCount(0)
+
+  await page.keyboard.press('Meta+k')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  await expect(page.getByLabel('Search commands and collections')).toBeFocused()
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click()
+  const shortcuts = page.getByRole('dialog', { name: 'Move faster in Mosaic.' })
+  await expect(shortcuts.getByText('⌘ K', { exact: true })).toBeVisible()
+  await expect(shortcuts.getByText('Ctrl K', { exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.keyboard.press('Control+k')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
   await search.fill('Museum of small things')
   await expect(page.getByRole('option', { name: /Museum of small things/ })).toBeVisible()
   await search.press('Enter')

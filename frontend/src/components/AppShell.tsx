@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, Download, FolderHeart, FolderPlus, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, Upload, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Command, Compass, Download, FolderHeart, FolderPlus, Globe2, HelpCircle, LogOut, MessageCircle, Plus, ShieldCheck, Upload, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -45,6 +45,7 @@ export function AppShell() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [shortcutOpen, setShortcutOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [coachReplay, setCoachReplay] = useState(0)
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -92,9 +93,10 @@ export function AppShell() {
         setCommandOpen((current) => !current)
         setProfileOpen(false)
         setNotificationsOpen(false)
+        setQuickActionsOpen(false)
         return
       }
-      if (event.key === 'Escape') { setProfileOpen(false); setNotificationsOpen(false) }
+      if (event.key === 'Escape') { setProfileOpen(false); setNotificationsOpen(false); setQuickActionsOpen(false) }
       if (document.querySelector('[role="dialog"]') || typing || event.metaKey || event.ctrlKey || event.altKey) return
       if (event.key === '/') { event.preventDefault(); navigate('/', { state: { focusSearch: true } }) }
       else if (event.key.toLowerCase() === 'n') { event.preventDefault(); navigate('/collections?new=1') }
@@ -143,9 +145,22 @@ export function AppShell() {
             <button aria-label="Quick save" onClick={() => navigate('/capture')}><Plus size={15} /><span>Save</span></button>
             <button aria-label="Quick new collection" onClick={() => navigate('/collections?new=1')}><FolderPlus size={15} /><span>New collection</span></button>
             <ImportDialog trigger={<button aria-label="Quick import"><Upload size={15} /><span>Import</span></button>} />
+            <button aria-label="Open commands" title="Command palette · ⌘ K / Ctrl K" onClick={() => { setCommandOpen(true); setProfileOpen(false); setNotificationsOpen(false); setQuickActionsOpen(false) }}><Command size={15} /><span>Commands</span></button>
           </nav>
           <div className="topbar-actions">
             {!online && <span className="offline-badge" title="Reconnect to load or save changes"><WifiOff size={13} /> Offline</span>}
+            <div className="popover-wrap mobile-quick-actions">
+              <button className="mobile-quick-trigger" aria-label="Quick actions menu" aria-expanded={quickActionsOpen} aria-controls={quickActionsOpen ? 'mobile-quick-actions' : undefined} onClick={() => { setQuickActionsOpen((current) => !current); setProfileOpen(false); setNotificationsOpen(false) }}><Plus size={18} /></button>
+              {quickActionsOpen && <div id="mobile-quick-actions" className="account-popover mobile-quick-popover">
+                <div className="popover-title"><strong>Quick actions</strong><span>Save, organize, or jump anywhere.</span></div>
+                <div className="mobile-quick-list">
+                  <button className="popover-action" onClick={() => { setQuickActionsOpen(false); navigate('/capture') }}><Plus size={16} /> Save</button>
+                  <button className="popover-action" onClick={() => { setQuickActionsOpen(false); navigate('/collections?new=1') }}><FolderPlus size={16} /> New collection</button>
+                  <ImportDialog trigger={<button className="popover-action" onClick={() => setQuickActionsOpen(false)}><Upload size={16} /> Import</button>} />
+                  <button className="popover-action" onClick={() => { setQuickActionsOpen(false); setCommandOpen(true) }}><Command size={16} /> Commands <small>⌘ K / Ctrl K</small></button>
+                </div>
+              </div>}
+            </div>
             <div className="popover-wrap">
               <button
                 className="notification-button"
@@ -156,6 +171,7 @@ export function AppShell() {
                   const next = !notificationsOpen
                   setNotificationsOpen(next)
                   setProfileOpen(false)
+                  setQuickActionsOpen(false)
                   if (next && unread) readNotifications.mutate()
                 }}
               >
@@ -177,7 +193,7 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls={profileOpen ? 'account-popover' : undefined} onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user?.avatar_url} name={me?.user?.name ?? initials} /></button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls={profileOpen ? 'account-popover' : undefined} onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); setQuickActionsOpen(false) }}><AvatarFrame src={me?.user?.avatar_url} name={me?.user?.name ?? initials} /></button>
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
                   <div className="profile-copy"><strong>{me?.user?.name}</strong><span>{me?.user?.email}</span></div>
@@ -215,7 +231,7 @@ export function AppShell() {
           <Dialog.Content className="dialog-card compact shortcut-dialog">
             <div className="dialog-head"><div><span className="eyebrow">KEYBOARD</span><Dialog.Title>Move faster in Mosaic.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close shortcuts"><X size={18} /></Dialog.Close></div>
             <Dialog.Description className="muted">Shortcuts stay out of the way while you’re typing in a field.</Dialog.Description>
-            <div className="shortcut-list"><span><kbd>⌘/Ctrl K</kbd><b>Command palette</b></span><span><kbd>/</kbd><b>Search ideas</b></span><span><kbd>N</kbd><b>New collection</b></span><span><kbd>S</kbd><b>Quick capture</b></span><span><kbd>?</kbd><b>Show shortcuts</b></span><span><kbd>↑ ↓ ← →</kbd><b>Nudge a Canvas pin</b></span></div>
+            <div className="shortcut-list"><span><span className="shortcut-keys"><kbd>⌘ K</kbd><kbd>Ctrl K</kbd></span><b>Command palette</b></span><span><kbd>/</kbd><b>Search ideas</b></span><span><kbd>N</kbd><b>New collection</b></span><span><kbd>S</kbd><b>Quick capture</b></span><span><kbd>?</kbd><b>Show shortcuts</b></span><span><kbd>↑ ↓ ← →</kbd><b>Nudge a Canvas pin</b></span></div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
