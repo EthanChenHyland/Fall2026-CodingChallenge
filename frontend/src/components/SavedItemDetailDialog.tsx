@@ -49,7 +49,7 @@ export function SavedItemDetailDialog({ item, sections, disabled, onMove }: {
                 <button className="primary-button" disabled={disabled || targetSection === currentValue} onClick={() => void move()}>Move</button>
               </div>
             </div>
-            {item.source_page && <div className="pin-detail-actions"><a className="secondary-button" href={item.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> View source</a></div>}
+            {item.source_page && <div className="pin-detail-actions"><a className="secondary-button" href={item.source_page} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> View source</a></div>}
           </div>
         </Dialog.Content>
       </Dialog.Portal>

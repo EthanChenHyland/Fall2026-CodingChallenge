@@ -35,6 +35,19 @@ test('URL schemes, malformed cookies, pagination and JSON are handled safely', a
   await request(app).post('/api/auth/login').set('Content-Type', 'application/json').send('{').expect(400)
 })
 
+test('browser security headers block common XSS escalation paths', async () => {
+  const response = await request(app).get('/api/health').expect(200)
+  const csp = String(response.headers['content-security-policy'] ?? '')
+  assert.match(csp, /script-src 'self'/)
+  assert.match(csp, /object-src 'none'/)
+  assert.match(csp, /base-uri 'none'/)
+  assert.match(csp, /frame-ancestors 'none'/)
+  assert.match(csp, /form-action 'self'/)
+  assert.equal(response.headers['x-content-type-options'], 'nosniff')
+  assert.equal(response.headers['x-frame-options'], 'DENY')
+  assert.equal(response.headers['permissions-policy'], 'camera=(), microphone=(), geolocation=()')
+})
+
 test('registration rolls back if a session cannot be created', async () => {
   const email = `atomic-register-${randomUUID()}@example.test`
   db.exec(`CREATE TRIGGER fail_test_registration_session BEFORE INSERT ON sessions

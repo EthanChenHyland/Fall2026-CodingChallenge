@@ -146,7 +146,7 @@ export function PinPage() {
           </section>}
           <div className="pin-detail-actions">
             <QuickSaveControls image={image} pinId={pin.id} />
-            {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Source</a>}
+            {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> Source</a>}
             <button className="secondary-button" onClick={() => void sharePin()}><Share2 size={15} /> Share</button>
             {pin.visibility === 'public' && <SendPinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="secondary-button"><MessageCircle size={15} /> Send</button>} />}
             {pin.can_edit && <EditItemDialog collectionId={pin.collection_id} item={pin} trigger={<button className="secondary-button"><Pencil size={15} /> Edit</button>} />}
