@@ -10,7 +10,7 @@ test.beforeEach(async ({ context }) => {
 async function enterDemo(page: Page) {
   await page.goto('/')
   await page.getByLabel('Email').fill('demo@mosaic.local')
-  await page.getByLabel('Password', { exact: true }).fill('local-e2e-demo')
+  await page.getByLabel('Password', { exact: true }).fill('demo1234')
   await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
 }
@@ -228,7 +228,7 @@ test('direct messages persist between accounts and surface unread threads', asyn
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'sam@mosaic.local', password: 'local-e2e-demo' }),
+      body: JSON.stringify({ email: 'sam@mosaic.local', password: 'demo1234' }),
     })
     return response.ok
   })
@@ -320,7 +320,7 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
   expect(email?.height ?? 0).toBeGreaterThanOrEqual(44)
   expect((await overflowReport()).overflow).toBeLessThanOrEqual(1)
   await page.getByLabel('Email').fill('demo@mosaic.local')
-  await page.getByLabel('Password', { exact: true }).fill('local-e2e-demo')
+  await page.getByLabel('Password', { exact: true }).fill('demo1234')
   await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
   const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })

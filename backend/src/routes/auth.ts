@@ -35,12 +35,6 @@ const deleteAccountSchema = z.object({
 
 const seededDemoEmails = new Set(['demo@mosaic.local', 'sam@mosaic.local', 'maya@mosaic.local'])
 
-function secureStringEqual(actual: string, expected: string) {
-  const actualHash = crypto.createHash('sha256').update(actual).digest()
-  const expectedHash = crypto.createHash('sha256').update(expected).digest()
-  return crypto.timingSafeEqual(actualHash, expectedHash)
-}
-
 function emailVerificationConfigured() {
   return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim())
 }
@@ -166,13 +160,7 @@ authRouter.post('/login', (req, res) => {
   const account = db.prepare('SELECT * FROM users WHERE email = ?').get(parsed.data.email) as
     | (User & { password_hash: string; password_salt: string })
     | undefined
-  const isProductionDemo = process.env.NODE_ENV === 'production' && seededDemoEmails.has(parsed.data.email)
-  const privateDemoPassword = process.env.DEMO_ACCESS_PASSWORD?.trim()
-  const passwordMatches = account && (
-    isProductionDemo
-      ? Boolean(privateDemoPassword && secureStringEqual(parsed.data.password, privateDemoPassword))
-      : safePasswordEqual(parsed.data.password, account.password_salt, account.password_hash)
-  )
+  const passwordMatches = account && safePasswordEqual(parsed.data.password, account.password_salt, account.password_hash)
   if (!account || !passwordMatches) {
     return res.status(401).json({ error: 'Email or password is incorrect.' })
   }

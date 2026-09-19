@@ -64,7 +64,7 @@ RELIABILITY / SECURITY DETAILS
 - Delete/undo preserves pin identity and discussion during the undo window.
 - Provider search is cached and rate guarded; downloaded provider media is validated and stored durably.
 - Session cookies, CSP/Helmet headers, input validation, URL checks, login throttling, and stored-content XSS regression coverage are included.
-- Seeded demo accounts are locked in production by default. A private reviewer password can be supplied through DEMO_ACCESS_PASSWORD without committing a credential.
+- Seeded demo accounts cannot be deleted.
 - Production health checks report database and search-provider readiness.
 
 QUICK REVIEW PATH
@@ -97,7 +97,6 @@ Copy .env.example to .env when using optional providers:
 - PIXABAY_API_KEY — preferred live image provider.
 - VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET — browser image uploads through an unsigned preset.
 - RESEND_API_KEY + EMAIL_FROM — required 6-digit verification for new accounts when both are configured.
-- DEMO_ACCESS_PASSWORD — optional private production access to the seeded reviewer accounts; leave blank to keep them disabled.
 
 Cloudinary should use an unsigned preset restricted to JPEG/PNG/WebP/GIF, a sensible dimension cap, max_file_size 10485760 (10 MB), and disallow_public_id. Never put the Cloudinary API secret in a VITE_* variable.
 
@@ -132,3 +131,11 @@ This challenge pushed me past basic CRUD into permissions, collaboration, optimi
 
 FEEDBACK
 I liked that the prompt was open-ended and still made the baseline expectations clear. It gave me room to go way past the required features without forcing one specific stack. The one thing I would add is a little more guidance on how reviewers weigh deep end-to-end product work against infrastructure experiments or flashy technical extras that may be cool on their own but do not really change the core app.
+
+DEMO LOGIN
+The website does not show demo credentials, but reviewers can use the seeded account from the normal sign-in form:
+
+Email: demo@mosaic.local
+Password: demo1234
+
+The demo database is persistent and is not reset on every restart.
