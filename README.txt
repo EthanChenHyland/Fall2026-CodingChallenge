@@ -15,14 +15,14 @@ I wanted Mosaic to feel useful, not just technically impressive on paper. I coul
 For me, the harder and more useful problem was making the whole save-organize-share loop work well together: discovery, persistence, collaboration, messages, social features, bulk organization, mobile behavior, error handling, and the Canvas. I'd rather have a lot of useful interactions that fit together than one flashy subsystem that mostly makes the stack diagram longer.
 
 The app includes:
-- Live image search with Pixabay when configured, Wikimedia fallback, pagination, related searches, and recommendation feedback.
+- Live image search with Pixabay when configured, Wikimedia fallback, pagination, autocomplete, recent/saved searches, result-type filters, related searches, and recommendation feedback.
 - Accounts, profile handles, editable profiles/avatars, follows, collection follows, follower counts, and public profiles.
 - Private, followers-only, and public collections; revocable public share links; account collaborators; and revocable editor invite links.
-- Quick Save, multi-select Explore saving, duplicate protection, smart collections, sections, tags, filtering, bulk move/copy/delete, and undo.
+- Quick Save, multi-select Explore saving, duplicate protection, smart collections, sections, tags, filtering, persistent drag/keyboard reordering, bulk move/copy/delete, and undo.
 - Grid, Gallery, Compact, Masonry, and a draggable Canvas with persisted positions, alignment guides, Remix/Tidy, undo, and redo.
-- Likes, threaded comments, replies, @mentions, activity history, notifications, and privacy-safe repin provenance.
+- Likes, threaded comments, replies, @mentions, categorized activity history, notifications, privacy-safe repin provenance, and previous/next pin navigation inside a collection.
 - Direct messages with unread state, optional text, attached pin previews, and saving a received pin into a collection.
-- Custom collection covers/crops/themes, collection export/import, PWA install/share-target support, keyboard shortcuts, onboarding, and responsive mobile behavior.
+- Custom collection covers/crops/themes, collection presentation/share views, rich social-link previews, collection export/import, PWA install/share-target support, keyboard shortcuts, onboarding, and responsive mobile behavior.
 - Optional Cloudinary uploads, Resend email verification, durable local copies of saved Pixabay media, rate limiting, CSP/security headers, and account deletion.
 
 Core functionality does not depend on paid APIs. With no keys configured, Mosaic still runs using Wikimedia and local functionality.
@@ -72,7 +72,7 @@ QUICK REVIEW PATH
 2. Search in Discover and save an image. Quick Save remembers the last collection; the adjacent menu lets you choose another.
 3. Open Collections and try Recently saved / Most liked / Unsorted, then enter a normal collection.
 4. Create a Section, use Select for bulk organization, then switch to Canvas and drag pins until an alignment guide appears. Try Undo, Redo, Remix, and Tidy.
-5. Use Edit to change the cover/crop, theme, and layout. Use Activity and Share to publish a read-only link or invite an editor.
+5. Use Edit to change the cover/crop, theme, and layout. Reorder a few saves, try Present, then use Activity and Share to publish a read-only link or invite an editor.
 6. Open Explore and switch among For You, Following, and Trending. Try multi-select saving and More like this / Not interested.
 7. Open a public pin to Like, Comment, Reply/@mention, Share, or Send it into Messages with an optional note.
 8. Visit another profile to follow/message them or follow one of their public collections.

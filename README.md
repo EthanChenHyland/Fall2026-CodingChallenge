@@ -67,21 +67,21 @@ The challenge only required the basic image-saving workflow, but I kept building
 
 ### Collections and organization
 
-Collections support descriptions, covers, themes, layouts, sections, tags, filtering, bulk actions, undo after deletion, and portable JSON export/import.
+Collections support descriptions, covers, themes, layouts, sections, tags, filtering, bulk actions, persistent drag/keyboard reordering, undo after deletion, and portable JSON export/import. There is also a full-screen presentation mode for walking through a board one save at a time.
 
 The Canvas became the main visual feature. Saved images can be dragged into a freeform composition, nudged with the keyboard, aligned with guides, and rearranged with Remix/Tidy controls.
 
 ### Sharing and collaboration
 
-Collections can be private, followers-only, or public. Public sharing uses revocable URLs.
+Collections can be private, followers-only, or public. Public sharing uses revocable URLs, including a read-only presentation view with social-preview metadata for shared links.
 
 Owners can also collaborate with other accounts. Editors have scoped permissions, can join through revocable invite links, and can leave a collection. Activity history and notifications make shared changes easier to follow.
 
 ### Social features
 
-I added public profiles, user and collection follows, For You / Following / Trending feeds, likes, threaded comments, mentions, direct messages, pin sharing through messages, and privacy-safe repin provenance.
+I added public profiles, user and collection follows, For You / Following / Trending feeds, likes, threaded comments, mentions, direct messages, pin sharing through messages, privacy-safe repin provenance, and previous/next browsing inside a collection from pin detail pages.
 
-Recommendations use a user's saved interests and explicit **More like this / Not interested** feedback rather than being a static feed.
+Discover also remembers recent and saved searches, supports live suggestions and result-type filters, and keeps the existing recommendation system based on saved interests plus explicit **More like this / Not interested** feedback.
 
 ### Reliability and privacy
 
