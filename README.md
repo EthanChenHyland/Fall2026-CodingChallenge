@@ -112,7 +112,6 @@ Optional environment variables are documented in [.env.example](.env.example):
     VITE_CLOUDINARY_UPLOAD_PRESET=
     RESEND_API_KEY=
     EMAIL_FROM=
-    DEMO_ACCESS_PASSWORD=
 
 ## Production / hosting
 
@@ -127,14 +126,6 @@ Useful release checks:
     npm test
     npm run build
     npm run test:e2e
-
-## Demo
-
-New databases seed realistic sample content so the public product does not look empty, but **production access to the seeded demo accounts is disabled by default**.
-
-If private reviewer access is needed, the deployment can set `DEMO_ACCESS_PASSWORD` and share that password privately. No reviewer password is committed to the repository, and the old seeded passwords do not work in production.
-
-The database is persistent and is not reset on every restart.
 
 ## Thought process
 
@@ -171,3 +162,12 @@ The original challenge requires a README.txt, so I kept that file in the reposit
 Original prompt: [original_challenge.md](original_challenge.md)
 
 Submission README: [README.txt](README.txt)
+
+## Demo login
+
+The site does not advertise a demo login, but reviewers can use the seeded account directly from the normal sign-in form:
+
+    Email: demo@mosaic.local
+    Password: demo1234
+
+The demo database is persistent and is not reset on every restart.

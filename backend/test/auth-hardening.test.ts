@@ -46,24 +46,18 @@ test('email verification creates an account only after the correct code', async 
   }
 })
 
-test('production demo accounts are closed unless a private reviewer password is configured', async () => {
+test('production demo account uses its normal seeded credentials', async () => {
   const previousNodeEnv = process.env.NODE_ENV
-  const previousDemoPassword = process.env.DEMO_ACCESS_PASSWORD
   const previousTrustProxy = app.get('trust proxy')
   process.env.NODE_ENV = 'production'
-  delete process.env.DEMO_ACCESS_PASSWORD
   app.set('trust proxy', 1)
 
   try {
     await request(app).post('/api/auth/demo').set('X-Forwarded-For', '203.0.113.10').expect(404)
-    await request(app).post('/api/auth/login').set('X-Forwarded-For', '203.0.113.11').send({ email: 'demo@mosaic.local', password: 'demo1234' }).expect(401)
-    process.env.DEMO_ACCESS_PASSWORD = 'private-reviewer-test'
-    await request(app).post('/api/auth/login').set('X-Forwarded-For', '203.0.113.12').send({ email: 'demo@mosaic.local', password: 'private-reviewer-test' }).expect(200)
+    await request(app).post('/api/auth/login').set('X-Forwarded-For', '203.0.113.11').send({ email: 'demo@mosaic.local', password: 'demo1234' }).expect(200)
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = previousNodeEnv
-    if (previousDemoPassword === undefined) delete process.env.DEMO_ACCESS_PASSWORD
-    else process.env.DEMO_ACCESS_PASSWORD = previousDemoPassword
     app.set('trust proxy', previousTrustProxy)
   }
 })
