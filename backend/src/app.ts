@@ -16,6 +16,7 @@ import { notificationsRouter } from './routes/notifications.js'
 import { messagesRouter } from './routes/messages.js'
 import { pinsRouter } from './routes/pins.js'
 import { profilesRouter } from './routes/profiles.js'
+import { reportsRouter } from './routes/reports.js'
 import { searchRouter } from './routes/search.js'
 import { sharedRouter } from './routes/shared.js'
 
@@ -107,6 +108,7 @@ app.use('/api/notifications', notificationsRouter)
 app.use('/api/messages', messagesRouter)
 app.use('/api/pins', pinsRouter)
 app.use('/api/profiles', profilesRouter)
+app.use('/api/reports', reportsRouter)
 app.use('/api/shared', sharedRouter)
 
 app.use('/media', express.static(mediaDir, { maxAge: '1y', immutable: true, dotfiles: 'deny' }), (_req, res) => res.status(404).end())

@@ -192,6 +192,16 @@ db.exec(`
     payload TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL CHECK (target_type IN ('pin', 'profile', 'comment')),
+    target_id INTEGER NOT NULL,
+    reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'sexual', 'copyright', 'other')),
+    details TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'dismissed')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS deleted_items (
     item_id INTEGER PRIMARY KEY,
     collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -216,6 +226,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_conversations_user_a ON conversations(user_a_id, updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_conversations_user_b ON conversations(user_b_id, updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id ASC);
+  CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_open_unique ON reports(reporter_id, target_type, target_id) WHERE status = 'open';
 `)
 
 ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")

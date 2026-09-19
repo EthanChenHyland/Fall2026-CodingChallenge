@@ -1577,3 +1577,9 @@ img { display: block; max-width: 100%; }
   .send-pin-list { max-height: 36vh; }
   .send-pin-list > button { min-height: 66px; }
 }
+
+.report-dialog { display: grid; gap: 14px; }
+.report-trigger { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.comment-inline-actions { display: flex; align-items: center; gap: 10px; }
+.comment-report { border: 0; background: transparent; padding: 0; color: var(--muted); cursor: pointer; font-size: 9px; }
+.comment-report:hover, .comment-report:focus-visible { color: #95404e; }

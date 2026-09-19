@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, Flag, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { ImageCard } from '../components/ImageCard'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { QuickSaveControls } from '../components/QuickSaveControls'
 import { SendPinDialog } from '../components/SendPinDialog'
+import { ReportDialog } from '../components/ReportDialog'
 import type { CatalogImage, PinComment } from '../types'
 
 export function PinPage() {
@@ -123,7 +124,7 @@ export function PinPage() {
       <div className="pin-comment-copy">
         <Link to={`/people/${entry.user_username}`}>{entry.user_name}</Link>
         <p>{entry.body}</p>
-        <button className="comment-reply" onClick={() => beginReply(entry)}><Reply size={12} /> Reply</button>
+        <div className="comment-inline-actions"><button className="comment-reply" onClick={() => beginReply(entry)}><Reply size={12} /> Reply</button><ReportDialog targetType="comment" targetId={entry.id} trigger={<button className="comment-report">Report</button>} /></div>
       </div>
       {entry.can_delete && <button className="comment-delete" aria-label="Remove comment" disabled={removeComment.isPending} onClick={() => removeComment.mutate(entry.id)}><Trash2 size={13} /></button>}
     </div>
@@ -168,6 +169,7 @@ export function PinPage() {
             {pin.source_page && <a className="secondary-button" href={pin.source_page} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> Source</a>}
             <button className="secondary-button" onClick={() => void sharePin()}><Share2 size={15} /> Share</button>
             {pin.visibility === 'public' && <SendPinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="secondary-button"><MessageCircle size={15} /> Send</button>} />}
+            {pin.visibility === 'public' && <ReportDialog targetType="pin" targetId={pin.id} trigger={<button className="secondary-button"><Flag size={15} /> Report</button>} />}
             {pin.can_edit && <EditItemDialog collectionId={pin.collection_id} item={pin} trigger={<button className="secondary-button"><Pencil size={15} /> Edit</button>} />}
             {pin.can_edit && <button className={removeArmed ? 'danger-button' : 'secondary-button'} disabled={removePin.isPending} onClick={() => removeArmed ? removePin.mutate() : setRemoveArmed(true)} onBlur={() => setRemoveArmed(false)}><Trash2 size={15} /> {removeArmed ? 'Click again to remove' : 'Remove'}</button>}
           </div>

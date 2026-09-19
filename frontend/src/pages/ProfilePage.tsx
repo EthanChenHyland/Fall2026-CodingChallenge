@@ -8,6 +8,7 @@ import { AvatarFrame } from '../components/AvatarFrame'
 import { CollectionCover } from '../components/CollectionCover'
 import { EditProfileDialog } from '../components/EditProfileDialog'
 import { ConnectionsDialog } from '../components/ConnectionsDialog'
+import { ReportDialog } from '../components/ReportDialog'
 
 export function ProfilePage() {
   const queryClient = useQueryClient()
@@ -42,7 +43,7 @@ export function ProfilePage() {
           <span className="profile-handle">@{profile.username}</span>
           <p>{profile.bio || 'Collecting a few good things at a time.'}</p>
           <div className="profile-stats"><span className="profile-stat"><strong>{profile.pin_count}</strong><span>pins</span></span><span className="profile-stat"><strong>{profile.collection_count}</strong><span>collections</span></span><ConnectionsDialog profileId={profile.id} kind="followers" count={profile.follower_count} /><ConnectionsDialog profileId={profile.id} kind="following" count={profile.following_count} /></div>
-          <div className="profile-actions">{profile.is_self ? <EditProfileDialog profile={profile} /> : <><button className={profile.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={follow.isPending} onClick={() => follow.mutate()}>{profile.followed_by_me ? 'Following' : 'Follow'}</button><Link className="secondary-button" to={`/messages?with=${profile.id}`}><MessageCircle size={15} /> Message</Link></>}</div>
+          <div className="profile-actions">{profile.is_self ? <EditProfileDialog profile={profile} /> : <><button className={profile.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={follow.isPending} onClick={() => follow.mutate()}>{profile.followed_by_me ? 'Following' : 'Follow'}</button><Link className="secondary-button" to={`/messages?with=${profile.id}`}><MessageCircle size={15} /> Message</Link><ReportDialog targetType="profile" targetId={profile.id} /></>}</div>
         </div>
       </section>
 

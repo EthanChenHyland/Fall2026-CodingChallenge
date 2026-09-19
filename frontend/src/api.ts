@@ -144,6 +144,8 @@ export const api = {
   conversation: (id: number) => request<{ conversation: MessageConversation; messages: DirectMessage[] }>(`/api/messages/${id}`),
   sendMessage: (id: number, body: string, pinId?: number) => request<{ message: DirectMessage }>(`/api/messages/${id}`, { method: 'POST', body: JSON.stringify({ body, pinId }) }),
   markConversationRead: (id: number) => request<void>(`/api/messages/${id}/read`, { method: 'POST' }),
+  reportContent: (body: { targetType: 'pin' | 'profile' | 'comment'; targetId: number; reason: 'spam' | 'harassment' | 'sexual' | 'copyright' | 'other'; details?: string }) =>
+    request<{ report: { id: number } }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   sharedCollection: (token: string) =>
     request<{ collection: Collection }>(`/api/shared/${encodeURIComponent(token)}`),
 }
