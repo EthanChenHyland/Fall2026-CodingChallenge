@@ -14,7 +14,7 @@ const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture'
 const searchKinds = ['All', 'Images', 'People', 'Collections', 'Pins'] as const
 type SearchKind = typeof searchKinds[number]
 const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
-const PROVIDER_SHUFFLE_INTERVAL_MS = 3_000
+const PROVIDER_SHUFFLE_INTERVAL_MS = 10_000
 const readStoredSearches = (key: string) => {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? '[]')
@@ -121,6 +121,10 @@ export function DiscoverPage() {
   useEffect(() => {
     if ((location.state as { focusSearch?: boolean } | null)?.focusSearch) inputRef.current?.focus()
   }, [location.state])
+
+  useEffect(() => {
+    lastProviderShuffleRef.current = Date.now()
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 280)

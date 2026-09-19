@@ -47,7 +47,7 @@ export function ImportDialog({ trigger }: { trigger: ReactNode }) {
   }
 
   const chooseImages = (files: FileList | null) => {
-    const selected = [...(files ?? [])].slice(0, 20)
+    const selected = Array.from(files ?? []).slice(0, 20)
     const valid = selected.filter((file) => imageTypes.has(file.type) && file.size <= 10 * 1024 * 1024)
     if (selected.length > valid.length) toast.info('Mosaic skipped unsupported images or files over 10 MB.')
     if ((files?.length ?? 0) > 20) toast.info('You can import up to 20 images at a time.')

@@ -40,6 +40,7 @@ function ProductCoach({ replay }: { replay: number }) {
 export function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
+  const homeReset = (location.state as { homeReset?: number } | null)?.homeReset ?? 0
   const queryClient = useQueryClient()
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -69,6 +70,17 @@ export function AppShell() {
     },
   })
   const initials = me?.user?.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'M'
+  const goHome = () => {
+    setProfileOpen(false)
+    setNotificationsOpen(false)
+    setQuickActionsOpen(false)
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    if (location.pathname === '/') {
+      navigate('/', { replace: true, state: { homeReset: homeReset + 1 } })
+      return
+    }
+    navigate('/')
+  }
 
   useEffect(() => {
     const install = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent) }
@@ -112,7 +124,7 @@ export function AppShell() {
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="sidebar">
-        <button className="brand" onClick={() => navigate('/')} aria-label="Mosaic home">
+        <button className="brand" onClick={goHome} aria-label="Mosaic home">
           <BrandMark />
           <span>Mosaic</span>
         </button>
@@ -138,7 +150,7 @@ export function AppShell() {
 
       <main className="main-area" id="main-content" tabIndex={-1}>
         <header className="topbar">
-          <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
+          <button className="mini-brand" onClick={goHome} aria-label="Mosaic home">
             <BrandMark compact /> Mosaic
           </button>
           <nav className="topbar-quick-actions" aria-label="Quick actions">
@@ -208,7 +220,7 @@ export function AppShell() {
             </div>
           </div>
         </header>
-        <div className="page-wrap"><div className="route-stage" key={location.pathname}><Outlet /></div></div>
+        <div className="page-wrap"><div className="route-stage" key={`${location.pathname}:${homeReset}`}><Outlet /></div></div>
       </main>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">

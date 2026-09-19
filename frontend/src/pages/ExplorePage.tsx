@@ -13,7 +13,7 @@ import { applyImageFilters, shuffleImages, type ImageOrder, type ImageOrientatio
 import { rememberCollection } from '../lib/recentCollection'
 
 const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
-const PROVIDER_SHUFFLE_INTERVAL_MS = 3_000
+const PROVIDER_SHUFFLE_INTERVAL_MS = 10_000
 
 export function ExplorePage() {
   const [mode, setMode] = useState<'all' | 'following' | 'trending'>('all')
@@ -130,6 +130,10 @@ export function ExplorePage() {
       setWebSeed(nextSeed)
     }
   }
+
+  useEffect(() => {
+    lastProviderShuffleRef.current = Date.now()
+  }, [])
 
   useEffect(() => {
     if (!sentinel.current) return

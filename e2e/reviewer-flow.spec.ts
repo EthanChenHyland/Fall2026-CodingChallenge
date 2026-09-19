@@ -1029,6 +1029,34 @@ test('discover remembers searches and filters result types and image shape', asy
   }
 })
 
+test('Mosaic home resets Discover state when already on Discover', async ({ page }) => {
+  await enterDemo(page)
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+
+  const search = page.getByLabel('Search images')
+  await search.fill('ceramics')
+  await search.press('Enter')
+  await page.getByRole('button', { name: 'Travel' }).click()
+  await page.getByRole('button', { name: /Discovery filters/ }).click()
+  const filters = page.getByRole('group', { name: 'Discovery filters' })
+  await filters.getByLabel('Image orientation').selectOption('portrait')
+  await expect(filters.getByLabel('Image orientation')).toHaveValue('portrait')
+
+  await page.getByRole('button', { name: 'Mosaic home' }).click()
+  await expect(page).toHaveURL('/')
+  await expect(page.getByLabel('Search images')).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'All', exact: true })).toHaveClass(/active/)
+  await page.getByRole('button', { name: /Discovery filters/ }).click()
+  await expect(page.getByRole('group', { name: 'Discovery filters' }).getByLabel('Image orientation')).toHaveValue('all')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByLabel('Search images').fill('tokyo')
+  await page.getByRole('button', { name: 'Mosaic home' }).click()
+  await expect(page.getByLabel('Search images')).toHaveValue('')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+})
+
 test('Discover and Explore images open in-site previews', async ({ page }) => {
   await enterDemo(page)
   const webImage = page.locator('.image-open-button').first()
