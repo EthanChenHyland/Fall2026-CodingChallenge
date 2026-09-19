@@ -92,6 +92,14 @@ export type PinComment = {
   can_delete: boolean
 }
 
+export type PinLikePerson = {
+  id: number
+  username: string
+  name: string
+  avatar_url: string
+  created_at: string
+}
+
 
 
 export type SocialSearchPerson = {

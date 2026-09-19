@@ -256,6 +256,26 @@ pinsRouter.delete('/:id/like', requireAuth, (req: AuthedRequest, res) => {
   return res.status(204).end()
 })
 
+pinsRouter.get('/:id/likes', (req, res) => {
+  const pinId = Number(req.params.id)
+  if (!Number.isSafeInteger(pinId) || pinId <= 0) return res.status(400).json({ error: 'Invalid pin.' })
+  const visible = db.prepare(`
+    SELECT i.id
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE i.id = ? AND c.visibility = 'public'
+  `).get(pinId)
+  if (!visible) return res.status(404).json({ error: 'Pin not found.' })
+  const likes = db.prepare(`
+    SELECT u.id, u.username, u.name, u.avatar_url, likes.created_at
+    FROM item_likes likes
+    JOIN users u ON u.id = likes.user_id
+    WHERE likes.item_id = ?
+    ORDER BY likes.created_at DESC, u.id DESC
+  `).all(pinId)
+  return res.json({ likes })
+})
+
 
 pinsRouter.get('/:id/comments', (req: AuthedRequest, res) => {
   const pinId = Number(req.params.id)
