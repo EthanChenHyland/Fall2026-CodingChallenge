@@ -91,7 +91,7 @@ export function AuthPage() {
               <label className="field-label" htmlFor="auth-code">Verification code<input id="auth-code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={verificationCode} onChange={(event) => { setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6)); verify.reset() }} placeholder="000000" /></label>
               {errorMessage && <div className="auth-inline-error" role="alert">{errorMessage}</div>}
               <button type="submit" className="primary-button full auth-submit" disabled={verify.isPending || !/^\d{6}$/.test(verificationCode)}>{verify.isPending ? 'Checking…' : 'Verify & create account'} <ArrowRight size={16} /></button>
-              <div className="auth-code-actions"><button type="button" className="text-button" disabled={auth.isPending} onClick={() => auth.mutate()}>{auth.isPending ? 'Sending…' : 'Send a new code'}</button><button type="button" className="text-button" onClick={() => { setVerificationEmail(''); setVerificationCode(''); verify.reset(); auth.reset() }}>Use a different email</button></div>
+              <div className="auth-code-actions"><button type="button" className="secondary-button auth-code-button" disabled={auth.isPending} onClick={() => auth.mutate()}>{auth.isPending ? 'Sending…' : 'Send a new code'}</button><button type="button" className="secondary-button auth-code-button" onClick={() => { setVerificationEmail(''); setVerificationCode(''); verify.reset(); auth.reset() }}>Use a different email</button></div>
             </form>
           ) : <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !auth.isPending) auth.mutate() }}>
             {mode === 'register' && (

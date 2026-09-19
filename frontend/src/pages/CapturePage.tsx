@@ -34,6 +34,7 @@ export function CapturePage() {
   const [tags, setTags] = useState('')
   const [uploading, setUploading] = useState(false)
   const effectiveCollectionId = collectionId || data?.collections[0]?.id || 0
+  const uploadsEnabled = cloudUploadsConfigured()
 
   const save = useMutation({
     mutationFn: async () => {
@@ -75,8 +76,16 @@ export function CapturePage() {
     <section className="capture-page">
       <div className="capture-intro"><span className="eyebrow">QUICK CAPTURE</span><h1>Save something new.</h1><p>Paste a direct image URL to keep it in a collection. A shared webpage link goes in Source URL; choose its image separately.</p></div>
       <div className="capture-card">
-        {imageUrl ? <div className="capture-preview"><img src={imageUrl} alt="Preview" /></div> : <div className="capture-placeholder"><ImagePlus size={32} /><span>Your image preview will appear here.</span></div>}
-        {cloudUploadsConfigured() && <label className="capture-upload secondary-button"><UploadCloud size={15} /> {uploading ? 'Uploading…' : 'Upload image'}<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label>}
+        {imageUrl ? <div className="capture-preview"><img src={imageUrl} alt="Preview" /></div> : uploadsEnabled ? (
+          <label className={`capture-placeholder capture-upload-dropzone ${uploading ? 'uploading' : ''}`}>
+            <span className="capture-upload-icon"><ImagePlus size={30} /></span>
+            <strong>{uploading ? 'Uploading your image…' : 'Upload an image'}</strong>
+            <span>Choose a JPEG, PNG, WebP, or GIF up to 10 MB.</span>
+            <span className="capture-upload-cta"><UploadCloud size={14} /> Choose file</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file); event.currentTarget.value = '' }} />
+          </label>
+        ) : <div className="capture-placeholder"><ImagePlus size={32} /><span>Your image preview will appear here.</span></div>}
+        {uploadsEnabled && imageUrl && <label className="capture-upload secondary-button"><UploadCloud size={15} /> {uploading ? 'Uploading…' : 'Replace image'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file); event.currentTarget.value = '' }} /></label>}
         <label className="field-label">Image URL<input autoFocus value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
         <label className="field-label">Title<input maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
         <label className="field-label">Note <span className="field-optional">optional</span><textarea aria-label="Note" maxLength={500} rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why are you keeping it?" /></label>

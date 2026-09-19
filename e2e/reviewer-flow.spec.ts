@@ -18,6 +18,10 @@ async function enterDemo(page: Page) {
 test('sign in form is keyboard-friendly and exposes useful errors', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByLabel('Account action').getByRole('button', { name: 'Sign in' })).toHaveAttribute('aria-pressed', 'true')
+  for (const button of await page.getByLabel('Account action').getByRole('button').all()) {
+    const box = await button.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(42)
+  }
   await page.getByLabel('Email').fill('demo@mosaic.local')
   await page.getByLabel('Password', { exact: true }).fill('wrong-password')
   await page.getByLabel('Password', { exact: true }).press('Enter')
@@ -286,6 +290,12 @@ test('mobile shell stays usable at 390px', async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
   await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.goto('/collections')
+  const collectionHeaderBox = await page.locator('.page-title-row').boundingBox()
+  const collectionActionsBox = await page.locator('.page-title-actions').boundingBox()
+  expect(collectionActionsBox?.width ?? 0).toBeGreaterThanOrEqual((collectionHeaderBox?.width ?? 0) - 1)
+  const coverBox = await page.locator('.collection-cover').first().boundingBox()
+  expect(Math.abs((coverBox?.width ?? 0) / (coverBox?.height ?? 1) - 1.6)).toBeLessThan(0.03)
   await page.goto('/collections/2')
   const back = await page.getByRole('link', { name: 'All collections' }).boundingBox()
   expect(back?.height ?? 0).toBeGreaterThanOrEqual(32)
