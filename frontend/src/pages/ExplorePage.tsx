@@ -62,9 +62,13 @@ export function ExplorePage() {
   const filteredWebResults = applyImageFilters(webResults, webOrientation, webOrder)
   const webSource = webData?.pages[0]?.source
   const collections = collectionsQuery.data?.collections ?? []
-  const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId)
-    ? destinationId
-    : collections[0] ? String(collections[0].id) : ''
+  const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId) ? destinationId : ''
+
+  const stopSelection = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+    setDestinationId('')
+  }
 
   const batchSave = useMutation({
     mutationFn: ({ pinIds, collectionId }: { pinIds: number[]; collectionId: number }) => api.savePinsBatch(pinIds, collectionId),
@@ -79,8 +83,7 @@ export function ExplorePage() {
       if (result.unavailableIds.length) parts.push(`${result.unavailableIds.length} unavailable`)
       if (result.savedCount) toast.success(parts.join(' · '))
       else toast.info(parts.join(' · ') || 'Nothing to save')
-      setSelectedIds(new Set())
-      setSelectionMode(false)
+      stopSelection()
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -96,13 +99,13 @@ export function ExplorePage() {
   }
 
   const toggleSelectionMode = () => {
-    if (selectionMode) setSelectedIds(new Set())
-    setSelectionMode((current) => !current)
+    if (selectionMode) stopSelection()
+    else setSelectionMode(true)
   }
 
   const changeMode = (nextMode: typeof mode) => {
+    if (nextMode !== mode) stopSelection()
     setMode(nextMode)
-    setSelectedIds(new Set())
   }
 
   useEffect(() => {

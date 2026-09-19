@@ -457,7 +457,7 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
   }
 
   const pixabayKey = process.env.PIXABAY_API_KEY?.trim()
-  const shouldUseAi = query.length >= 2 || Boolean(userId)
+  const shouldUseAi = query.length >= 2 || (query.length === 0 && Boolean(userId))
   const aiQuery = query.length >= 2 ? query : 'visual inspiration'
   const [providerTerms, aiTerms] = await Promise.all([
     query.length >= 2 && pixabayKey ? pixabaySuggestionTerms(query, pixabayKey) : Promise.resolve([]),

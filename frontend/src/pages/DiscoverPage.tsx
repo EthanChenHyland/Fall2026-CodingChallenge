@@ -59,7 +59,7 @@ export function DiscoverPage() {
   const autocomplete = useQuery({
     queryKey: ['search-autocomplete', debouncedQuery],
     queryFn: () => api.searchRecommendations(debouncedQuery),
-    enabled: debouncedQuery.length >= 2 && debouncedQuery !== submittedQuery,
+    enabled: debouncedQuery.length >= 1 && debouncedQuery !== submittedQuery,
     staleTime: 30_000,
   })
   const autocompleteSuggestions = debouncedQuery === query.trim() ? autocomplete.data?.suggestions.slice(0, 6) ?? [] : []
@@ -83,7 +83,7 @@ export function DiscoverPage() {
   const showCollections = searchKind === 'All' || searchKind === 'Collections'
   const showPins = searchKind === 'All' || searchKind === 'Pins'
   const activeFilterCount = Number(searchKind !== 'All') + Number(imageOrientation !== 'all') + Number(imageOrder !== 'default')
-  const showAutocomplete = autocompleteOpen && query.trim() !== submittedQuery && debouncedQuery.length >= 2
+  const showAutocomplete = autocompleteOpen && query.trim() !== submittedQuery && debouncedQuery.length >= 1
   void searchMemoryVersion
   const recentSearches = recentSearchKey ? readStoredSearches(recentSearchKey) : []
   const savedSearches = savedSearchKey ? readStoredSearches(savedSearchKey) : []
@@ -230,17 +230,18 @@ export function DiscoverPage() {
         {recentSearches.length ? <div><span className="eyebrow">RECENT</span><div>{recentSearches.map((entry) => <button key={`recent-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}</button>)}<button className="search-memory-clear" aria-label="Clear recent searches" onClick={() => { if (recentSearchKey) { window.localStorage.removeItem(recentSearchKey); setSearchMemoryVersion((current) => current + 1) } }}><X size={11} /> Clear</button></div></div> : null}
       </div> : null}
 
-      <div className="topic-row">
-        {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
-      </div>
-
-      <div className="discovery-filter-actions" aria-label="Discovery controls">
-        <FilterMenu activeCount={activeFilterCount} label="Discovery filters">
-          <label><span>Results</span><select aria-label="Result type" value={searchKind} onChange={(event) => setSearchKind(event.target.value as SearchKind)}>{searchKinds.map((kind) => <option value={kind} key={kind}>{kind}</option>)}</select></label>
-          <ImageFilterControls orientation={imageOrientation} order={imageOrder} onOrientationChange={setImageOrientation} onOrderChange={setImageOrder} showHeading={false} />
-          {activeFilterCount > 0 ? <button type="button" className="filter-reset" onClick={() => { setSearchKind('All'); setImageOrientation('all'); setImageOrder('default') }}><X size={13} /> Reset filters</button> : null}
-        </FilterMenu>
-        {submittedQuery ? <button type="button" className={`save-search-filter${savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? ' saved' : ''}`} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved' : 'Save search'}</button> : null}
+      <div className="topic-filter-row">
+        <div className="topic-row">
+          {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
+        </div>
+        <div className="discovery-filter-actions" aria-label="Discovery controls">
+          <FilterMenu activeCount={activeFilterCount} label="Discovery filters">
+            <label><span>Results</span><select aria-label="Result type" value={searchKind} onChange={(event) => setSearchKind(event.target.value as SearchKind)}>{searchKinds.map((kind) => <option value={kind} key={kind}>{kind}</option>)}</select></label>
+            <ImageFilterControls orientation={imageOrientation} order={imageOrder} onOrientationChange={setImageOrientation} onOrderChange={setImageOrder} showHeading={false} />
+            {activeFilterCount > 0 ? <button type="button" className="filter-reset" onClick={() => { setSearchKind('All'); setImageOrientation('all'); setImageOrder('default') }}><X size={13} /> Reset filters</button> : null}
+          </FilterMenu>
+          {submittedQuery ? <button type="button" className={`save-search-filter${savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? ' saved' : ''}`} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved' : 'Save search'}</button> : null}
+        </div>
       </div>
 
       {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{recommendations.data.aiEnhanced ? <span className="ai-assist-badge">AI assisted</span> : null}{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}

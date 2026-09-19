@@ -372,6 +372,20 @@ test('optional AI expands typed search suggestions through OpenRouter', async ()
   assert.doesNotMatch(openRouterBody, /test-openrouter-key/)
 })
 
+test('one-character search suggestions stay local and relevant', async () => {
+  process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    throw new Error(`One-character suggestions should not call an external provider: ${String(input)}`)
+  }) as typeof fetch
+
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const result = await owner.get('/api/search/recommendations?q=t').expect(200)
+  assert.equal(result.body.aiEnhanced, false)
+  assert.ok(result.body.suggestions.length > 0)
+  assert.ok(result.body.suggestions.every((suggestion: string) => suggestion.includes('t')))
+})
+
 test('homepage suggested searches can be AI-assisted without sending private saves', async () => {
   process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
   process.env.OPENROUTER_MODEL = 'test/model'

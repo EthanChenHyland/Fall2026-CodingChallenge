@@ -74,7 +74,8 @@ img { display: block; max-width: 100%; }
 .search-autocomplete-status { width: 100%; min-height: 38px; margin: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 7px; background: rgba(253,252,248,.98); box-shadow: 0 12px 30px rgba(34,31,26,.08); color: var(--muted); font-size: 9px; }
 .search-autocomplete-status.error { color: #8b5c55; }
 .search-autocomplete-status button { border: 0; padding: 2px 0; background: transparent; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font: inherit; font-weight: 750; }
-.topic-row { display: flex; gap: 8px; margin: 18px 0 20px; overflow-x: auto; scrollbar-width: none; }
+.topic-filter-row { min-width: 0; margin: 18px 0 20px; display: flex; align-items: center; gap: 10px; }
+.topic-row { min-width: 0; flex: 1; display: flex; gap: 8px; margin: 0; overflow-x: auto; scrollbar-width: none; }
 .topic-row::-webkit-scrollbar { display: none; }
 .topic-row button { flex: 0 0 auto; border: 1px solid #d8d8d2; background: transparent; color: #686762; border-radius: 7px; padding: 8px 12px; font-size: 12px; font-weight: 650; cursor: pointer; }
 .topic-row button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
@@ -97,7 +98,7 @@ img { display: block; max-width: 100%; }
 .search-filter-row > button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .search-filter-row > button.saved { color: #4d5bd1; border-color: #c9cdea; background: #f2f3ff; }
 .search-recommendation-section { margin: 0 0 54px; padding-bottom: 42px; border-bottom: 1px solid var(--line); }
-.discovery-filter-actions { min-height: 40px; margin: 0 0 28px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.discovery-filter-actions { min-height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .filter-menu-wrap { position: relative; flex: 0 0 auto; }
 .filter-menu-trigger { position: relative; width: 40px; height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 9px; display: grid; place-items: center; background: #fff; color: var(--ink); cursor: pointer; }
 .filter-menu-trigger:hover, .filter-menu-trigger:focus-visible, .filter-menu-trigger.active { border-color: #b9bce1; background: #f4f3ff; color: var(--accent-dark); }
@@ -455,8 +456,9 @@ img { display: block; max-width: 100%; }
   .search-autocomplete button { min-height: 44px; font-size: 11px; }
   .search-autocomplete-popover { width: 100%; }
   .search-suggestion-chips button { min-height: 42px; padding: 9px 13px; font-size: 11px; }
-  .topic-row { margin-bottom: 16px; }
-  .discovery-filter-actions { min-height: 44px; margin-bottom: 20px; }
+  .topic-filter-row { margin: 14px 0 18px; gap: 8px; }
+  .topic-row { margin: 0; }
+  .discovery-filter-actions { min-height: 44px; }
   .filter-menu-trigger { width: 44px; height: 44px; }
   .filter-menu-popover { width: min(290px, calc(100vw - 36px)); }
   .filter-menu-popover select { min-height: 44px; font-size: 16px; }
