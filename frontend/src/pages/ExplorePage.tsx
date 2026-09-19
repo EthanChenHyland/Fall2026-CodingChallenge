@@ -134,12 +134,6 @@ export function ExplorePage() {
         <p>Public pins and collections from other Mosaic users.</p>
       </section>
       <section className="section-head explore-section-head explore-feed-controls"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>
-      {mode === 'all' && recommendations.data?.pins.length ? (
-        <section className="recommendation-section">
-          <div className="section-head"><div><span className="eyebrow">{recommendations.data.personalized ? 'BECAUSE YOU SAVED' : 'SUGGESTED FOR YOU'}</span><h2>{recommendations.data.personalized ? 'More in your orbit' : 'A few places to start'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div>
-          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
-        </section>
-      ) : null}
       {selectionMode && (
         <div className="explore-bulk-toolbar" role="region" aria-label="Save selected pins">
           <div className="explore-bulk-count"><strong>{selectedIds.size}</strong><span>{selectedIds.size === 1 ? 'pin selected' : 'pins selected'}</span></div>
@@ -148,6 +142,12 @@ export function ExplorePage() {
           <button className="explore-clear-selection" aria-label="Clear selected pins" disabled={!selectedIds.size || batchSave.isPending} onClick={() => setSelectedIds(new Set())}><X size={16} /> Clear</button>
         </div>
       )}
+      {mode === 'all' && recommendations.data?.pins.length ? (
+        <section className="recommendation-section">
+          <div className="section-head"><div><span className="eyebrow">{recommendations.data.personalized ? 'BECAUSE YOU SAVED' : 'SUGGESTED FOR YOU'}</span><h2>{recommendations.data.personalized ? 'More in your orbit' : 'A few places to start'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div>
+          <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
+        </section>
+      ) : null}
       {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => changeMode('all')}>Browse everyone</button>}</div>}
       <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
       {mode === 'all' ? (
