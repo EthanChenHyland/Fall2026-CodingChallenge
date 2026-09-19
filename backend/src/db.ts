@@ -365,13 +365,6 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
     }
 
     const museumId = (db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number }).id
-    const fieldNotesId = ensureDemoCollection(
-      'Weekend field notes',
-      'Roads, water, diners, trailheads, and the places between plans.',
-      [1, 3, 6, 9, 0],
-      'public',
-      'mosaic-demo-field-notes',
-    )
     const roomsId = ensureDemoCollection(
       'Rooms I would steal',
       'Interiors, details, and materials worth borrowing for a future room.',
@@ -399,15 +392,14 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
     const backfillCatalogTags = db.prepare("UPDATE items SET tags = ? WHERE source_id = ? AND TRIM(tags) = ''")
     for (const image of catalog) backfillCatalogTags.run(image.tags.join(', '), image.id)
 
-    db.prepare("INSERT OR IGNORE INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')").run(museumId, samUserId)
     db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(demoUserId, samUserId)
     db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').run(mayaUserId, demoUserId)
 
     const socialPins = db.prepare(`
       SELECT i.id, i.collection_id FROM items i
-      WHERE i.collection_id IN (?, ?, ?, ?)
+      WHERE i.collection_id IN (?, ?, ?)
       ORDER BY i.id ASC LIMIT 4
-    `).all(museumId, fieldNotesId, roomsId, samMaterialsId) as Array<{ id: number; collection_id: number }>
+    `).all(museumId, roomsId, samMaterialsId) as Array<{ id: number; collection_id: number }>
     for (const [index, pin] of socialPins.entries()) {
       const liker = index % 2 === 0 ? samUserId : mayaUserId
       db.prepare('INSERT OR IGNORE INTO item_likes (item_id, user_id) VALUES (?, ?)').run(pin.id, liker)
@@ -421,18 +413,28 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
       }
     }
 
-    const collaboratorActivity = 'Sam Rivera arranged a few references on the canvas'
-    if (!db.prepare('SELECT id FROM activity WHERE collection_id = ? AND message = ?').get(museumId, collaboratorActivity)) {
-      db.prepare('INSERT INTO activity (collection_id, message) VALUES (?, ?)').run(museumId, collaboratorActivity)
-    }
-
-    const seededNotice = db.prepare("SELECT id FROM notifications WHERE user_id = ? AND message = 'Sam Rivera moved a pin on Museum of small things'").get(demoUserId)
-    if (!seededNotice) {
-      db.prepare('INSERT INTO notifications (user_id, collection_id, message) VALUES (?, ?, ?)').run(
-        demoUserId,
-        museumId,
-        'Sam Rivera moved a pin on Museum of small things',
-      )
-    }
   })()
 }
+
+// Remove older demo-only seed data that made the two sample libraries feel
+// repetitive. These checks target exact seeded identities/tokens so user-made
+// collections are never affected, including collections created while using
+// the demo account.
+db.transaction(() => {
+  const demoUser = db.prepare("SELECT id FROM users WHERE email = 'demo@mosaic.local'").get() as { id: number } | undefined
+  const samUser = db.prepare("SELECT id FROM users WHERE email = 'sam@mosaic.local'").get() as { id: number } | undefined
+  if (!demoUser || !samUser) return
+
+  const fieldNotes = db.prepare(`
+    SELECT c.id FROM collections c
+    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
+    WHERE c.share_token = 'mosaic-demo-field-notes'
+  `).get(demoUser.id) as { id: number } | undefined
+  if (fieldNotes) db.prepare('DELETE FROM collections WHERE id = ?').run(fieldNotes.id)
+
+  const museum = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number } | undefined
+  if (!museum) return
+  db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").run(museum.id, samUser.id)
+  db.prepare("DELETE FROM activity WHERE collection_id = ? AND message = 'Sam Rivera arranged a few references on the canvas'").run(museum.id)
+  db.prepare("DELETE FROM notifications WHERE user_id = ? AND collection_id = ? AND message = 'Sam Rivera moved a pin on Museum of small things'").run(demoUser.id, museum.id)
+})()
