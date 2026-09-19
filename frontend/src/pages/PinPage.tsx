@@ -86,6 +86,7 @@ export function PinPage() {
   useEffect(() => {
     if (!data?.pin.navigation) return
     const listener = (event: KeyboardEvent) => {
+      if (window.location.pathname !== `/pin/${id}`) return
       const target = event.target as HTMLElement | null
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
       const targetId = event.key === 'ArrowLeft' ? data.pin.navigation.previous_id : event.key === 'ArrowRight' ? data.pin.navigation.next_id : null
@@ -95,7 +96,7 @@ export function PinPage() {
     }
     window.addEventListener('keydown', listener)
     return () => window.removeEventListener('keydown', listener)
-  }, [data?.pin.navigation, navigate])
+  }, [data?.pin.navigation, id, navigate])
 
   if (isLoading) return <div className="loading-page">Opening pin…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That pin is not available.</h3><Link className="primary-button" to="/explore">Explore public pins</Link></div>
