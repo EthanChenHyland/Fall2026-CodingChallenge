@@ -507,3 +507,120 @@ test('social search finds people and public boards without exposing email', asyn
   const boards = await demo.get('/api/search/social?q=museum').expect(200)
   assert.ok(boards.body.collections.some((collection: { name: string }) => collection.name === 'Museum of small things'))
 })
+
+test('public content reports are stored once per reporter and target', async () => {
+  const owner = await makeCurator('Report Source')
+  const reporter = await makeCurator('Report Reviewer')
+  const board = await owner.agent.post('/api/collections').send({ name: 'Reportable board' }).expect(201)
+  const boardId = board.body.collection.id as number
+  const saved = await owner.agent.post(`/api/collections/${boardId}/items`).send({
+    sourceId: `report-${randomUUID()}`,
+    imageUrl: 'https://example.com/reportable.jpg',
+    sourcePage: 'https://example.com/reportable',
+    sourceCreator: 'Test',
+    title: 'Reportable public pin',
+  }).expect(201)
+  const pinId = saved.body.item.id as number
+  await owner.agent.post(`/api/collections/${boardId}/share`).expect(200)
+
+  const created = await reporter.agent.post('/api/reports').send({
+    targetType: 'pin',
+    targetId: pinId,
+    reason: 'spam',
+    details: 'Duplicate promotional content.',
+  }).expect(201)
+  assert.ok(Number.isSafeInteger(created.body.report.id))
+
+  const row = db.prepare('SELECT reporter_id, target_type, target_id, reason, details, status FROM reports WHERE id = ?').get(created.body.report.id) as {
+    reporter_id: number
+    target_type: string
+    target_id: number
+    reason: string
+    details: string
+    status: string
+  }
+  assert.equal(row.reporter_id, reporter.id)
+  assert.equal(row.target_type, 'pin')
+  assert.equal(row.target_id, pinId)
+  assert.equal(row.reason, 'spam')
+  assert.equal(row.details, 'Duplicate promotional content.')
+  assert.equal(row.status, 'open')
+
+  await reporter.agent.post('/api/reports').send({
+    targetType: 'pin',
+    targetId: pinId,
+    reason: 'other',
+  }).expect(409)
+})
+
+test('public collection copies preserve organization, cover, and provenance while staying private', async () => {
+  const owner = await makeCurator('Copy Source')
+  const copier = await makeCurator('Copy Reviewer')
+  const board = await owner.agent.post('/api/collections').send({ name: 'Copy source board', description: 'A public reference set.' }).expect(201)
+  const boardId = board.body.collection.id as number
+  const section = await owner.agent.post(`/api/collections/${boardId}/sections`).send({ name: 'Materials' }).expect(201)
+  const sectionId = section.body.section.id as number
+  const saved = await owner.agent.post(`/api/collections/${boardId}/items`).send({
+    sourceId: `clone-${randomUUID()}`,
+    imageUrl: 'https://example.com/clone-source.jpg',
+    sourcePage: 'https://example.com/clone-source',
+    sourceCreator: 'Test',
+    title: 'Clone source pin',
+    note: 'Keep the note.',
+    tags: ['material', 'reference'],
+  }).expect(201)
+  const sourcePinId = saved.body.item.id as number
+  await owner.agent.post(`/api/collections/${boardId}/items/bulk`).send({ action: 'section', itemIds: [sourcePinId], sectionId }).expect(200)
+  await owner.agent.patch(`/api/collections/${boardId}/items/${sourcePinId}`).send({ canvasX: 321, canvasY: 222, rotation: 3 }).expect(200)
+  await owner.agent.patch(`/api/collections/${boardId}`).send({ coverItemId: sourcePinId, coverFocusX: 37, coverFocusY: 64, theme: 'clay', gridLayout: 'compact' }).expect(200)
+  await owner.agent.post(`/api/collections/${boardId}/share`).expect(200)
+
+  const cloned = await copier.agent.post(`/api/collections/${boardId}/clone`).expect(201)
+  const copy = cloned.body.collection
+  assert.notEqual(copy.id, boardId)
+  assert.equal(copy.name, 'Copy source board — copy')
+  assert.equal(copy.description, 'A public reference set.')
+  assert.equal(copy.visibility, 'private')
+  assert.equal(copy.audience, 'private')
+  assert.equal(copy.share_token, null)
+  assert.equal(copy.theme, 'clay')
+  assert.equal(copy.grid_layout, 'compact')
+  assert.equal(copy.cover_focus_x, 37)
+  assert.equal(copy.cover_focus_y, 64)
+  assert.equal(copy.sections.length, 1)
+  assert.equal(copy.sections[0].name, 'Materials')
+  assert.equal(copy.items.length, 1)
+  assert.equal(copy.items[0].section_id, copy.sections[0].id)
+  assert.equal(copy.items[0].note, 'Keep the note.')
+  assert.equal(copy.items[0].tags, 'material, reference')
+  assert.equal(copy.items[0].canvas_x, 321)
+  assert.equal(copy.items[0].canvas_y, 222)
+  assert.equal(copy.items[0].rotation, 3)
+  assert.equal(copy.cover_item_id, copy.items[0].id)
+
+  const detail = await copier.agent.get(`/api/pins/${copy.items[0].id}`).expect(200)
+  assert.equal(detail.body.pin.provenance.ancestors[0].pin_id, sourcePinId)
+
+  const analytics = await owner.agent.get(`/api/collections/${boardId}/share-analytics`).expect(200)
+  assert.equal(analytics.body.analytics.clones, 1)
+})
+
+test('share analytics count views and unique visitors without counting the owner', async () => {
+  const owner = await makeCurator('Analytics Owner')
+  const board = await owner.agent.post('/api/collections').send({ name: 'Analytics board' }).expect(201)
+  const boardId = board.body.collection.id as number
+  const shared = await owner.agent.post(`/api/collections/${boardId}/share`).expect(200)
+  const token = shared.body.token as string
+
+  const firstVisitor = request.agent(app)
+  const secondVisitor = request.agent(app)
+  await firstVisitor.get(`/api/shared/${token}`).expect(200)
+  await firstVisitor.get(`/api/shared/${token}`).expect(200)
+  await secondVisitor.get(`/api/shared/${token}`).expect(200)
+  await owner.agent.get(`/api/shared/${token}`).expect(200)
+
+  const analytics = await owner.agent.get(`/api/collections/${boardId}/share-analytics`).expect(200)
+  assert.equal(analytics.body.analytics.views, 3)
+  assert.equal(analytics.body.analytics.uniqueVisitors, 2)
+  assert.equal(analytics.body.analytics.clones, 0)
+})

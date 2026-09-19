@@ -411,6 +411,7 @@ collectionsRouter.patch('/:id', requireMembership, (req: AuthedRequest, res) => 
   const id = Number(req.params.id)
   const existing = getCollection(id, req.user!.id) as Record<string, unknown>
   const schema = collectionSchema.partial().extend({
+    description: z.string().trim().max(280).optional(),
     visibility: z.enum(['private', 'public']).optional(),
     audience: z.enum(['private', 'followers', 'public']).optional(),
     coverItemId: z.number().int().positive().nullable().optional(),
