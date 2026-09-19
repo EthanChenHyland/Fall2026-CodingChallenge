@@ -26,6 +26,18 @@ function relativeTime(value: string) {
   return days < 30 ? `${days}d ago` : new Date(`${value}Z`).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
+function activityKind(message: string) {
+  const lower = message.toLowerCase()
+  if (lower.includes('saved') || lower.includes('restored') || lower.includes('imported')) return { key: 'save', label: 'Saved' }
+  if (lower.includes('section') || lower.includes('organized') || lower.includes('reordered') || lower.includes('moved') || lower.includes('copied')) return { key: 'organize', label: 'Organized' }
+  if (lower.includes('sharing') || lower.includes('invite link')) return { key: 'share', label: 'Sharing' }
+  if (lower.includes('editor') || lower.includes('collaborator') || lower.includes('joined') || lower.includes('left the collection')) return { key: 'people', label: 'People' }
+  if (lower.includes('canvas') || lower.includes('arranged')) return { key: 'canvas', label: 'Canvas' }
+  if (lower.includes('removed')) return { key: 'remove', label: 'Removed' }
+  if (lower.includes('edited') || lower.includes('updated') || lower.includes('renamed')) return { key: 'edit', label: 'Edited' }
+  return { key: 'other', label: 'Update' }
+}
+
 function CanvasItem({ collectionId, item, siblings, onCommit, onGuideChange }: {
   collectionId: number
   item: SavedItem
@@ -384,7 +396,7 @@ export function CollectionPage() {
               {items.map((item) => <CanvasItem key={item.id} collectionId={id} item={item} siblings={items} onCommit={(change) => recordLayout([change])} onGuideChange={setGuide} />)}
             </div>
           </Tabs.Content>
-          <Tabs.Content value="activity"><div className="activity-panel"><div><span className="eyebrow">COLLECTION HISTORY</span><h3>What changed here</h3></div><div className="activity-list">{collection.activity?.map((activity) => <div key={activity.id}><span className="activity-mark" /><span><strong>{activity.message}</strong><small>{new Date(`${activity.created_at}Z`).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</small></span></div>)}</div></div></Tabs.Content>
+          <Tabs.Content value="activity"><div className="activity-panel"><div><span className="eyebrow">COLLECTION HISTORY</span><h3>What changed here</h3><p className="activity-intro">A readable trail of saves, edits, collaborators, sharing, and organization.</p></div><div className="activity-list">{collection.activity?.map((activity) => { const kind = activityKind(activity.message); return <div className={`activity-entry kind-${kind.key}`} key={activity.id}><span className="activity-mark"><span /></span><span><span className="activity-entry-meta"><b>{kind.label}</b><time title={new Date(`${activity.created_at}Z`).toLocaleString()}>{relativeTime(activity.created_at)}</time></span><strong>{activity.message}</strong></span></div> })}</div></div></Tabs.Content>
         </Tabs.Root>
       ) : <div className="empty-state large"><Grid2X2 size={32} /><h3>This collection is waiting for something good.</h3><p>Find something on the web, or capture your own reference.</p><div className="empty-actions"><Link className="primary-button" to="/">Discover ideas</Link><Link className="secondary-button" to="/capture"><ImagePlus size={15} /> Quick capture</Link></div></div>}
     </div>

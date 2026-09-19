@@ -261,12 +261,22 @@ img { display: block; max-width: 100%; }
 .canvas-reset:hover { background: #ebe6dd; color: var(--ink); }
 .activity-panel { display: grid; grid-template-columns: minmax(190px, .4fr) minmax(0, 1fr); gap: 45px; padding: 12px 0 10px; }
 .activity-panel h3 { margin: 8px 0 0; font-family: Georgia, serif; font-size: 28px; font-weight: 400; letter-spacing: -.02em; }
+.activity-intro { max-width: 260px; margin: 10px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .activity-list { border-top: 1px solid var(--line); }
-.activity-list > div { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 11px; padding: 14px 4px; border-bottom: 1px solid var(--line); }
+.activity-list > div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 11px; padding: 14px 4px; border-bottom: 1px solid var(--line); }
 .activity-list > div > span:last-child { display: grid; gap: 4px; }
 .activity-list strong { font-size: 11px; font-weight: 650; }
 .activity-list small { color: var(--muted); font-size: 9px; }
-.activity-mark { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: #b69aa0; }
+.activity-mark { width: 26px; height: 26px; border: 1px solid #ddd7cd; border-radius: 50%; display: grid; place-items: center; background: #f8f5ef; }
+.activity-mark > span { width: 7px; height: 7px; border-radius: 50%; background: #a5a096; }
+.activity-entry.kind-save .activity-mark > span { background: #718261; }
+.activity-entry.kind-organize .activity-mark > span, .activity-entry.kind-canvas .activity-mark > span { background: #4d5bd1; }
+.activity-entry.kind-share .activity-mark > span, .activity-entry.kind-people .activity-mark > span { background: #9b7395; }
+.activity-entry.kind-remove .activity-mark > span { background: #a95d5d; }
+.activity-entry.kind-edit .activity-mark > span { background: #b98a4b; }
+.activity-entry-meta { display: flex; align-items: center; gap: 8px; }
+.activity-entry-meta b { color: #817b73; font-size: 8px; letter-spacing: .09em; text-transform: uppercase; }
+.activity-entry-meta time { color: #a19b92; font-size: 8px; }
 
 .empty-state { min-height: 320px; display: grid; place-items: center; align-content: center; text-align: center; gap: 8px; color: #847e75; border: 1px dashed #cfc8bd; border-radius: 18px; }
 .empty-state.large { min-height: 440px; margin-top: 30px; }
