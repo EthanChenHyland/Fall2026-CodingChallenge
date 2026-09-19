@@ -116,7 +116,7 @@ export function PinPage() {
     <>
       <Link className="back-link" to="/explore"><ArrowLeft size={16} /> Explore</Link>
       <article className="pin-page-card">
-        <div className="pin-page-media"><img src={pin.image_url} alt={pin.title} /></div>
+        <div className="pin-page-media" style={{ viewTransitionName: 'pin-image-' + pin.id }}><img src={pin.image_url} alt={pin.title} /></div>
         <div className="pin-page-copy">
           <span className="eyebrow">SAVED TO MOSAIC</span>
           <h1>{pin.title}</h1>

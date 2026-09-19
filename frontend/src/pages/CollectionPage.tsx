@@ -1,11 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Play, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { AddPinDialog, EditCollectionDialog, EditItemDialog, ShareCollectionDialog } from '../components/Dialogs'
+import { CollectionPresentation } from '../components/CollectionPresentation'
 import { SavedItemDetailDialog } from '../components/SavedItemDetailDialog'
 import type { Collection, SavedItem } from '../types'
 
@@ -111,6 +112,7 @@ export function CollectionPage() {
   const [targetSectionId, setTargetSectionId] = useState('')
   const [addingSection, setAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
+  const [presentationOpen, setPresentationOpen] = useState(false)
   const [undoStack, setUndoStack] = useState<LayoutChange[][]>([])
   const [redoStack, setRedoStack] = useState<LayoutChange[][]>([])
   const [busy, setBusy] = useState(false)
@@ -297,16 +299,18 @@ export function CollectionPage() {
   return (
     <div className={`collection-page theme-${collection.theme ?? 'paper'}`}>
       <Link className="back-link" to="/collections"><ArrowLeft size={16} /> All collections</Link>
-      <section className="collection-hero">
+      <section className="collection-hero" style={{ viewTransitionName: 'collection-' + id }}>
         <div><ShareCollectionDialog collection={collection} trigger={<button className={`collection-visibility-trigger ${audience}`} aria-label={`Collection visibility: ${audienceLabel}. Open privacy and sharing`}>{audience === 'private' ? <Lock size={13} /> : audience === 'followers' ? <Users size={13} /> : <Globe2 size={13} />}<span>{audienceLabel}</span><ChevronDown size={12} /></button>} /><h1>{collection.name}</h1><p>{collection.description}</p><span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span></div>
         <div className="hero-actions">
           <AddPinDialog collectionId={id} trigger={<button className="primary-button"><ImagePlus size={16} /> Add pin</button>} />
           {collection.role === 'owner' && <EditCollectionDialog collection={collection} trigger={<button className="secondary-button"><Pencil size={16} /> Edit</button>} />}
           <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Privacy &amp; sharing</button>} />
+          {items.length > 0 && <button className="secondary-button" onClick={() => setPresentationOpen(true)}><Play size={16} /> Present</button>}
           <button className="secondary-button" onClick={() => void exportCollection()}><Download size={16} /> Export</button>
           <span className="collaborator-count"><Users size={15} /> {collection.collaborators?.length ?? 1}</span>
         </div>
       </section>
+      <CollectionPresentation collection={collection} open={presentationOpen} onOpenChange={setPresentationOpen} />
 
       {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {audience === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}</span><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div>}
 

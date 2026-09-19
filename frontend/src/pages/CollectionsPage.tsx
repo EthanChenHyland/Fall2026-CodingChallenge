@@ -77,12 +77,15 @@ export function CollectionsPage() {
             <Link
               className="collection-card"
               to={`/collections/${collection.id}`}
+              viewTransition
               key={collection.id}
               style={{ animationDelay: String(Math.min(index, 6) * 55) + 'ms' }}
+              onPointerEnter={() => { void queryClient.prefetchQuery({ queryKey: ['collection', collection.id], queryFn: () => api.collection(collection.id) }) }}
+              onFocus={() => { void queryClient.prefetchQuery({ queryKey: ['collection', collection.id], queryFn: () => api.collection(collection.id) }) }}
               onPointerMove={tiltCollectionCard}
               onPointerLeave={resetCollectionCard}
             >
-              <div className="collection-cover"><CollectionCover collection={collection} /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
+              <div className="collection-cover" style={{ viewTransitionName: 'collection-' + collection.id }}><CollectionCover collection={collection} /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
               <div className="collection-card-copy">
                 <div className="collection-card-heading"><h3>{collection.name}</h3><span>{collection.item_count} saved</span></div>
                 <p>{collection.description || 'No description yet.'}</p>

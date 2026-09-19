@@ -6,6 +6,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { AvatarFrame } from './AvatarFrame'
 import { BrandMark } from './BrandMark'
+import { CommandPalette } from './CommandPalette'
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -42,6 +43,7 @@ export function AppShell() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [shortcutOpen, setShortcutOpen] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
   const [coachReplay, setCoachReplay] = useState(0)
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -84,6 +86,13 @@ export function AppShell() {
     const listener = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       const typing = target?.matches('input, textarea, select, [contenteditable="true"]')
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandOpen((current) => !current)
+        setProfileOpen(false)
+        setNotificationsOpen(false)
+        return
+      }
       if (event.key === 'Escape') { setProfileOpen(false); setNotificationsOpen(false) }
       if (document.querySelector('[role="dialog"]') || typing || event.metaKey || event.ctrlKey || event.altKey) return
       if (event.key === '/') { event.preventDefault(); navigate('/', { state: { focusSearch: true } }) }
@@ -193,13 +202,19 @@ export function AppShell() {
         <NavLink to="/collections"><FolderHeart size={21} /><span>Collections</span></NavLink>
       </nav>
       <ProductCoach key={coachReplay} replay={coachReplay} />
+      {commandOpen && <CommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        username={me?.user?.username}
+        onShowShortcuts={() => setShortcutOpen(true)}
+      />}
       <Dialog.Root open={shortcutOpen} onOpenChange={setShortcutOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="dialog-overlay" />
           <Dialog.Content className="dialog-card compact shortcut-dialog">
             <div className="dialog-head"><div><span className="eyebrow">KEYBOARD</span><Dialog.Title>Move faster in Mosaic.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close shortcuts"><X size={18} /></Dialog.Close></div>
             <Dialog.Description className="muted">Shortcuts stay out of the way while you’re typing in a field.</Dialog.Description>
-            <div className="shortcut-list"><span><kbd>/</kbd><b>Search ideas</b></span><span><kbd>N</kbd><b>New collection</b></span><span><kbd>S</kbd><b>Quick capture</b></span><span><kbd>?</kbd><b>Show shortcuts</b></span><span><kbd>↑ ↓ ← →</kbd><b>Nudge a Canvas pin</b></span></div>
+            <div className="shortcut-list"><span><kbd>⌘/Ctrl K</kbd><b>Command palette</b></span><span><kbd>/</kbd><b>Search ideas</b></span><span><kbd>N</kbd><b>New collection</b></span><span><kbd>S</kbd><b>Quick capture</b></span><span><kbd>?</kbd><b>Show shortcuts</b></span><span><kbd>↑ ↓ ← →</kbd><b>Nudge a Canvas pin</b></span></div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

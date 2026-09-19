@@ -1,9 +1,12 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, Bookmark, Check, Heart, MessageCircle, Sparkles, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { api } from '../api'
 import type { PublicPin } from '../types'
 import { SavePinDialog } from './SavePinDialog'
 
 export function PublicPinCard({ pin, selectionMode = false, selected = false, onToggleSelection, onRecommendationFeedback, feedbackPending = false }: { pin: PublicPin; selectionMode?: boolean; selected?: boolean; onToggleSelection?: (pinId: number) => void; onRecommendationFeedback?: (pinId: number, signal: 'more' | 'not_interested') => void; feedbackPending?: boolean }) {
+  const queryClient = useQueryClient()
   return (
     <article className={`image-card public-pin-card${selected ? ' is-selected' : ''}`} data-pin-id={pin.id} data-source-id={pin.source_id}>
       {selectionMode ? (
@@ -12,7 +15,15 @@ export function PublicPinCard({ pin, selectionMode = false, selected = false, on
           <span className="pin-selection-mark"><Check size={16} /></span>
         </button>
       ) : (
-        <Link className="image-frame public-pin-image" to={`/pin/${pin.id}`} aria-label={`Open ${pin.title}`}>
+        <Link
+          className="image-frame public-pin-image"
+          to={'/pin/' + pin.id}
+          viewTransition
+          aria-label={'Open ' + pin.title}
+          style={{ viewTransitionName: 'pin-image-' + pin.id }}
+          onPointerEnter={() => { void queryClient.prefetchQuery({ queryKey: ['pin', pin.id], queryFn: () => api.pin(pin.id) }) }}
+          onFocus={() => { void queryClient.prefetchQuery({ queryKey: ['pin', pin.id], queryFn: () => api.pin(pin.id) }) }}
+        >
           <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
           <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
         </Link>

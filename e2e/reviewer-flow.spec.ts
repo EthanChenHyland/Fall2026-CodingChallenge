@@ -657,3 +657,33 @@ test('390px capture, dialog focus and offline reload have usable recovery', asyn
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByRole('heading', { name: 'Save something new.' })).toBeVisible()
 })
+
+test('command palette opens collections and launches presentation mode', async ({ page }) => {
+  await enterDemo(page)
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+
+  await page.keyboard.press('Control+k')
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await expect(palette).toBeVisible()
+  const search = page.getByLabel('Search commands and collections')
+  await expect(search).toBeFocused()
+  await search.fill('Museum of small things')
+  await expect(page.getByRole('option', { name: /Museum of small things/ })).toBeVisible()
+  await search.press('Enter')
+  await expect(page.getByRole('heading', { name: 'Museum of small things' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Present', exact: true }).click()
+  const presentation = page.locator('.presentation-dialog')
+  await expect(presentation).toBeVisible()
+  await expect(presentation.getByText(/01 \//)).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  await page.keyboard.press('Escape')
+  await expect(presentation).toHaveCount(0)
+
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.keyboard.press('Control+k')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+})
