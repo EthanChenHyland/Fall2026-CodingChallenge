@@ -53,6 +53,16 @@ test('expired sessions return to auth and do not leak cached account data', asyn
   await expect(page.getByRole('link', { name: /Museum of small things/ })).toHaveCount(0)
 })
 
+test('sign out returns immediately to the login screen', async ({ page }) => {
+  await enterDemo(page)
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+
+  await expect(page).toHaveURL('/')
+  await expect(page.getByRole('heading', { name: 'Pick up where you left off.' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account menu' })).toHaveCount(0)
+})
+
 test('a user can permanently delete their own account from Edit profile', async ({ page }) => {
   const email = `delete-ui-${Date.now()}@example.test`
   const password = 'delete-ui-password'
@@ -250,6 +260,19 @@ test('direct messages persist between accounts and surface unread threads', asyn
 test('mobile shell stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
+  for (const control of [
+    page.getByRole('button', { name: 'Search ideas' }),
+    page.getByRole('button', { name: /notifications/i }),
+    page.getByRole('button', { name: 'Account menu' }),
+  ]) {
+    const box = await control.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+  }
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  const signOut = await page.getByRole('button', { name: 'Sign out' }).boundingBox()
+  expect(signOut?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await page.getByRole('button', { name: 'Account menu' }).click()
   const searchBox = await page.getByLabel('Search images').boundingBox()
   expect(searchBox?.height ?? 0).toBeGreaterThanOrEqual(40)
   await expect(page.locator('.mobile-nav')).toBeVisible()

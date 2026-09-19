@@ -57,11 +57,14 @@ export function AppShell() {
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: () => {
-      queryClient.clear()
-      navigate('/')
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+      queryClient.setQueryData(['me'], { user: null })
+      setProfileOpen(false)
+      setNotificationsOpen(false)
+      navigate('/', { replace: true })
     },
   })
-  const initials = me?.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'M'
+  const initials = me?.user?.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'M'
 
   useEffect(() => {
     const install = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent) }
@@ -126,7 +129,7 @@ export function AppShell() {
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
             <BrandMark compact /> Mosaic
           </button>
-          <button className="topbar-search" onClick={() => navigate('/', { state: { focusSearch: true } })}>
+          <button className="topbar-search" aria-label={location.pathname === '/' ? 'Search ideas' : 'Find something to save'} onClick={() => navigate('/', { state: { focusSearch: true } })}>
             <Search size={17} />
             <span>{location.pathname === '/' ? 'Search ideas' : 'Find something to save'}</span>
             <kbd>/</kbd>
@@ -164,16 +167,16 @@ export function AppShell() {
               )}
             </div>
             <div className="popover-wrap">
-              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user.avatar_url} name={me?.user.name ?? initials} /></button>
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileOpen} aria-controls="account-popover" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false) }}><AvatarFrame src={me?.user?.avatar_url} name={me?.user?.name ?? initials} /></button>
               {profileOpen && (
                 <div id="account-popover" className="account-popover profile-popover">
-                  <div className="profile-copy"><strong>{me?.user.name}</strong><span>{me?.user.email}</span></div>
-                  <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.username}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
+                  <div className="profile-copy"><strong>{me?.user?.name}</strong><span>{me?.user?.email}</span></div>
+                  <button className="popover-action" onClick={() => { navigate(`/people/${me?.user?.username}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
                   <button className="popover-action" onClick={() => { setShortcutOpen(true); setProfileOpen(false) }}><HelpCircle size={15} /> Keyboard shortcuts</button>
                   <button className="popover-action" onClick={() => { setCoachReplay((value) => value + 1); setProfileOpen(false) }}><Compass size={15} /> Replay quick tour</button>
                   <button className="popover-action" onClick={() => { navigate('/privacy'); setProfileOpen(false) }}><ShieldCheck size={15} /> Privacy policy</button>
                   {installPrompt && <button className="popover-action" onClick={() => { void installPrompt.prompt().then(() => installPrompt.userChoice).then(() => setInstallPrompt(null)); setProfileOpen(false) }}><Download size={15} /> Install Mosaic</button>}
-                  <button className="popover-action" onClick={() => logout.mutate()}><LogOut size={15} /> Sign out</button>
+                  <button className="popover-action" disabled={logout.isPending} onClick={() => logout.mutate()}><LogOut size={15} /> {logout.isPending ? 'Signing out…' : 'Sign out'}</button>
                 </div>
               )}
             </div>
