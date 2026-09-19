@@ -33,9 +33,27 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
     JOIN items i ON i.id = rf.item_id
     JOIN collections c ON c.id = i.collection_id
     WHERE rf.user_id = ?
+      AND (
+        c.visibility = 'public'
+        OR EXISTS (
+          SELECT 1 FROM collection_members viewer_member
+          WHERE viewer_member.collection_id = c.id AND viewer_member.user_id = ?
+        )
+        OR (
+          c.audience = 'followers'
+          AND EXISTS (
+            SELECT 1
+            FROM collection_members owner_member
+            JOIN follows viewer_follow ON viewer_follow.following_id = owner_member.user_id
+            WHERE owner_member.collection_id = c.id
+              AND owner_member.role = 'owner'
+              AND viewer_follow.follower_id = ?
+          )
+        )
+      )
     ORDER BY rf.created_at DESC
     LIMIT 100
-  `).all(userId) as Array<{ signal: 'more' | 'not_interested'; title: string; tags: string; collection_name: string }>
+  `).all(userId, userId, userId) as Array<{ signal: 'more' | 'not_interested'; title: string; tags: string; collection_name: string }>
   for (const item of feedback) {
     const multiplier = item.signal === 'more' ? 8 : -6
     for (const term of recommendationTerms(`${item.tags} ${item.title} ${item.collection_name}`)) {

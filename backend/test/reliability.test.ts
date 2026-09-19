@@ -198,15 +198,17 @@ test('private counts are not disclosed and removed collaborators lose access', a
   await editor.patch(`/api/collections/${id}/layout`).send({ positions: [] }).expect(404)
 })
 
-test('restarting does not reseed deleted data, revoked links, renamed boards or memberships', async () => {
+test('restarting preserves deliberate changes to seeded demo data', async () => {
   const museum = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number }
+  const sam = db.prepare("SELECT id FROM users WHERE email = 'sam@mosaic.local'").get() as { id: number }
   db.prepare('DELETE FROM items WHERE collection_id = ?').run(museum.id)
   db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND role = 'editor'").run(museum.id)
+  db.prepare("INSERT INTO collection_members (collection_id, user_id, role) VALUES (?, ?, 'editor')").run(museum.id, sam.id)
   db.prepare("UPDATE collections SET share_token = NULL, visibility = 'private', name = 'Renamed museum' WHERE id = ?").run(museum.id)
   const count = (db.prepare('SELECT COUNT(*) AS n FROM collections').get() as { n: number }).n
   execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', "const {db}=await import('./src/db.ts'); db.close()"], { cwd: process.cwd(), env: { ...process.env, DATABASE_PATH: databasePath } })
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM collections').get() as { n: number }).n, count)
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM items WHERE collection_id = ?').get(museum.id) as { n: number }).n, 0)
-  assert.equal(db.prepare("SELECT 1 FROM collection_members WHERE collection_id = ? AND role = 'editor'").get(museum.id), undefined)
+  assert.ok(db.prepare("SELECT 1 FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").get(museum.id, sam.id))
   assert.equal(db.prepare("SELECT 1 FROM collections WHERE share_token = 'mosaic-demo-public'").get(), undefined)
 })

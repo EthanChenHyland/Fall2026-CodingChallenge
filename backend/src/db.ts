@@ -251,6 +251,15 @@ ensureColumn('items', 'tags', "TEXT NOT NULL DEFAULT ''")
 ensureColumn('items', 'section_id', 'INTEGER')
 ensureColumn('items', 'position', 'INTEGER NOT NULL DEFAULT 0')
 db.exec('CREATE INDEX IF NOT EXISTS idx_items_collection_position ON items(collection_id, section_id, position, id)')
+db.prepare(`
+  UPDATE items
+  SET section_id = NULL
+  WHERE section_id IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM collection_sections section
+      WHERE section.id = items.section_id AND section.collection_id = items.collection_id
+    )
+`).run()
 ensureColumn('messages', 'pin_id', 'INTEGER')
 ensureColumn('comments', 'parent_id', 'INTEGER')
 db.prepare("UPDATE collections SET audience = 'public' WHERE visibility = 'public' AND audience = 'private'").run()
@@ -449,40 +458,3 @@ if (!(db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number
 
   })()
 }
-
-// Remove older demo-only seed data that made the two sample libraries feel
-// repetitive. These checks target exact seeded identities/tokens so user-made
-// collections are never affected, including collections created while using
-// the demo account.
-db.transaction(() => {
-  const demoUser = db.prepare("SELECT id FROM users WHERE email = 'demo@mosaic.local'").get() as { id: number } | undefined
-  const samUser = db.prepare("SELECT id FROM users WHERE email = 'sam@mosaic.local'").get() as { id: number } | undefined
-  if (!demoUser || !samUser) return
-
-  const fieldNotes = db.prepare(`
-    SELECT c.id FROM collections c
-    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
-    WHERE c.share_token = 'mosaic-demo-field-notes'
-  `).get(demoUser.id) as { id: number } | undefined
-  if (fieldNotes) db.prepare('DELETE FROM collections WHERE id = ?').run(fieldNotes.id)
-
-  const samMaterials = db.prepare(`
-    SELECT c.id FROM collections c
-    JOIN collection_members m ON m.collection_id = c.id AND m.user_id = ? AND m.role = 'owner'
-    WHERE c.share_token = 'mosaic-demo-material-walks'
-  `).get(samUser.id) as { id: number } | undefined
-  if (samMaterials) {
-    const coastRoad = db.prepare("SELECT id FROM items WHERE collection_id = ? AND source_id = 'coast-road'").get(samMaterials.id) as { id: number } | undefined
-    if (coastRoad) {
-      const replacement = db.prepare('SELECT id FROM items WHERE collection_id = ? AND id != ? ORDER BY id ASC LIMIT 1').get(samMaterials.id, coastRoad.id) as { id: number } | undefined
-      db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ? AND cover_item_id = ?').run(replacement?.id ?? null, samMaterials.id, coastRoad.id)
-      db.prepare('DELETE FROM items WHERE id = ?').run(coastRoad.id)
-    }
-  }
-
-  const museum = db.prepare("SELECT id FROM collections WHERE share_token = 'mosaic-demo-public'").get() as { id: number } | undefined
-  if (!museum) return
-  db.prepare("DELETE FROM collection_members WHERE collection_id = ? AND user_id = ? AND role = 'editor'").run(museum.id, samUser.id)
-  db.prepare("DELETE FROM activity WHERE collection_id = ? AND message = 'Sam Rivera arranged a few references on the canvas'").run(museum.id)
-  db.prepare("DELETE FROM notifications WHERE user_id = ? AND collection_id = ? AND message = 'Sam Rivera moved a pin on Museum of small things'").run(demoUser.id, museum.id)
-})()

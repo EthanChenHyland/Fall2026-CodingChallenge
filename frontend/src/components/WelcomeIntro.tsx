@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, MessageCircle, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bookmark, MessageCircle, Pause, Play, Search, UsersRound } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { BrandMark } from './BrandMark'
@@ -39,16 +39,17 @@ const slides = [
 
 export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => void }) {
   const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
   const visualRef = useRef<HTMLDivElement>(null)
   const tiltTargetRef = useRef({ x: 0, y: 0 })
   const tiltCurrentRef = useRef({ x: 0, y: 0 })
   const slide = slides[index]
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const timer = window.setInterval(() => setIndex((current) => (current + 1) % slides.length), 5200)
     return () => window.clearInterval(timer)
-  }, [])
+  }, [paused])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -121,6 +122,7 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
       <section className="welcome-visual" onPointerMove={nudgeVisual} onPointerLeave={resetVisual} aria-label={slide.label + ' preview'}>
         <Suspense fallback={null}><AmbientMosaic3D /></Suspense>
         <div className="welcome-visual-card" ref={visualRef}>
+          <button type="button" className="welcome-pause" aria-label={paused ? 'Resume intro slideshow' : 'Pause intro slideshow'} aria-pressed={paused} onClick={() => setPaused((current) => !current)}>{paused ? <Play size={13} /> : <Pause size={13} />}</button>
           {slides.map((item, itemIndex) => (
             <div className={`welcome-visual-content ${itemIndex === index ? 'active' : ''}`} aria-hidden={itemIndex !== index} key={item.eyebrow}>
               <div className="welcome-visual-topline"><span>{item.label}</span><span>{String(itemIndex + 1).padStart(2, '0')} / 03</span></div>

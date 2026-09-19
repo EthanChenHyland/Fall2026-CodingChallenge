@@ -277,3 +277,35 @@ test('organization tools persist tags, board style, smart views, bulk moves, and
     itemId: removed.id,
   }).expect(201)
 })
+
+test('moving and restoring sectioned pins never leaves orphan section references', async () => {
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const source = await owner.post('/api/collections').send({ name: `Section source ${randomUUID()}` }).expect(201)
+  const target = await owner.post('/api/collections').send({ name: `Section target ${randomUUID()}` }).expect(201)
+  const sourceId = source.body.collection.id as number
+  const targetId = target.body.collection.id as number
+  const section = await owner.post(`/api/collections/${sourceId}/sections`).send({ name: 'Temporary section' }).expect(201)
+  const sectionId = section.body.section.id as number
+
+  const moving = await owner.post(`/api/collections/${sourceId}/items`).send({
+    sourceId: `section-move-${randomUUID()}`,
+    imageUrl: 'https://example.com/section-move.jpg',
+    title: 'Move me',
+  }).expect(201)
+  await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'section', itemIds: [moving.body.item.id], sectionId }).expect(200)
+  await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'move', itemIds: [moving.body.item.id], targetCollectionId: targetId }).expect(200)
+  const moved = await owner.get(`/api/collections/${targetId}`).expect(200)
+  assert.equal(moved.body.collection.items.find((item: { id: number }) => item.id === moving.body.item.id).section_id, null)
+
+  const restoring = await owner.post(`/api/collections/${sourceId}/items`).send({
+    sourceId: `section-restore-${randomUUID()}`,
+    imageUrl: 'https://example.com/section-restore.jpg',
+    title: 'Restore me',
+  }).expect(201)
+  await owner.post(`/api/collections/${sourceId}/items/bulk`).send({ action: 'section', itemIds: [restoring.body.item.id], sectionId }).expect(200)
+  await owner.delete(`/api/collections/${sourceId}/items/${restoring.body.item.id}`).expect(204)
+  await owner.delete(`/api/collections/${sourceId}/sections/${sectionId}`).expect(204)
+  const restored = await owner.post(`/api/collections/${sourceId}/items/restore`).send({ itemId: restoring.body.item.id }).expect(201)
+  assert.equal(restored.body.item.section_id, null)
+})

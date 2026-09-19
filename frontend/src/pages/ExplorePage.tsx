@@ -101,6 +101,7 @@ export function ExplorePage() {
         <h1>What people are saving.</h1>
         <p>Public pins and collections from other Mosaic users.</p>
       </section>
+      <section className="section-head explore-section-head explore-feed-controls"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>
       {mode === 'all' && recommendations.data?.pins.length ? (
         <section className="recommendation-section">
           <div className="section-head"><div><span className="eyebrow">BECAUSE YOU SAVED</span><h2>More in your orbit</h2></div><span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span></div>
@@ -116,7 +117,6 @@ export function ExplorePage() {
           <div className="masonry-grid explore-web-grid">{webDiscovery.data.results.slice(0, 8).map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div>
         </section>
       ) : null}
-      <section className="section-head explore-section-head"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>
       {selectionMode && (
         <div className="explore-bulk-toolbar" role="region" aria-label="Save selected pins">
           <div className="explore-bulk-count"><strong>{selectedIds.size}</strong><span>{selectedIds.size === 1 ? 'pin selected' : 'pins selected'}</span></div>

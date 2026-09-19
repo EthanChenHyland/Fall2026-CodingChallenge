@@ -10,7 +10,7 @@ process.env.DATABASE_PATH = join(directory, 'test.sqlite')
 process.env.PIXABAY_API_KEY = 'test-key'
 const { app } = await import('../src/app.js')
 const { db } = await import('../src/db.js')
-const { pruneUnusedMedia } = await import('../src/lib/media.js')
+const { persistProviderImage, pruneUnusedMedia } = await import('../src/lib/media.js')
 const originalFetch = globalThis.fetch
 test.afterEach(() => { globalThis.fetch = originalFetch })
 test.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }) })
@@ -221,4 +221,29 @@ test('failed database saves discard newly downloaded Pixabay media', async () =>
   assert.equal(existsSync(join(directory, 'media', filename)), false)
   assert.equal((await owner.get(`/api/collections/${board.body.collection.id}`)).body.collection.items.length, 0)
   db.exec('DROP TRIGGER fail_test_provider_activity')
+})
+
+test('discarding one overlapping media save cannot remove another committed reference', async () => {
+  const bytes = new Uint8Array([255, 216, 31, 32, 33, 255, 217])
+  const filename = `${createHash('sha256').update(bytes).digest('hex')}.jpg`
+  const path = join(directory, 'media', filename)
+  globalThis.fetch = (async () => new Response(bytes, { headers: { 'content-type': 'image/jpeg' } })) as typeof fetch
+
+  const first = await persistProviderImage('https://cdn.pixabay.com/overlap.jpg')
+  const second = await persistProviderImage('https://cdn.pixabay.com/overlap.jpg')
+  assert.equal(first.imageUrl, second.imageUrl)
+
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const board = await owner.post('/api/collections').send({ name: `Overlap media ${randomUUID()}` }).expect(201)
+  db.prepare('INSERT INTO items (collection_id, source_id, image_url, title) VALUES (?, ?, ?, ?)').run(
+    board.body.collection.id,
+    `overlap-${randomUUID()}`,
+    second.imageUrl,
+    'Overlapping provider media',
+  )
+  second.commit()
+  first.discard()
+  assert.equal(existsSync(path), true)
+  assert.equal(pruneUnusedMedia(), 0)
 })

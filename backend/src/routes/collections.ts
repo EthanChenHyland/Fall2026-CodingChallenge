@@ -717,7 +717,7 @@ collectionsRouter.post('/:id/items/bulk', requireMembership, (req: AuthedRequest
   }
 
   const moveMany = db.transaction(() => {
-    db.prepare(`UPDATE items SET collection_id = ? WHERE collection_id = ? AND id IN (${placeholders})`).run(targetId, collectionId, ...ids)
+    db.prepare(`UPDATE items SET collection_id = ?, section_id = NULL, position = 0 WHERE collection_id = ? AND id IN (${placeholders})`).run(targetId, collectionId, ...ids)
     db.prepare(`UPDATE collections SET cover_item_id = CASE WHEN cover_item_id IN (${placeholders}) THEN NULL ELSE cover_item_id END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...ids, collectionId)
     db.prepare('UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetId)
     logActivity(collectionId, `${actor(req)} moved ${ids.length} ${ids.length === 1 ? 'pin' : 'pins'} to another collection`, req.user!.id)

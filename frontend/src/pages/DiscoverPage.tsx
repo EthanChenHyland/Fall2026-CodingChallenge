@@ -20,6 +20,10 @@ const readStoredSearches = (key: string) => {
 
 export function DiscoverPage() {
   const queryClient = useQueryClient()
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me })
+  const searchOwnerId = me.data?.user.id
+  const recentSearchKey = searchOwnerId ? `mosaic:recent-searches:${searchOwnerId}` : ''
+  const savedSearchKey = searchOwnerId ? `mosaic:saved-searches:${searchOwnerId}` : ''
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQuery = searchParams.get('q') ?? ''
   const initialTopic = topics.includes(searchParams.get('topic') ?? '') ? searchParams.get('topic')! : 'All'
@@ -27,8 +31,8 @@ export function DiscoverPage() {
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery)
   const [activeTopic, setActiveTopic] = useState(initialTopic)
   const [searchKind, setSearchKind] = useState<SearchKind>('All')
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => readStoredSearches('mosaic:recent-searches'))
-  const [savedSearches, setSavedSearches] = useState<string[]>(() => readStoredSearches('mosaic:saved-searches'))
+  const [activeSuggestion, setActiveSuggestion] = useState(-1)
+  const [searchMemoryVersion, setSearchMemoryVersion] = useState(0)
   const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
   const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -50,6 +54,7 @@ export function DiscoverPage() {
     enabled: query.trim().length >= 2 && query.trim() !== submittedQuery,
     staleTime: 30_000,
   })
+  const autocompleteSuggestions = autocomplete.data?.suggestions.slice(0, 6) ?? []
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['search-recommendations'] }); void queryClient.invalidateQueries({ queryKey: ['recommendations'] }) },
@@ -68,13 +73,18 @@ export function DiscoverPage() {
   const showPeople = searchKind === 'All' || searchKind === 'People'
   const showCollections = searchKind === 'All' || searchKind === 'Collections'
   const showPins = searchKind === 'All' || searchKind === 'Pins'
+  void searchMemoryVersion
+  const recentSearches = recentSearchKey ? readStoredSearches(recentSearchKey) : []
+  const savedSearches = savedSearchKey ? readStoredSearches(savedSearchKey) : []
 
   const rememberSearch = (value: string) => {
     const normalized = value.trim()
     if (!normalized) return
     const next = [normalized, ...recentSearches.filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())].slice(0, 8)
-    setRecentSearches(next)
-    window.localStorage.setItem('mosaic:recent-searches', JSON.stringify(next))
+    if (recentSearchKey) {
+      window.localStorage.setItem(recentSearchKey, JSON.stringify(next))
+      setSearchMemoryVersion((current) => current + 1)
+    }
   }
 
   const toggleSavedSearch = (value: string) => {
@@ -82,8 +92,10 @@ export function DiscoverPage() {
     if (!normalized) return
     const exists = savedSearches.some((entry) => entry.toLowerCase() === normalized.toLowerCase())
     const next = exists ? savedSearches.filter((entry) => entry.toLowerCase() !== normalized.toLowerCase()) : [normalized, ...savedSearches].slice(0, 8)
-    setSavedSearches(next)
-    window.localStorage.setItem('mosaic:saved-searches', JSON.stringify(next))
+    if (savedSearchKey) {
+      window.localStorage.setItem(savedSearchKey, JSON.stringify(next))
+      setSearchMemoryVersion((current) => current + 1)
+    }
   }
 
   useEffect(() => {
@@ -116,6 +128,7 @@ export function DiscoverPage() {
         : 'Recent finds'
 
   const chooseSuggestion = (suggestion: string) => {
+    setActiveSuggestion(-1)
     setActiveTopic('All')
     setQuery(suggestion)
     setSubmittedQuery(suggestion)
@@ -154,16 +167,34 @@ export function DiscoverPage() {
 
       <form className="discover-search" onSubmit={submitSearch}>
         <Search size={20} />
-        <input aria-label="Search images" ref={inputRef} value={query} onChange={(event) => { setQuery(event.target.value); setActiveTopic('All') }} placeholder="Try “Tokyo”, “ceramics”, or “architecture”" />
+        <input
+          aria-label="Search images"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={autocompleteSuggestions.length > 0 && query.trim() !== submittedQuery}
+          aria-controls="search-suggestions-listbox"
+          aria-activedescendant={activeSuggestion >= 0 ? `search-suggestion-${activeSuggestion}` : undefined}
+          ref={inputRef}
+          value={query}
+          onChange={(event) => { setQuery(event.target.value); setActiveTopic('All'); setActiveSuggestion(-1) }}
+          onKeyDown={(event) => {
+            if (!autocompleteSuggestions.length || query.trim() === submittedQuery) return
+            if (event.key === 'ArrowDown') { event.preventDefault(); setActiveSuggestion((current) => Math.min(current + 1, autocompleteSuggestions.length - 1)) }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); setActiveSuggestion((current) => Math.max(current - 1, 0)) }
+            else if (event.key === 'Escape') setActiveSuggestion(-1)
+            else if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); chooseSuggestion(autocompleteSuggestions[activeSuggestion]) }
+          }}
+          placeholder="Try “Tokyo”, “ceramics”, or “architecture”"
+        />
         <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
       </form>
       {autocomplete.isFetching && query.trim() !== submittedQuery ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
       {autocomplete.isError && query.trim() !== submittedQuery ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
-      {autocomplete.data?.suggestions.length && query.trim() !== submittedQuery ? <div className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocomplete.data.suggestions.slice(0, 6).map((suggestion) => <button role="option" aria-selected="false" key={suggestion} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
+      {autocompleteSuggestions.length && query.trim() !== submittedQuery ? <div id="search-suggestions-listbox" className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocompleteSuggestions.map((suggestion, suggestionIndex) => <button id={`search-suggestion-${suggestionIndex}`} role="option" aria-selected={activeSuggestion === suggestionIndex} key={suggestion} onMouseEnter={() => setActiveSuggestion(suggestionIndex)} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
 
       {(recentSearches.length || savedSearches.length) ? <div className="search-memory" aria-label="Saved and recent searches">
         {savedSearches.length ? <div><span className="eyebrow">SAVED</span><div>{savedSearches.map((entry) => <button key={`saved-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}<Bookmark size={11} fill="currentColor" /></button>)}</div></div> : null}
-        {recentSearches.length ? <div><span className="eyebrow">RECENT</span><div>{recentSearches.map((entry) => <button key={`recent-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}</button>)}<button className="search-memory-clear" aria-label="Clear recent searches" onClick={() => { setRecentSearches([]); window.localStorage.removeItem('mosaic:recent-searches') }}><X size={11} /> Clear</button></div></div> : null}
+        {recentSearches.length ? <div><span className="eyebrow">RECENT</span><div>{recentSearches.map((entry) => <button key={`recent-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}</button>)}<button className="search-memory-clear" aria-label="Clear recent searches" onClick={() => { if (recentSearchKey) { window.localStorage.removeItem(recentSearchKey); setSearchMemoryVersion((current) => current + 1) } }}><X size={11} /> Clear</button></div></div> : null}
       </div> : null}
 
       {submittedQuery ? <div className="search-filter-row" aria-label="Search result type"><div>{searchKinds.map((kind) => <button key={kind} className={searchKind === kind ? 'active' : ''} onClick={() => setSearchKind(kind)}>{kind}</button>)}</div><button className={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'saved' : ''} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved search' : 'Save search'}</button></div> : null}

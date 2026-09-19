@@ -10,7 +10,7 @@ const PIXABAY_HOSTS = new Set(['pixabay.com', 'cdn.pixabay.com'])
 const MAX_REDIRECTS = 3
 const LOCAL_MEDIA_NAME = /^[a-f0-9]{64}\.(jpg|png|webp|gif)$/
 const PORTABLE_MEDIA_MAX_BYTES = 11 * 1024 * 1024
-const pendingMediaNames = new Set<string>()
+const pendingMediaNames = new Map<string, number>()
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }
 
 export type PortableMediaAsset = { path: string; contentType: string; data: string }
@@ -50,6 +50,39 @@ function localMediaName(value: unknown) {
   if (typeof value !== 'string' || !value.startsWith('/media/')) return null
   const name = value.slice('/media/'.length)
   return LOCAL_MEDIA_NAME.test(name) ? name : null
+}
+
+function retainPendingMedia(name: string) {
+  pendingMediaNames.set(name, (pendingMediaNames.get(name) ?? 0) + 1)
+}
+
+function releasePendingMedia(name: string) {
+  const next = (pendingMediaNames.get(name) ?? 1) - 1
+  if (next <= 0) pendingMediaNames.delete(name)
+  else pendingMediaNames.set(name, next)
+}
+
+function mediaNameIsReferenced(name: string) {
+  const imageUrl = `/media/${name}`
+  if (db.prepare('SELECT 1 FROM items WHERE image_url = ? LIMIT 1').get(imageUrl)) return true
+  const now = Date.now()
+  for (const row of db.prepare('SELECT snapshot FROM deleted_items WHERE expires_at > ?').all(now) as Array<{ snapshot: string }>) {
+    try {
+      const snapshot = JSON.parse(row.snapshot) as { item?: { image_url?: unknown } }
+      if (localMediaName(snapshot.item?.image_url) === name) return true
+    } catch {
+      // Corrupt undo data cannot safely keep a media file alive.
+    }
+  }
+  return false
+}
+
+function discardCreatedMedia(name: string, path: string) {
+  releasePendingMedia(name)
+  if ((pendingMediaNames.get(name) ?? 0) > 0 || mediaNameIsReferenced(name)) return
+  try { unlinkSync(path) } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('Could not discard unused provider image.')
+  }
 }
 
 function verifiedPortableAsset(asset: PortableMediaAsset) {
@@ -102,7 +135,7 @@ export function stagePortableMedia(assets: PortableMediaAsset[]) {
       seen.add(name)
       totalBytes += bytes.length
       if (bytes.length > MAX_BYTES || totalBytes > PORTABLE_MEDIA_MAX_BYTES) throw new Error('Embedded media is too large.')
-      pendingMediaNames.add(name)
+      retainPendingMedia(name)
       const path = join(mediaDir, name)
       let created = false
       try {
@@ -117,17 +150,24 @@ export function stagePortableMedia(assets: PortableMediaAsset[]) {
     }
   } catch (error) {
     for (const file of staged) {
-      pendingMediaNames.delete(file.name)
-      if (file.created) try { unlinkSync(file.path) } catch { /* best effort rollback */ }
+      if (file.created) discardCreatedMedia(file.name, file.path)
+      else releasePendingMedia(file.name)
     }
     throw error
   }
+  let settled = false
   return {
-    commit: () => { for (const file of staged) pendingMediaNames.delete(file.name) },
+    commit: () => {
+      if (settled) return
+      settled = true
+      for (const file of staged) releasePendingMedia(file.name)
+    },
     discard: () => {
+      if (settled) return
+      settled = true
       for (const file of staged) {
-        pendingMediaNames.delete(file.name)
-        if (file.created) try { unlinkSync(file.path) } catch { /* best effort rollback */ }
+        if (file.created) discardCreatedMedia(file.name, file.path)
+        else releasePendingMedia(file.name)
       }
     },
   }
@@ -153,7 +193,7 @@ export function pruneUnusedMedia() {
   if (!existsSync(mediaDir)) return 0
   let removed = 0
   for (const entry of readdirSync(mediaDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !LOCAL_MEDIA_NAME.test(entry.name) || referenced.has(entry.name) || pendingMediaNames.has(entry.name)) continue
+    if (!entry.isFile() || !LOCAL_MEDIA_NAME.test(entry.name) || referenced.has(entry.name) || (pendingMediaNames.get(entry.name) ?? 0) > 0) continue
     try {
       unlinkSync(join(mediaDir, entry.name))
       removed++
@@ -184,7 +224,7 @@ export async function persistProviderImage(imageUrl: string): Promise<PersistedP
   }
   const bytes = Buffer.concat(chunks)
   const name = `${createHash('sha256').update(bytes).digest('hex')}.${extension}`
-  pendingMediaNames.add(name)
+  retainPendingMedia(name)
   const path = join(mediaDir, name)
   let created = false
   try {
@@ -195,20 +235,27 @@ export async function persistProviderImage(imageUrl: string): Promise<PersistedP
     created = true
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      pendingMediaNames.delete(name)
+      releasePendingMedia(name)
       throw error
     }
   }
+  let settled = false
   return {
     imageUrl: `/media/${name}`,
-    commit: () => { pendingMediaNames.delete(name) },
+    commit: () => {
+      if (settled) return
+      settled = true
+      releasePendingMedia(name)
+    },
     discard: () => {
-      pendingMediaNames.delete(name)
-      if (!created) return
-      created = false
-      try { unlinkSync(path) } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('Could not discard unused provider image.')
+      if (settled) return
+      settled = true
+      if (!created) {
+        releasePendingMedia(name)
+        return
       }
+      created = false
+      discardCreatedMedia(name, path)
     },
   }
 }

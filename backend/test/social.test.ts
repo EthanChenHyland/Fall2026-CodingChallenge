@@ -22,7 +22,7 @@ async function makeCurator(name = 'Test Curator') {
   const email = `curator-${randomUUID()}@example.test`
   const credential = `local-${randomUUID()}`
   const registered = await agent.post('/api/auth/register').send({ name, email, password: credential, ageConfirmed: true }).expect(201)
-  return { agent, id: registered.body.user.id as number }
+  return { agent, id: registered.body.user.id as number, email }
 }
 
 function fixtureImage(label: string) {
@@ -150,6 +150,49 @@ test('recommendation feedback persists and tunes Explore and search recommendati
   const searchRecommendations = await viewer.agent.get('/api/search/recommendations').expect(200)
   assert.ok(!explore.body.pins.some((pin: { id: number }) => pin.id === pinId))
   assert.ok(!searchRecommendations.body.pins.some((pin: { id: number }) => pin.id === pinId))
+})
+
+test('recommendation feedback stops contributing after access is revoked', async () => {
+  const viewer = await makeCurator('Revoked Recommendation Viewer')
+  const source = await makeCurator('Revoked Recommendation Source')
+  const board = await source.agent.post('/api/collections').send({ name: 'Public reference board' }).expect(201)
+  const boardId = board.body.collection.id as number
+  const saved = await source.agent.post(`/api/collections/${boardId}/items`).send({
+    sourceId: `revoked-feedback-${randomUUID()}`,
+    imageUrl: 'https://example.com/revoked-feedback.jpg',
+    title: 'Shared reference',
+    tags: ['shared'],
+  }).expect(201)
+  const pinId = saved.body.item.id as number
+  await source.agent.post(`/api/collections/${boardId}/share`).expect(200)
+  await viewer.agent.post(`/api/pins/${pinId}/recommendation-feedback`).send({ signal: 'more' }).expect(204)
+
+  await source.agent.patch(`/api/collections/${boardId}`).send({ visibility: 'private', name: 'confidentialmerger board' }).expect(200)
+  await source.agent.patch(`/api/collections/${boardId}/items/${pinId}`).send({ title: 'confidentialmerger title', tags: 'confidentialmerger' }).expect(200)
+  await viewer.agent.get(`/api/pins/${pinId}`).expect(404)
+
+  const search = await viewer.agent.get('/api/search/recommendations').expect(200)
+  const explore = await viewer.agent.get('/api/explore/recommended').expect(200)
+  assert.equal(JSON.stringify(search.body).includes('confidentialmerger'), false)
+  assert.equal(JSON.stringify(explore.body).includes('confidentialmerger'), false)
+})
+
+test('notifications redact current collection metadata after access is revoked', async () => {
+  const owner = await makeCurator('Notification Owner')
+  const formerEditor = await makeCurator('Former Editor')
+  const board = await owner.agent.post('/api/collections').send({ name: 'Visible before revocation' }).expect(201)
+  const boardId = board.body.collection.id as number
+  await owner.agent.post(`/api/collections/${boardId}/collaborators`).send({ email: formerEditor.email }).expect(201)
+  await owner.agent.patch(`/api/collections/${boardId}`).send({ description: 'Creates a notification.' }).expect(200)
+  await owner.agent.delete(`/api/collections/${boardId}/collaborators/${formerEditor.id}`).expect(204)
+  await owner.agent.patch(`/api/collections/${boardId}`).send({ name: 'NEW SECRET AFTER REVOCATION' }).expect(200)
+
+  const notifications = await formerEditor.agent.get('/api/notifications').expect(200)
+  const prior = notifications.body.notifications.find((entry: { message: string }) => entry.message.includes('updated collection details'))
+  assert.ok(prior)
+  assert.equal(prior.collection_id, null)
+  assert.equal(prior.collection_name, null)
+  assert.equal(JSON.stringify(notifications.body).includes('NEW SECRET AFTER REVOCATION'), false)
 })
 
 test('public pins can be saved into another collection without exposing private pins', async () => {

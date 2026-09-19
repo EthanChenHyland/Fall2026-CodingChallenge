@@ -88,6 +88,7 @@ export function PinPage() {
     if (!data?.pin.navigation) return
     const listener = (event: KeyboardEvent) => {
       if (window.location.pathname !== `/pin/${id}`) return
+      if (document.querySelector('[role="dialog"]')) return
       const target = event.target as HTMLElement | null
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
       const targetId = event.key === 'ArrowLeft' ? data.pin.navigation.previous_id : event.key === 'ArrowRight' ? data.pin.navigation.next_id : null

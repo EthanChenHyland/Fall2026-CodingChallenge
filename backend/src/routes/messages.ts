@@ -61,13 +61,16 @@ messagesRouter.get('/:id', (req: AuthedRequest, res) => {
       u.name AS sender_name, u.avatar_url AS sender_avatar,
       CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.title END AS pin_title,
       CASE WHEN pin_collection.visibility = 'public' AND pin_collection.share_token IS NOT NULL THEN pin.image_url END AS pin_image_url
-    FROM messages m
+    FROM (
+      SELECT * FROM messages
+      WHERE conversation_id = ?
+      ORDER BY id DESC
+      LIMIT 500
+    ) m
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN items pin ON pin.id = m.pin_id
     LEFT JOIN collections pin_collection ON pin_collection.id = pin.collection_id
-    WHERE m.conversation_id = ?
     ORDER BY m.id ASC
-    LIMIT 500
   `).all(conversationId)
   return res.json({ conversation, messages })
 })

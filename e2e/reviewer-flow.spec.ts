@@ -516,6 +516,10 @@ test('header and profile avatars use the same square crop geometry', async ({ pa
   expect(geometry.header.objectFit).toBe('cover')
   expect(geometry.header.objectPosition).toBe(geometry.profile.objectPosition)
   expect(geometry.header.src).toBe(geometry.profile.src)
+
+  await page.reload()
+  await expect(page.locator('.avatar img')).toHaveAttribute('src', avatarUrl)
+  await expect(page.locator('.profile-avatar img')).toHaveAttribute('src', avatarUrl)
 })
 
 test('profile collection covers fill their full frame', async ({ page }) => {
@@ -648,6 +652,9 @@ test('390px capture, dialog focus and offline reload have usable recovery', asyn
   await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toHaveValue('a/b/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   await page.evaluate(() => navigator.serviceWorker.ready)
+  await context.setOffline(true)
+  await expect(page.getByText('Offline', { exact: true })).toBeVisible()
+  await context.setOffline(false)
   // Reload under the active worker before simulating a cold offline navigation.
   await page.reload()
   await context.setOffline(true)
@@ -864,6 +871,11 @@ test('reporting, public copies and owner share analytics stay usable on mobile',
     await expect.poll(() => viewerPage.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 
     await viewerPage.goto(`/pin/${setup.pinId}`)
+    const actionButtons = viewerPage.locator('.pin-detail-actions button, .pin-detail-actions a')
+    for (const control of await actionButtons.all()) {
+      const box = await control.boundingBox()
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    }
     await viewerPage.getByRole('button', { name: 'Report', exact: true }).click()
     const dialog = viewerPage.getByRole('dialog', { name: 'Tell us what’s wrong' })
     await expect(dialog).toBeVisible()
@@ -873,6 +885,14 @@ test('reporting, public copies and owner share analytics stay usable on mobile',
     expect(await viewerPage.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
     await viewerPage.getByRole('button', { name: 'Close dialog' }).click()
   }
+
+  await viewerPage.setViewportSize({ width: 390, height: 844 })
+  await viewerPage.goto(`/pin/${setup.pinId}`)
+  await viewerPage.getByRole('button', { name: 'Report', exact: true }).click()
+  await viewerPage.getByLabel('Report reason').selectOption('spam')
+  await viewerPage.getByLabel('Report details').fill('Mobile report submission audit.')
+  await viewerPage.getByRole('button', { name: 'Submit report' }).click()
+  await expect(viewerPage.getByText('Report submitted')).toBeVisible()
 
   await viewerPage.goto(`/shared/${setup.token}`)
   await viewerPage.getByRole('button', { name: 'Save a copy' }).click()
