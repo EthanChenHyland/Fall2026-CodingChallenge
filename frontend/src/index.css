@@ -406,13 +406,6 @@ img { display: block; max-width: 100%; }
 .auth-submit { min-height: 46px; margin-top: 7px; }
 .auth-code-actions { margin-top: 10px; display: flex; justify-content: space-between; gap: 12px; }
 .auth-code-actions .text-button { padding-inline: 0; }
-.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #9a958c; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
-.auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: var(--line); }
-.auth-demo-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; background: #f3f0e9; }
-.auth-demo-copy { min-width: 0; display: grid; gap: 3px; }
-.auth-demo-copy strong { color: var(--ink); font-size: 11px; }
-.auth-demo-copy span { color: var(--muted); font-size: 9px; line-height: 1.4; }
-.auth-demo-card .secondary-button { min-height: 34px; white-space: nowrap; }
 .auth-legal { margin: 18px 2px 0 !important; color: var(--muted); font-size: 10px !important; line-height: 1.55 !important; }
 .auth-legal a { color: var(--accent-dark); font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
 
@@ -494,8 +487,6 @@ img { display: block; max-width: 100%; }
   .auth-panel { padding: 32px 22px 44px; }
   .auth-card h2 { font-size: 32px; }
   .auth-mode-switch { margin-bottom: 24px; }
-  .auth-demo-card { grid-template-columns: 1fr; }
-  .auth-demo-card .secondary-button { width: 100%; }
   .notification-button { width: 32px; height: 32px; }
   .account-popover { position: fixed; top: 54px; right: 10px; width: min(310px, calc(100vw - 20px)); }
   .collaborator-count { padding-inline: 7px; }
@@ -1000,7 +991,7 @@ img { display: block; max-width: 100%; }
 @media (max-width: 600px) {
   .field-label input, .field-label textarea, .field-label select { font-size: 16px; }
   .item-actions button, .round-action, .auth-password-toggle { min-width: 36px; min-height: 36px; }
-  .auth-demo-copy span, .saved-time, .saved-tags span { font-size: 11px; }
+  .saved-time, .saved-tags span { font-size: 11px; }
   .auth-inline-error { font-size: 13px; }
 }
 

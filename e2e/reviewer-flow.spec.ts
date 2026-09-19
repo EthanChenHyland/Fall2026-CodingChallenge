@@ -1,8 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
 
+let e2eIpSuffix = 10
+
+test.beforeEach(async ({ context }) => {
+  e2eIpSuffix += 1
+  await context.setExtraHTTPHeaders({ 'X-Forwarded-For': `203.0.113.${e2eIpSuffix}` })
+})
+
 async function enterDemo(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Open demo' }).click()
+  await page.getByLabel('Email').fill('demo@mosaic.local')
+  await page.getByLabel('Password', { exact: true }).fill('local-e2e-demo')
+  await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
 }
 
@@ -214,7 +223,7 @@ test('direct messages persist between accounts and surface unread threads', asyn
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'sam@mosaic.local', password: 'demo1234' }),
+      body: JSON.stringify({ email: 'sam@mosaic.local', password: 'local-e2e-demo' }),
     })
     return response.ok
   })
@@ -305,7 +314,9 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
   const email = await page.getByLabel('Email').boundingBox()
   expect(email?.height ?? 0).toBeGreaterThanOrEqual(44)
   expect((await overflowReport()).overflow).toBeLessThanOrEqual(1)
-  await page.getByRole('button', { name: 'Open demo' }).click()
+  await page.getByLabel('Email').fill('demo@mosaic.local')
+  await page.getByLabel('Password', { exact: true }).fill('local-e2e-demo')
+  await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Save the good stuff.' })).toBeVisible()
   const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
   if (await dismiss.count()) await dismiss.click()

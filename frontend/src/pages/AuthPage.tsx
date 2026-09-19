@@ -49,14 +49,8 @@ export function AuthPage() {
     onError: () => { /* The form renders the error inline. */ },
   })
 
-  const demo = useMutation({
-    mutationFn: api.demoLogin,
-    onSuccess: finish,
-    onError: () => { /* The form renders the error inline. */ },
-  })
-
   const switchMode = (nextMode: 'login' | 'register') => {
-    if (nextMode === mode || auth.isPending || verify.isPending || demo.isPending) return
+    if (nextMode === mode || auth.isPending || verify.isPending) return
     setMode(nextMode)
     setPassword('')
     setShowPassword(false)
@@ -64,10 +58,9 @@ export function AuthPage() {
     setVerificationCode('')
     auth.reset()
     verify.reset()
-    demo.reset()
   }
 
-  const errorMessage = verify.error?.message ?? auth.error?.message ?? demo.error?.message
+  const errorMessage = verify.error?.message ?? auth.error?.message
   const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || name.trim().length >= 2)
 
   return (
@@ -99,33 +92,26 @@ export function AuthPage() {
               <button type="submit" className="primary-button full auth-submit" disabled={verify.isPending || !/^\d{6}$/.test(verificationCode)}>{verify.isPending ? 'Checking…' : 'Verify & create account'} <ArrowRight size={16} /></button>
               <div className="auth-code-actions"><button type="button" className="text-button" disabled={auth.isPending} onClick={() => auth.mutate()}>{auth.isPending ? 'Sending…' : 'Send a new code'}</button><button type="button" className="text-button" onClick={() => { setVerificationEmail(''); setVerificationCode(''); verify.reset(); auth.reset() }}>Use a different email</button></div>
             </form>
-          ) : <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !auth.isPending && !demo.isPending) auth.mutate() }}>
+          ) : <form className="auth-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !auth.isPending) auth.mutate() }}>
             {mode === 'register' && (
-              <label className="field-label" htmlFor="auth-name">Name<input disabled={auth.isPending || demo.isPending} id="auth-name" name="name" maxLength={80} autoFocus autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); auth.reset(); demo.reset() }} placeholder="Your name" /></label>
+              <label className="field-label" htmlFor="auth-name">Name<input disabled={auth.isPending} id="auth-name" name="name" maxLength={80} autoFocus autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); auth.reset() }} placeholder="Your name" /></label>
             )}
-            <label className="field-label" htmlFor="auth-email">Email<input disabled={auth.isPending || demo.isPending} id="auth-email" name="email" maxLength={160} autoFocus={mode === 'login'} autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); auth.reset(); demo.reset() }} placeholder="you@vanderbilt.edu" /></label>
+            <label className="field-label" htmlFor="auth-email">Email<input disabled={auth.isPending} id="auth-email" name="email" maxLength={160} autoFocus={mode === 'login'} autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); auth.reset() }} placeholder="you@vanderbilt.edu" /></label>
             <div className="field-label auth-password-label">
               <label htmlFor="auth-password">Password</label>
               <span className="auth-password-field">
-                <input disabled={auth.isPending || demo.isPending} id="auth-password" name="password" maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => { setPassword(event.target.value); auth.reset(); demo.reset() }} placeholder={mode === 'login' ? 'Your password' : 'At least 6 characters'} />
+                <input disabled={auth.isPending} id="auth-password" name="password" maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => { setPassword(event.target.value); auth.reset() }} placeholder={mode === 'login' ? 'Your password' : 'At least 6 characters'} />
                 <button type="button" className="auth-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
               </span>
             </div>
 
             {errorMessage && <div className="auth-inline-error" role="alert">{errorMessage}</div>}
 
-            <button type="submit" className="primary-button full auth-submit" disabled={auth.isPending || demo.isPending || !canSubmit}>
+            <button type="submit" className="primary-button full auth-submit" disabled={auth.isPending || !canSubmit}>
               {auth.isPending ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'} <ArrowRight size={16} />
             </button>
           </form>}
 
-          <div className="auth-divider"><span>or</span></div>
-          <div className="auth-demo-card">
-            <div className="auth-demo-copy"><strong>Just looking around?</strong><span>Open a filled-in workspace with saved pins, boards, and collaboration data.</span></div>
-            <button type="button" className="secondary-button" disabled={demo.isPending || auth.isPending} onClick={() => { demo.reset(); auth.reset(); demo.mutate() }}>
-              {demo.isPending ? 'Opening…' : 'Open demo'}
-            </button>
-          </div>
           <p className="auth-legal">By using Mosaic, you acknowledge how this educational deployment handles account and content data. <Link to="/privacy">Read the Privacy Policy</Link>.</p>
         </div>
       </section>
