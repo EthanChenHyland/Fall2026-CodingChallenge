@@ -76,6 +76,17 @@ img { display: block; max-width: 100%; }
 .search-suggestion-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .search-suggestion-chips button { border: 1px solid #d8d3ca; border-radius: 999px; background: #fff; padding: 7px 11px; color: var(--ink); cursor: pointer; font-size: 10px; }
 .search-suggestion-chips button:hover, .search-suggestion-chips button:focus-visible { border-color: #aeb5ea; background: #f4f3ff; }
+.search-memory { display: grid; gap: 9px; margin: -4px 0 14px; }
+.search-memory > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.search-memory > div > div { min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.search-memory button { min-height: 28px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.72); padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; color: #777169; cursor: pointer; font-size: 9px; }
+.search-memory .search-memory-clear { border-color: transparent; background: transparent; }
+.search-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 26px; }
+.search-filter-row > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-filter-row button { min-height: 32px; border: 1px solid var(--line); border-radius: 999px; padding: 0 11px; background: #fff; color: var(--muted); cursor: pointer; font-size: 9px; font-weight: 700; }
+.search-filter-row button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.search-filter-row > button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.search-filter-row > button.saved { color: #4d5bd1; border-color: #c9cdea; background: #f2f3ff; }
 .search-recommendation-section { margin: 0 0 54px; padding-bottom: 42px; border-bottom: 1px solid var(--line); }
 .section-head { display: flex; align-items: end; justify-content: space-between; margin-bottom: 21px; }
 .section-head h2 { margin: 7px 0 0; font-family: Georgia, serif; font-weight: 400; font-size: 28px; letter-spacing: -.02em; }
@@ -344,6 +355,8 @@ img { display: block; max-width: 100%; }
 }
 
 @media (max-width: 700px) {
+  .search-memory > div { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .search-filter-row { align-items: flex-start; flex-direction: column; }
   .sidebar { display: none; }
   .main-area { margin-left: 0; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .topbar { height: 60px; padding: 0 16px; }
