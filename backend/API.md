@@ -1,108 +1,144 @@
 # Mosaic API
 
-In development, Vite and Express run separately and Vite proxies `/api` to Express. In production, the Express process also serves the built React application.
+Mosaic exposes a REST API under `/api`. In development, Vite and Express run separately and Vite proxies API requests to Express. In production, the Express process serves both the API and the compiled React application.
+
+Authentication uses an HTTP-only session cookie. Routes described as authenticated return `401` when the session is missing or expired. Collection membership and owner checks are enforced server-side.
+
+## Operations
+
+- `GET /api/health` — readiness check for SQLite plus the active preferred search provider.
+- Unknown `/api/*` routes return a JSON `404`.
 
 ## Authentication
 
-- `POST /api/auth/register` — create an account and session.
-- `POST /api/auth/login` — sign in and set an HTTP-only session cookie.
-- `POST /api/auth/demo` — enter the seeded reviewer account without setup.
+- `POST /api/auth/register` — create an account immediately when email verification is not configured. Requires name, email, password, and `ageConfirmed: true`.
+- `POST /api/auth/register/start` — canonical signup start. Creates the account immediately when verification is disabled, or sends a six-digit verification code when Resend is configured.
+- `POST /api/auth/register/verify` — finish verified signup with email + six-digit code. Codes expire after 10 minutes and have an attempt limit.
+- `POST /api/auth/login` — sign in and set the session cookie.
+- `POST /api/auth/demo` — enter the seeded demo account in non-production environments only.
 - `POST /api/auth/logout` — revoke the current session.
-- `GET /api/auth/me` — return the signed-in account.
+- `GET /api/auth/me` — authenticated current-account lookup.
+- `DELETE /api/auth/account` — authenticated permanent account deletion after password + `DELETE` confirmation. Seeded demo accounts are protected.
 
-## Discovery
+## Search and discovery
 
-- `GET /api/search?q=<query>&page=<number>` — paginated live image search.
-- `GET /api/search/recommendations?q=<query>` — personalized query suggestions plus public-pin recommendations derived from saved interests; query-scoped results stay relevant to the active search.
+- `GET /api/search?q=<query>&page=<n>&source=<provider>&seed=<n>` — paginated provider-backed image search/browse. `source=wikimedia` can force Wikimedia; otherwise Pixabay is preferred when configured. Empty-query Pixabay browsing uses a seed for varied logical pages.
+- `GET /api/search/recommendations?q=<query>` — suggested/related search phrases plus locally ranked public pins. OpenRouter can add AI-assisted phrases when configured; failures fall back to local/provider/database suggestions.
 - `GET /api/search/social?q=<query>` — search Mosaic people and public collections.
-- `GET /api/explore?page=<number>&mode=all|following|trending` — public Mosaic pins with chronological, social-graph, or engagement ranking.
-- `GET /api/explore/recommended` — personalized public-pin recommendations derived from the signed-in user's saved titles, tags, and collections.
-- `GET /api/search/recommendations?q=...` — related search phrases plus locally ranked public pins. When `OPENROUTER_API_KEY` is configured, typed queries can be expanded with AI; failures fall back to the normal provider/database suggestions.
+- `GET /api/explore?page=<n>&mode=all|following|trending` — public Mosaic pins. Following uses user/collection follows; Trending weights engagement.
+- `GET /api/explore/recommended` — personalized public-pin recommendations from saved interests and explicit recommendation feedback.
+- `GET /api/explore/collections` — featured public collections ranked by followers and recency.
 
-Search uses Pixabay when `PIXABAY_API_KEY` is configured. Otherwise Mosaic searches Wikimedia Commons. A bundled catalog is the final reliability fallback.
+Search fallback order is Pixabay when configured, Wikimedia Commons when needed, then the bundled catalog where applicable. Provider results are cached. Saved Pixabay media is persisted locally instead of relying permanently on provider delivery URLs.
 
 ## Profiles and follows
 
-- `GET /api/profiles/:id` — profile, stats, follow state, and collections visible to the requester (public plus follower-only when eligible).
-- `PATCH /api/profiles/me` — edit the signed-in profile.
-- `POST /api/profiles/:id/follow` — follow an account.
-- `DELETE /api/profiles/:id/follow` — unfollow an account.
+- `GET /api/profiles/:identifier` — public profile by username or numeric ID, stats, follow state, and collections visible to the requester.
+- `PATCH /api/profiles/me` — authenticated profile edit for name, bio, and avatar URL.
+- `GET /api/profiles/:id/connections?kind=followers|following` — follower/following list with viewer follow state.
+- `POST /api/profiles/:id/follow` — authenticated follow.
+- `DELETE /api/profiles/:id/follow` — authenticated unfollow.
 
-## Public pins
-
-- `GET /api/pins/:id` includes privacy-filtered repin provenance. Mosaic preserves ancestry across repins, copies, and delete/undo, while private or unavailable boards are omitted from the returned chain.
-- `POST /api/pins/:id/recommendation-feedback` — persist `more` or `not_interested` feedback. Explore and search recommendations use the signal on later requests.
-
-- `GET /api/pins/:id/saved-in` — show which editable collections already contain the public pin's source, for library-wide duplicate detection.
-- `POST /api/pins/:id/save` — copy a currently public pin into one of the signed-in user's editable collections with an optional private note. Duplicate sources in the target collection return `409`.
-- `POST /api/pins/save-batch` — copy up to 30 selected public pins into one editable collection in one transaction. Existing source duplicates are skipped and reported; pins that are no longer public are ignored and returned as unavailable.
-- `GET /api/profiles/:id/connections?kind=followers|following` — browse a profile's social graph.
+Follower-only collections are shown only to eligible viewers.
 
 ## Collections
 
-- `POST /api/collections/:id/follow` — follow a public collection independently of its owner; the owner is notified once.
-- `DELETE /api/collections/:id/follow` — unfollow a collection. Following feed membership updates immediately.
+All collection routes require authentication.
 
-- `GET /api/collections` — list collections the current account owns or edits.
-- `POST /api/collections` — create a collection owned by the current account.
-- `GET /api/collections/:id` — get a collection, items, activity, and collaborators.
-- `GET /api/collections/:id/export` — member-only portable Mosaic JSON export preserving board metadata, sections, notes/tags, Canvas placement, and cover choice while excluding collaborators, share tokens, and social metadata.
-- `POST /api/collections/import` — import a supported Mosaic JSON export as a new private collection owned only by the signed-in user.
-- `PATCH /api/collections/:id` — edit collection metadata; only owners can change private/followers/public audience.
+### Collection lifecycle
+
+- `GET /api/collections` — collections the current account owns or edits.
+- `POST /api/collections` — create a collection.
+- `GET /api/collections/smart/:view` — `recent`, `popular`, or `unsorted` smart view.
+- `GET /api/collections/:id` — member-only collection detail, items, collaborators, and activity.
+- `PATCH /api/collections/:id` — update metadata, cover, theme/layout, and audience where allowed. Audience/visibility changes are owner-only.
 - `DELETE /api/collections/:id` — owner-only collection deletion.
-- `POST /api/collections/:id/items` — save an image with optional note atomically; images require HTTPS or an existing local media URL. Pixabay images are copied to persistent media.
-- `POST /api/collections/:id/items/restore` — restore `{itemId}` from a server-side deletion snapshot within 10 minutes, preserving social data and identity.
-- `POST /api/collections/:id/sections` — create a named section inside a collection.
+- `GET /api/collections/:id/export` — portable Mosaic JSON export with board metadata, sections, notes/tags, Canvas placement, cover choice, and eligible embedded local media.
+- `POST /api/collections/import` — import a supported Mosaic export into a new private collection owned by the current user.
+- `POST /api/collections/:id/clone` — copy a currently public shared collection into a new private collection while preserving safe organization/provenance data.
+- `GET /api/collections/:id/share-analytics` — owner-only views, unique visitors, and copies for the collection's share flow.
+
+### Sections, ordering, and items
+
+- `POST /api/collections/:id/sections` — create a section.
 - `PATCH /api/collections/:id/sections/:sectionId` — rename a section.
-- `DELETE /api/collections/:id/sections/:sectionId` — remove a section while keeping its pins as Unsorted.
-- `POST /api/collections/:id/items/bulk` — delete, move, copy, or assign selected pins to a section. Copy creates new destination pins while preserving the originals.
-- `PATCH /api/collections/:id/layout` — atomically update `{positions: [{itemId, x, y, rotation}]}` for member-owned pins.
-- `POST /api/collections/:id/items/bulk` — transactionally delete or move selected item IDs.
-- `GET /api/collections/smart/:view` — recent, popular, or unsorted views (up to 60 pins).
-- `PATCH /api/collections/:id/items/:itemId` — edit title/note or persisted Canvas position.
-- `DELETE /api/collections/:id/items/:itemId` — remove a saved image.
+- `DELETE /api/collections/:id/sections/:sectionId` — delete a section while keeping its pins unsorted.
+- `PATCH /api/collections/:id/sections-order` — persist section ordering.
+- `PATCH /api/collections/:id/items/order` — persist pin ordering.
+- `POST /api/collections/:id/items` — save an image with title/source/note/tags. HTTPS or existing local-media URLs are required; Pixabay media is persisted locally.
+- `PATCH /api/collections/:id/items/:itemId` — edit title/note/tags or Canvas position/rotation.
+- `DELETE /api/collections/:id/items/:itemId` — remove a pin and create a temporary undo snapshot.
+- `POST /api/collections/:id/items/restore` — restore `{ itemId }` during the undo window while preserving identity/social data.
+- `PATCH /api/collections/:id/layout` — atomically update Canvas positions.
+- `POST /api/collections/:id/items/bulk` — transactionally delete, move, copy, or section selected pins.
 
-Duplicate source IDs are rejected within the same collection to prevent accidental repeat saves.
+Duplicate source IDs are rejected within the same collection.
 
-## Pin pages and social actions
+### Sharing, audience, follows, and collaboration
 
-- `GET /api/pins/:id` — retrieve a public pin, or a private pin when the signed-in user is a collection member.
-- `GET /api/pins/:id/related` — related public pins, preferring the same collection and curator.
-- `POST /api/pins/:id/like` — like a public pin.
-- `DELETE /api/pins/:id/like` — remove the current user's like.
-- `GET /api/pins/:id/comments` — list comments and reply relationships on a public pin.
-- `POST /api/pins/:id/comments` — comment or reply on a public pin using optional `parentId`; replies notify their author and exact `@Name` mentions notify matching users.
-- `DELETE /api/pins/:id/comments/:commentId` — comment author or collection owner moderation.
-
-## Sharing and collaboration
-
-- `POST /api/collections/:id/share` — owner-only public read-only link creation.
-- `DELETE /api/collections/:id/share` — revoke the public link and return the collection to private.
-- `GET /api/shared/:token` — read-only collection payload; follower-only links require a signed-in follower or collection member.
-- `POST /api/collections/:id/collaborators` — add an existing Mosaic account as an editor.
+- `POST /api/collections/:id/share` — owner-only creation of a revocable public read-only share token.
+- `DELETE /api/collections/:id/share` — owner-only share revocation and return to private.
+- `POST /api/collections/:id/follow` — follow a public collection.
+- `DELETE /api/collections/:id/follow` — unfollow a collection.
+- `GET /api/collections/:id/editor-invite` — owner-only current editor-invite status.
+- `POST /api/collections/:id/editor-invite` — owner-only create/regenerate editor invite.
+- `DELETE /api/collections/:id/editor-invite` — owner-only revoke editor invite.
+- `GET /api/collections/editor-invites/:token` — authenticated invite preview.
+- `POST /api/collections/editor-invites/:token/accept` — authenticated invite acceptance.
+- `POST /api/collections/:id/collaborators` — owner-only add an existing account by email as editor.
+- `DELETE /api/collections/:id/collaborators/me` — leave a collection as an editor.
 - `DELETE /api/collections/:id/collaborators/:userId` — owner-only collaborator removal.
-- `GET /api/collections/:id/editor-invite` — owner-only status for the active editor invitation.
-- `POST /api/collections/:id/editor-invite` — owner-only creation or regeneration of an editor invitation link.
-- `DELETE /api/collections/:id/editor-invite` — owner-only revocation of the active editor invitation.
-- `POST /api/collections/editor-invites/:token/accept` — signed-in acceptance that grants editor access while preserving any existing role.
+
+Editors can modify saved content and Canvas placement. Owner-only controls include deletion, sharing/audience changes, collaborator management, and share analytics.
+
+## Public shared collections
+
+- `GET /api/shared/:token` — read-only shared collection payload. Public links are anonymous; follower-only links require the owner, a collection member, or an eligible signed-in follower.
+
+Share views are recorded with a random first-party visitor token hashed before storage. Raw IP addresses are not stored for share analytics.
+
+## Public pins and social actions
+
+- `GET /api/pins/:id` — pin detail when public, follower-visible, or accessible through membership; includes privacy-filtered provenance and collection-order navigation.
+- `GET /api/pins/:id/related` — related public pins.
+- `POST /api/pins/:id/recommendation-feedback` — authenticated `more` or `not_interested` signal.
+- `GET /api/pins/:id/saved-in` — authenticated editable collections that already contain the same source.
+- `POST /api/pins/:id/save` — authenticated copy of a public pin into an editable collection, with optional private note.
+- `POST /api/pins/save-batch` — authenticated batch save of up to 30 public pins; duplicates are skipped and unavailable pins reported.
+- `POST /api/pins/:id/like` — authenticated like.
+- `DELETE /api/pins/:id/like` — authenticated unlike.
+- `GET /api/pins/:id/likes` — accounts that liked a public pin.
+- `GET /api/pins/:id/comments` — comments/replies plus deletion permission state.
+- `POST /api/pins/:id/comments` — authenticated comment or reply. Replies and exact `@Name` mentions create notifications.
+- `DELETE /api/pins/:id/comments/:commentId` — comment-author or collection-owner moderation.
+
+Repin lineage is preserved across copies and undo, but private/unavailable boards are filtered from provenance returned to viewers.
 
 ## Notifications
 
-- `GET /api/notifications` — recent collaboration, follow, like, and comment activity for the signed-in account.
+Authenticated only.
+
+- `GET /api/notifications` — recent collaboration, follow, like, reply/mention, and related activity filtered for current visibility.
 - `POST /api/notifications/read` — mark current notifications read.
 
 ## Direct messages
 
-- `GET /api/messages` — list the signed-in user's one-to-one conversations, latest message preview, and unread count.
-- `POST /api/messages/with/:userId` — create or resume a conversation with another Mosaic account.
-- `GET /api/messages/:id` — load a conversation and its persisted message history; participants only.
-- `POST /api/messages/:id` — send a message up to 1,200 characters; participants only. An optional `pinId` may attach a currently public, shareable pin. The text may be empty when a pin is attached, and the pin is returned with title/image metadata for a tappable conversation preview.
-- `POST /api/messages/:id/read` — mark incoming messages in the conversation as read.
+Authenticated only.
 
-All private collection routes require a valid session and membership. Editors may change saved content and Canvas placement. Owner-only actions include deletion, public sharing, visibility, and collaborator management.
+- `GET /api/messages` — one-to-one conversations, latest preview, and unread count.
+- `POST /api/messages/with/:userId` — create or resume a conversation.
+- `GET /api/messages/:id` — participant-only conversation history.
+- `POST /api/messages/:id` — send up to 1,200 characters and/or attach a currently public shareable pin.
+- `POST /api/messages/:id/read` — mark incoming messages in the conversation read.
 
-## Operations
+Pin attachments are privacy-checked again when conversations are loaded, so a pin that stops being public does not keep exposing its metadata.
 
-- `GET /api/health` — readiness check that verifies SQLite and reports the active search provider.
+## Reporting
 
-Production responses use Helmet security headers, compression, API rate limiting, and same-origin CORS. The process handles SIGTERM/SIGINT for graceful container shutdown.
+- `POST /api/reports` — authenticated report of a public pin, profile, or public comment. Reasons: `spam`, `harassment`, `sexual`, `copyright`, or `other`; optional details are capped at 500 characters. Duplicate open reports from the same reporter/target return `409`.
+
+## Production behavior
+
+Production responses use Helmet/CSP headers, compression, API/request rate limiting, same-origin CORS rules, request-size limits, and graceful SIGTERM/SIGINT shutdown. Static provider media is served from `/media` with immutable caching.
+
+See `../docs/ARCHITECTURE.md` for data-model, privacy, provider, deployment, and reliability details.

@@ -69,6 +69,8 @@ The ten logical browse pages rotate through twenty themes spanning art, cars, an
 
 Provider responses are cached in SQLite and guarded against excessive requests. When a Pixabay result is saved, Mosaic downloads and validates a durable local copy instead of depending forever on the provider's temporary delivery URL.
 
+The client deliberately separates visual reshuffling from provider refreshes. Every press of **Shuffle** immediately reorders the already-loaded Pixabay results, so the control stays responsive even when clicked repeatedly. A provider-backed refresh is allowed at most once per 10-second client cooldown, while the backend cache/request guards provide a second layer of protection. Infinite scrolling remains independent of Shuffle and continues to page through Discover plus the web-discovery sections used by Explore/Trending.
+
 ### Wikimedia Commons
 
 Wikimedia provides a keyless live fallback so image search still works without a Pixabay key or when Pixabay is unavailable. Source/attribution links remain available.
@@ -240,6 +242,16 @@ The application supports:
 - mobile recovery paths for dialogs/capture/offline states
 
 The visual design is intentionally restrained inside the main product so interaction states remain legible. Motion is used for feedback and polish rather than as a prerequisite for understanding the interface.
+
+## Application shell and interaction polish
+
+The application shell is shared across the protected product. Desktop uses the full sidebar/topbar while smaller screens switch to compact navigation and a mobile Quick actions menu. The same core actions remain reachable on both layouts: capture/save, new collection, import, and the command palette.
+
+The command palette uses a platform-neutral icon and advertises both `Cmd+K` and `Ctrl+K`, so it is understandable on macOS, Windows, and Linux. It provides navigation/actions plus direct collection entries.
+
+The Mosaic brand behaves as a true home/reset control. Navigating to Discover from elsewhere opens the normal home route; pressing it while already on Discover remounts the route, clears active search/topic/filter state and URL parameters, closes shell popovers, and returns the document to the top. This avoids the confusing React Router behavior where same-route navigation can otherwise leave local search state intact.
+
+Motion is layered onto useful interaction states rather than only page decoration: route entry, masonry/card reveals, buttons, filters, navigation, search suggestions, account/notification menus, and other popovers. The CSS reduced-motion path collapses decorative transition/animation duration and disables larger transform effects. Horizontal overflow is clipped at the document boundary so modal scroll locking and animation frames cannot create transient sideways scrolling on mobile.
 
 ## PWA and offline behavior
 
