@@ -34,11 +34,12 @@ export function DiscoverPage() {
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
   const [searchMemoryVersion, setSearchMemoryVersion] = useState(0)
   const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim())
   const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const effectiveQuery = submittedQuery || (activeTopic === 'All' ? '' : activeTopic)
-  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
     queryKey: ['search', effectiveQuery, browseSeed],
     queryFn: ({ pageParam }) => api.search(effectiveQuery, pageParam.page, pageParam.source, browseSeed),
     initialPageParam: { page: 1, source: '' },
@@ -49,12 +50,12 @@ export function DiscoverPage() {
     queryFn: () => api.searchRecommendations(submittedQuery),
   })
   const autocomplete = useQuery({
-    queryKey: ['search-autocomplete', query.trim()],
-    queryFn: () => api.searchRecommendations(query.trim()),
-    enabled: query.trim().length >= 2 && query.trim() !== submittedQuery,
+    queryKey: ['search-autocomplete', debouncedQuery],
+    queryFn: () => api.searchRecommendations(debouncedQuery),
+    enabled: debouncedQuery.length >= 2 && debouncedQuery !== submittedQuery,
     staleTime: 30_000,
   })
-  const autocompleteSuggestions = autocomplete.data?.suggestions.slice(0, 6) ?? []
+  const autocompleteSuggestions = debouncedQuery === query.trim() ? autocomplete.data?.suggestions.slice(0, 6) ?? [] : []
   const feedback = useMutation({
     mutationFn: ({ pinId, signal }: { pinId: number; signal: 'more' | 'not_interested' }) => api.recommendationFeedback(pinId, signal),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['search-recommendations'] }); void queryClient.invalidateQueries({ queryKey: ['recommendations'] }) },
@@ -103,14 +104,19 @@ export function DiscoverPage() {
   }, [location.state])
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 280)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
     const target = loadMoreRef.current
-    if (!target || !hasNextPage) return
+    if (!target || !hasNextPage || isFetchNextPageError) return
     const observer = new IntersectionObserver((entries) => {
       if (entries[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
     }, { rootMargin: '500px 0px' })
     observer.observe(target)
     return () => observer.disconnect()
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError])
 
   const sourceLabel = firstPage?.source === 'pixabay'
     ? 'Images from Pixabay'
@@ -188,8 +194,8 @@ export function DiscoverPage() {
         />
         <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
       </form>
-      {autocomplete.isFetching && query.trim() !== submittedQuery ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
-      {autocomplete.isError && query.trim() !== submittedQuery ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
+      {autocomplete.isFetching && debouncedQuery === query.trim() && query.trim() !== submittedQuery ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
+      {autocomplete.isError && debouncedQuery === query.trim() && query.trim() !== submittedQuery ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
       {autocompleteSuggestions.length && query.trim() !== submittedQuery ? <div id="search-suggestions-listbox" className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocompleteSuggestions.map((suggestion, suggestionIndex) => <button id={`search-suggestion-${suggestionIndex}`} role="option" aria-selected={activeSuggestion === suggestionIndex} key={suggestion} onMouseEnter={() => setActiveSuggestion(suggestionIndex)} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
 
       {(recentSearches.length || savedSearches.length) ? <div className="search-memory" aria-label="Saved and recent searches">
@@ -210,15 +216,16 @@ export function DiscoverPage() {
       {showPins && recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
       {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" onClick={() => setBrowseSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
+      {showImages && firstPage?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so Mosaic is showing local picks for now.</span><button className="secondary-button" onClick={() => void refetch()}>Retry Pixabay</button></div> : null}
       {showImages && (isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
-      ) : isError ? (
+      ) : isError && !results.length ? (
         <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your collections are safe. Retry the search or browse a saved topic.</p><div className="empty-actions"><button className="primary-button" onClick={() => void refetch()}>Try again</button><button className="secondary-button" onClick={() => chooseTopic('Architecture')}>Browse architecture</button></div></div>
       ) : results.length ? (
         <>
           <div className="masonry-grid">{results.map((image) => <ImageCard key={image.id} image={image} />)}</div>
           <div className="discovery-loader" ref={loadMoreRef} aria-live="polite">
-            {isFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more ideas…</> : hasNextPage ? <button className="secondary-button" onClick={() => void fetchNextPage()}>Load more</button> : effectiveQuery ? 'You reached the end of these results.' : null}
+            {isFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more ideas…</> : isFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextPage()}>Retry loading more</button></> : hasNextPage ? null : effectiveQuery ? 'You reached the end of these results.' : null}
           </div>
         </>
       ) : (

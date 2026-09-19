@@ -12,16 +12,24 @@ type SearchResponse = {
   source: SearchSource
   fallback?: boolean
   cached?: boolean
+  providerUnavailable?: boolean
   nextPage?: number
 }
 
 const CACHE_MS = 24 * 60 * 60 * 1000
 const PAGE_SIZE = 30
-const MAX_PAGE = 10
+const PIXABAY_MAX_RESULTS = 500
+const PIXABAY_SEARCH_MAX_PAGE = Math.ceil(PIXABAY_MAX_RESULTS / PAGE_SIZE)
+const WIKIMEDIA_MAX_PAGE = 10
 const BROWSE_GENERAL_SIZE = 12
 const BROWSE_THEME_SIZE = 9
+const BROWSE_GENERAL_MAX_PAGE = Math.ceil(PIXABAY_MAX_RESULTS / BROWSE_GENERAL_SIZE)
+const BROWSE_THEME_MAX_PAGE = Math.ceil(PIXABAY_MAX_RESULTS / BROWSE_THEME_SIZE)
+const BROWSE_LOGICAL_MAX_PAGE = 1000
+const REQUEST_PAGE_LIMIT = 10_000
 const PIXABAY_WINDOW_MS = 60_000
 const PIXABAY_REQUEST_LIMIT = 90
+const SUGGESTION_CACHE_MS = 5 * 60 * 1000
 const DISCOVERY_THEME_PAIRS = [
   ['digital art', 'cars'],
   ['anime illustration', 'interior design'],
@@ -35,6 +43,7 @@ const DISCOVERY_THEME_PAIRS = [
   ['people', 'abstract art'],
 ] as const
 let pixabayRequestTimes: number[] = []
+const suggestionProviderCache = new Map<string, { expiresAt: number; terms: string[] }>()
 const recommendationStopWords = new Set(['about', 'after', 'again', 'also', 'and', 'from', 'have', 'into', 'more', 'saved', 'that', 'the', 'this', 'with', 'your'])
 
 function recommendationTerms(value: string) {
@@ -113,7 +122,7 @@ function localSearch(query: string) {
 function readPage(value: unknown) {
   const page = Number(value ?? 1)
   if (!Number.isInteger(page) || page < 1) return 1
-  return Math.min(page, MAX_PAGE)
+  return Math.min(page, REQUEST_PAGE_LIMIT)
 }
 
 function readSeed(value: unknown) {
@@ -245,19 +254,38 @@ async function searchPixabay(
 
   if (!results.length) return null
   const totalHits = body.totalHits ?? results.length
+  const providerMaxPage = Math.ceil(PIXABAY_MAX_RESULTS / perPage)
   return {
     results,
     source: 'pixabay',
-    nextPage: page < MAX_PAGE && page * perPage < totalHits ? page + 1 : undefined,
+    nextPage: page < providerMaxPage && page * perPage < totalHits ? page + 1 : undefined,
   }
 }
 
-async function searchDiversePixabayBrowse(page: number, apiKey: string): Promise<SearchResponse | null> {
-  const themes = DISCOVERY_THEME_PAIRS[(page - 1) % DISCOVERY_THEME_PAIRS.length]
+async function pixabaySuggestionTerms(query: string, apiKey: string) {
+  const cacheKey = query.trim().toLowerCase()
+  const cached = suggestionProviderCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.terms
+
+  try {
+    const response = await searchPixabay(cacheKey, 1, apiKey, { perPage: 16, order: 'popular' })
+    const terms = [...new Set((response?.results ?? []).flatMap((result) => result.tags)
+      .map((term) => term.trim().toLowerCase().replace(/\s+/g, ' '))
+      .filter((term) => term.length >= 2 && term.length <= 40))]
+      .slice(0, 40)
+    suggestionProviderCache.set(cacheKey, { expiresAt: Date.now() + SUGGESTION_CACHE_MS, terms })
+    return terms
+  } catch {
+    return []
+  }
+}
+
+async function searchDiversePixabayBrowse(generalPage: number, themePage: number, apiKey: string): Promise<SearchResponse | null> {
+  const themes = DISCOVERY_THEME_PAIRS[(generalPage - 1) % DISCOVERY_THEME_PAIRS.length]
   const searches = await Promise.allSettled([
-    searchPixabay('', page, apiKey, { perPage: BROWSE_GENERAL_SIZE, order: 'latest', browseGroup: 'general' }),
-    searchPixabay(themes[0], 1, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[0]}` }),
-    searchPixabay(themes[1], 1, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[1]}` }),
+    searchPixabay('', generalPage, apiKey, { perPage: BROWSE_GENERAL_SIZE, order: 'latest', browseGroup: 'general' }),
+    searchPixabay(themes[0], themePage, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[0]}` }),
+    searchPixabay(themes[1], themePage, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[1]}` }),
   ])
   const responses = searches.flatMap((search) => search.status === 'fulfilled' && search.value ? [search.value] : [])
   if (!responses.length) return null
@@ -337,7 +365,7 @@ async function searchWikimedia(query: string, page: number): Promise<SearchRespo
   return {
     results,
     source: 'wikimedia',
-    nextPage: page < MAX_PAGE && body.continue?.gsroffset != null ? page + 1 : undefined,
+    nextPage: page < WIKIMEDIA_MAX_PAGE && body.continue?.gsroffset != null ? page + 1 : undefined,
   }
 }
 
@@ -378,7 +406,7 @@ searchRouter.get('/social', (req: AuthedRequest, res) => {
   return res.json({ people, collections })
 })
 
-searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
+searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
   const query = String(req.query.q ?? '').trim().toLowerCase().slice(0, 80)
   const userId = req.user?.id
   const interests = searchInterests(userId)
@@ -386,20 +414,51 @@ searchRouter.get('/recommendations', (req: AuthedRequest, res) => {
   const queryTerms = recommendationTerms(query)
 
   const suggestionScores = new Map<string, number>()
-  const addSuggestion = (value: string, score: number) => {
+  const addSuggestion = (value: string, score: number, trustedRelated = false) => {
     const suggestion = value.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 60)
     if (suggestion.length < 2 || suggestion === query) return
-    if (query && !suggestion.includes(query) && !query.includes(suggestion)) return
+    if (query && !trustedRelated) {
+      const suggestionTerms = recommendationTerms(suggestion)
+      const overlaps = queryTerms.some((term) => suggestionTerms.some((candidate) => candidate.includes(term) || term.includes(candidate)))
+      if (!suggestion.includes(query) && !query.includes(suggestion) && !overlaps) return
+    }
     suggestionScores.set(suggestion, Math.max(suggestionScores.get(suggestion) ?? 0, score))
   }
 
   for (const [interest, weight] of interests.filter(([, weight]) => weight > 0).slice(0, 20)) addSuggestion(interest, 100 + weight)
+  const publicTerms = db.prepare(`
+    SELECT i.title, i.tags, c.name AS collection_name
+    FROM items i
+    JOIN collections c ON c.id = i.collection_id
+    WHERE c.visibility = 'public' AND c.share_token IS NOT NULL
+    ORDER BY c.updated_at DESC, i.id DESC
+    LIMIT 250
+  `).all() as Array<{ title: string; tags: string; collection_name: string }>
+  for (const item of publicTerms) {
+    for (const tag of item.tags.split(',').map((value) => value.trim().toLowerCase()).filter(Boolean)) {
+      const affinity = [...interestMap.entries()].reduce((score, [interest, weight]) => score + (tag.includes(interest) || interest.includes(tag) ? weight : 0), 0)
+      addSuggestion(tag, 35 + affinity)
+    }
+    for (const term of recommendationTerms(`${item.title} ${item.collection_name}`)) addSuggestion(term, 18)
+  }
   for (const image of catalog) {
     for (const tag of image.tags) {
       const normalized = tag.trim().toLowerCase()
       const affinity = [...interestMap.entries()].reduce((score, [interest, weight]) => score + (normalized.includes(interest) || interest.includes(normalized) ? weight : 0), 0)
       addSuggestion(normalized, 20 + affinity)
     }
+  }
+
+  if (query.length >= 2 && process.env.PIXABAY_API_KEY?.trim()) {
+    const providerTerms = await pixabaySuggestionTerms(query, process.env.PIXABAY_API_KEY.trim())
+    for (const term of providerTerms) {
+      if (term.includes(query) || query.includes(term)) addSuggestion(term, 90, true)
+      else addSuggestion(`${query} ${term}`, 70, true)
+    }
+  }
+
+  if (!query) {
+    for (const [index, topic] of DISCOVERY_THEME_PAIRS.flat().entries()) addSuggestion(topic, 12 - Math.floor(index / 4))
   }
   const suggestions = [...suggestionScores.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -449,18 +508,24 @@ searchRouter.get('/', async (req, res) => {
 
   const provider = req.query.source === 'wikimedia' ? 'wikimedia' : apiKey ? 'pixabay' : 'wikimedia'
   // Treat the browser's page number as a logical page. For an unfiltered
-  // Pixabay browse session, rotate that sequence across all ten provider
-  // pages. Together with latest ordering and the stable shuffle below, this
-  // avoids repeatedly opening on the same nature-heavy popularity slice.
+  // Pixabay browse session, rotate the logical feed across the provider's
+  // accessible result window. Theme pages advance independently so a long
+  // scroll keeps finding new material instead of looping the first slice.
   const isPixabayBrowse = provider === 'pixabay' && !query
+  if (provider === 'pixabay' && query && requestedPage > PIXABAY_SEARCH_MAX_PAGE) {
+    return res.json({ results: [], source: 'pixabay' } satisfies SearchResponse)
+  }
   const page = isPixabayBrowse && seed != null
-    ? 1 + ((requestedPage - 1 + (seed % MAX_PAGE)) % MAX_PAGE)
+    ? 1 + ((requestedPage - 1 + (seed % BROWSE_GENERAL_MAX_PAGE)) % BROWSE_GENERAL_MAX_PAGE)
     : requestedPage
+  const browseThemePage = isPixabayBrowse
+    ? 1 + (Math.floor((requestedPage - 1) / DISCOVERY_THEME_PAIRS.length) % BROWSE_THEME_MAX_PAGE)
+    : 1
   const cacheKey = isPixabayBrowse
-    ? `${provider}:diverse-v2:${page}`
+    ? `${provider}:diverse-v3:${page}:${browseThemePage}`
     : `${provider}:${query}:${page}`
   const logicalNextPage = isPixabayBrowse
-    ? (requestedPage < MAX_PAGE ? requestedPage + 1 : undefined)
+    ? (requestedPage < BROWSE_LOGICAL_MAX_PAGE ? requestedPage + 1 : undefined)
     : undefined
   db.prepare('DELETE FROM search_cache WHERE expires_at <= ?').run(Date.now())
   const cached = db.prepare('SELECT payload FROM search_cache WHERE key = ?').get(cacheKey) as { payload: string } | undefined
@@ -480,8 +545,25 @@ searchRouter.get('/', async (req, res) => {
   if (cacheCount >= 5000) return res.status(503).json({ error: 'Search is busy. Please try again later.' })
   let response: SearchResponse | null = null
   if (provider === 'pixabay' && apiKey) {
-    try { response = isPixabayBrowse ? await searchDiversePixabayBrowse(page, apiKey) : await searchPixabay(query, page, apiKey) }
+    try { response = isPixabayBrowse ? await searchDiversePixabayBrowse(page, browseThemePage, apiKey) : await searchPixabay(query, page, apiKey) }
     catch { console.warn('Pixabay search unavailable.') }
+  }
+  if (!response && isPixabayBrowse) {
+    if (requestedPage > 1) {
+      res.setHeader('Retry-After', '15')
+      return res.status(503).json({ error: 'Pixabay is temporarily busy. Retry loading more in a moment.' })
+    }
+    return res.json({
+      results: localSearch(''),
+      source: 'local',
+      fallback: true,
+      providerUnavailable: true,
+      nextPage: 2,
+    } satisfies SearchResponse)
+  }
+  if (!response && provider === 'pixabay' && query && requestedPage > 1) {
+    res.setHeader('Retry-After', '15')
+    return res.status(503).json({ error: 'Pixabay is temporarily busy. Retry loading more in a moment.' })
   }
   // A provider must not change halfway through its page sequence.
   if (!response && query && (provider === 'wikimedia' || page === 1)) {

@@ -196,6 +196,101 @@ test('manual image and profile photo changes require content-rights confirmation
   await expect(saveProfile).toBeEnabled()
 })
 
+test('Import supports bulk image files and Mosaic collection exports', async ({ page }) => {
+  await enterDemo(page)
+  const dismiss = page.getByRole('button', { name: 'Dismiss quick tour' })
+  if (await dismiss.count()) await dismiss.click()
+  const target = await page.evaluate(async () => {
+    const response = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Import target ${Date.now()}` }),
+    })
+    return (await response.json() as { collection: { id: number; name: string } }).collection
+  })
+
+  await page.route('https://api.cloudinary.com/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      secure_url: 'https://res.cloudinary.com/e2e/image/upload/imported-test.jpg',
+      width: 800,
+      height: 600,
+      original_filename: 'Imported test',
+    }),
+  }))
+  await page.goto('/collections')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Bring things into Mosaic.' })).toBeVisible()
+  await expect(page.getByText('Images from your device')).toBeVisible()
+  await expect(page.getByText('Mosaic collection export')).toBeVisible()
+  await page.getByLabel('Save into').selectOption(String(target.id))
+  await page.getByRole('checkbox', { name: /right to use the images/i }).check()
+  await page.getByLabel('Choose images to import').setInputFiles({ name: 'imported-test.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) })
+  await page.getByRole('button', { name: 'Import 1 image' }).click()
+  await expect(page).toHaveURL(new RegExp(`/collections/${target.id}$`))
+  await expect(page.locator('.saved-card')).toContainText('Imported test')
+
+  await page.goto('/collections')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const importDialog = page.getByRole('dialog', { name: 'Bring things into Mosaic.' })
+  const importBounds = await importDialog.boundingBox()
+  expect(importBounds?.x ?? -1).toBeGreaterThanOrEqual(0)
+  expect((importBounds?.x ?? 0) + (importBounds?.width ?? 390)).toBeLessThanOrEqual(390)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  const importedName = `Imported export ${Date.now()}`
+  const portableExport = {
+    format: 'mosaic.collection',
+    version: 2,
+    collection: { name: importedName, description: 'UI import test', theme: 'paper', gridLayout: 'gallery', coverFocusX: 50, coverFocusY: 50, coverSourceId: null },
+    sections: [],
+    items: [],
+    media: [],
+  }
+  await page.getByLabel('Choose Mosaic JSON export').setInputFiles({ name: 'mosaic-export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(portableExport)) })
+  await expect(page.getByRole('heading', { name: importedName })).toBeVisible()
+})
+
+test('Pixabay feeds retry failed next pages and Explore keeps the web feed at the bottom', async ({ page }) => {
+  let failSecondPage = true
+  await page.route(/\/api\/search\?/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname !== '/api/search') return route.continue()
+    const pageNumber = Number(url.searchParams.get('page') ?? 1)
+    if (pageNumber === 2 && failSecondPage) {
+      return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Pixabay is temporarily busy. Retry loading more in a moment.' }) })
+    }
+    const id = pageNumber === 1 ? 8101 : 8102
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        source: 'pixabay',
+        nextPage: pageNumber === 1 ? 2 : undefined,
+        results: [{ id: `pixabay-${id}`, title: `Pixabay page ${pageNumber}`, creator: 'E2E', imageUrl: `https://example.com/${id}.jpg`, pageUrl: `https://pixabay.com/images/id-${id}/`, tags: ['test'], width: 640, height: 480 }],
+      }),
+    })
+  })
+
+  await enterDemo(page)
+  await expect(page.getByText('Pixabay page 1', { exact: true })).toBeVisible()
+  await page.locator('.discovery-loader').scrollIntoViewIfNeeded()
+  await expect(page.getByRole('button', { name: 'Retry loading more' })).toBeVisible()
+  failSecondPage = false
+  await page.getByRole('button', { name: 'Retry loading more' }).click()
+  await expect(page.getByText('Pixabay page 2', { exact: true })).toBeVisible()
+
+  await page.goto('/explore')
+  await expect(page.getByRole('heading', { name: 'Fresh from Pixabay' })).toBeVisible()
+  const webFeedIsAfterCommunityFeed = await page.evaluate(() => {
+    const communityEnd = document.querySelector('.feed-sentinel')
+    const webFeed = document.querySelector('.explore-web-section')
+    return Boolean(communityEnd && webFeed && (communityEnd.compareDocumentPosition(webFeed) & Node.DOCUMENT_POSITION_FOLLOWING))
+  })
+  expect(webFeedIsAfterCommunityFeed).toBe(true)
+})
+
 test('explore supports multi-select saves into one collection', async ({ page }) => {
   await enterDemo(page)
   const target = await page.evaluate(async () => {
@@ -922,6 +1017,37 @@ test('reduced motion disables decorative interaction animations', async ({ page 
     : Number.parseFloat(routeAnimation.duration) * 1000
   expect(durationMs).toBeLessThanOrEqual(0.01)
   expect(routeAnimation.iterations).toBe('1')
+})
+
+test('search suggestions stay usable at 320px and 390px', async ({ page }) => {
+  await page.route('**/api/search/recommendations?**', async (route) => {
+    const url = new URL(route.request().url())
+    const query = url.searchParams.get('q')?.trim() ?? ''
+    const suggestions = query
+      ? [`${query} night city`, `${query} street photography`, `${query} architecture`]
+      : ['ceramics', 'architecture', 'street photography']
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ suggestions, pins: [], basedOn: query ? [] : ['ceramics'] }),
+    })
+  })
+
+  await enterDemo(page)
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/discover')
+    const search = page.getByRole('combobox', { name: 'Search images' })
+    await search.fill('tokyo')
+    const listbox = page.getByRole('listbox', { name: 'Search suggestions' })
+    await expect(listbox).toBeVisible()
+    const firstSuggestion = listbox.getByRole('option').first()
+    const bounds = await firstSuggestion.boundingBox()
+    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    await firstSuggestion.click()
+    await expect(search).toHaveValue('tokyo night city')
+  }
 })
 
 

@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare2, Compass, Shuffle, X } from 'lucide-react'
+import { CheckSquare2, Compass, LoaderCircle, Shuffle, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
@@ -16,11 +16,23 @@ export function ExplorePage() {
   const [destinationId, setDestinationId] = useState('')
   const [webSeed, setWebSeed] = useState(randomBrowseSeed)
   const sentinel = useRef<HTMLDivElement>(null)
+  const webSentinel = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const recommendations = useQuery({ queryKey: ['recommendations'], queryFn: api.recommendations })
-  const webDiscovery = useQuery({
+  const {
+    data: webData,
+    isLoading: webIsLoading,
+    isError: webIsError,
+    refetch: webRefetch,
+    fetchNextPage: fetchNextWebPage,
+    hasNextPage: webHasNextPage,
+    isFetchingNextPage: webIsFetchingNextPage,
+    isFetchNextPageError: webIsFetchNextPageError,
+  } = useInfiniteQuery({
     queryKey: ['explore-web', webSeed],
-    queryFn: () => api.search('', 1, '', webSeed),
+    queryFn: ({ pageParam }) => api.search('', pageParam.page, pageParam.source, webSeed),
+    initialPageParam: { page: 1, source: '' },
+    getNextPageParam: (lastPage) => lastPage.nextPage ? { page: lastPage.nextPage, source: lastPage.source } : undefined,
     enabled: mode === 'all',
     staleTime: 5 * 60 * 1000,
   })
@@ -41,6 +53,8 @@ export function ExplorePage() {
     getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
   })
   const pins = [...new Map((data?.pages.flatMap((page) => page.pins) ?? []).map((pin) => [pin.id, pin])).values()]
+  const webResults = [...new Map((webData?.pages.flatMap((page) => page.results) ?? []).map((image) => [image.id, image])).values()]
+  const webSource = webData?.pages[0]?.source
   const collections = collectionsQuery.data?.collections ?? []
   const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId)
     ? destinationId
@@ -94,6 +108,15 @@ export function ExplorePage() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
+  useEffect(() => {
+    if (!webSentinel.current || !webHasNextPage || webIsFetchNextPageError || mode !== 'all') return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !webIsFetchingNextPage) void fetchNextWebPage()
+    }, { rootMargin: '500px' })
+    observer.observe(webSentinel.current)
+    return () => observer.disconnect()
+  }, [fetchNextWebPage, mode, webHasNextPage, webIsFetchNextPageError, webIsFetchingNextPage])
+
   return (
     <>
       <section className="explore-hero">
@@ -104,17 +127,8 @@ export function ExplorePage() {
       <section className="section-head explore-section-head explore-feed-controls"><div><span className="eyebrow">EXPLORE</span><h2>{mode === 'following' ? 'Fresh saves from people you follow' : mode === 'trending' ? 'Pins people are talking about' : 'Fresh saves from public collections'}</h2></div><div className="explore-head-actions"><button className={`secondary-button explore-select-button${selectionMode ? ' active' : ''}`} onClick={toggleSelectionMode}><CheckSquare2 size={15} /> {selectionMode ? 'Done' : 'Select'}</button><div className="feed-switch" aria-label="Explore feed"><button className={mode === 'all' ? 'active' : ''} onClick={() => changeMode('all')}>For you</button><button className={mode === 'following' ? 'active' : ''} onClick={() => changeMode('following')}>Following</button><button className={mode === 'trending' ? 'active' : ''} onClick={() => changeMode('trending')}>Trending</button></div></div></section>
       {mode === 'all' && recommendations.data?.pins.length ? (
         <section className="recommendation-section">
-          <div className="section-head"><div><span className="eyebrow">BECAUSE YOU SAVED</span><h2>More in your orbit</h2></div><span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span></div>
+          <div className="section-head"><div><span className="eyebrow">{recommendations.data.personalized ? 'BECAUSE YOU SAVED' : 'SUGGESTED FOR YOU'}</span><h2>{recommendations.data.personalized ? 'More in your orbit' : 'A few places to start'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">{recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div>
           <div className="masonry-grid recommendation-grid">{recommendations.data.pins.slice(0, 8).map((pin) => <PublicPinCard pin={pin} key={`recommended-${pin.id}`} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div>
-        </section>
-      ) : null}
-      {mode === 'all' && webDiscovery.data?.results.length ? (
-        <section className="explore-web-section">
-          <div className="section-head explore-web-head">
-            <div><span className="eyebrow">AROUND THE WEB</span><h2>{webDiscovery.data.source === 'pixabay' ? 'Fresh from Pixabay' : 'Fresh visual finds'}</h2></div>
-            <button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button>
-          </div>
-          <div className="masonry-grid explore-web-grid">{webDiscovery.data.results.slice(0, 8).map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div>
         </section>
       ) : null}
       {selectionMode && (
@@ -126,7 +140,17 @@ export function ExplorePage() {
         </div>
       )}
       {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="masonry-grid">{Array.from({ length: 10 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : pins.length ? <div className="masonry-grid">{pins.map((pin) => <PublicPinCard pin={pin} key={pin.id} selectionMode={selectionMode} selected={selectedIds.has(pin.id)} onToggleSelection={toggleSelection} />)}</div> : <div className="empty-state large"><Compass size={30} /><h3>{mode === 'following' ? 'Your following feed is quiet.' : 'Nothing public yet.'}</h3><p>{mode === 'following' ? 'Follow curators from Explore or their profiles and their public saves will appear here.' : 'Make a collection public and it will show up here.'}</p>{mode === 'following' && <button className="secondary-button" onClick={() => changeMode('all')}>Browse everyone</button>}</div>}
-      <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? <button className="secondary-button" onClick={() => void fetchNextPage()}>Load more</button> : pins.length ? 'You reached the end.' : ''}</div>
+      <div ref={sentinel} className="feed-sentinel">{isFetchingNextPage ? 'Finding more…' : hasNextPage ? '' : pins.length ? 'You reached the end.' : ''}</div>
+      {mode === 'all' ? (
+        <section className="explore-web-section">
+          <div className="section-head explore-web-head">
+            <div><span className="eyebrow">AROUND THE WEB</span><h2>{webSource === 'wikimedia' ? 'Fresh visual finds' : 'Fresh from Pixabay'}</h2></div>
+            <button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button>
+          </div>
+          {webData?.pages[0]?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so these are Mosaic picks while it recovers.</span><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : null}
+          {webIsLoading ? <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : webIsError && !webResults.length ? <div className="empty-state compact"><h3>Could not reach Pixabay.</h3><p>Try again in a moment.</p><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : webResults.length ? <><div className="masonry-grid explore-web-grid">{webResults.map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div><div className="discovery-loader" ref={webSentinel} aria-live="polite">{webIsFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more from Pixabay…</> : webIsFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextWebPage()}>Retry loading more</button></> : null}</div></> : null}
+        </section>
+      ) : null}
     </>
   )
 }

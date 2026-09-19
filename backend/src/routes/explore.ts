@@ -61,7 +61,6 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
     }
   }
   const interests = [...weights.entries()].filter(([, weight]) => weight > 0).sort((a, b) => b[1] - a[1]).slice(0, 10)
-  if (!interests.length) return res.json({ pins: [], basedOn: [] })
 
   const candidates = db.prepare(`
     SELECT i.*, c.name AS collection_name, c.share_token, c.updated_at,
@@ -85,10 +84,19 @@ exploreRouter.get('/recommended', (req: AuthedRequest, res) => {
     const haystack = `${String(pin.title ?? '')} ${String(pin.tags ?? '')} ${String(pin.collection_name ?? '')} ${String(pin.source_creator ?? '')}`.toLowerCase()
     const affinity = interests.reduce((score, [term, weight]) => score + (haystack.includes(term) ? weight : 0), 0)
     const social = Math.min(8, Number(pin.like_count ?? 0) * 0.5 + Number(pin.comment_count ?? 0) * 0.75)
-    return { pin, score: affinity + social }
-  }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).slice(0, 12)
+    return { pin, affinity, social, score: affinity + social }
+  }).sort((a, b) => b.score - a.score)
 
-  return res.json({ pins: ranked.map((entry) => entry.pin), basedOn: interests.slice(0, 4).map(([term]) => term) })
+  const personalized = interests.length > 0 && ranked.some((entry) => entry.affinity > 0)
+  const selected = personalized
+    ? ranked.filter((entry) => entry.affinity > 0 || entry.social > 0).slice(0, 12)
+    : [...ranked].sort((a, b) => b.social - a.social).slice(0, 12)
+
+  return res.json({
+    pins: selected.map((entry) => entry.pin),
+    basedOn: personalized ? interests.slice(0, 4).map(([term]) => term) : [],
+    personalized,
+  })
 })
 
 exploreRouter.get('/', (req: AuthedRequest, res) => {

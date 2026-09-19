@@ -22,6 +22,36 @@ import { sharedRouter } from './routes/shared.js'
 
 export const app = express()
 
+const rateLimitHeaders = { standardHeaders: 'draft-8' as const, legacyHeaders: false }
+const mutationMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const mutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 180,
+  ...rateLimitHeaders,
+  skip: (req) => !mutationMethods.has(req.method),
+  message: { error: 'Too many changes in a short time. Wait a moment and try again.' },
+})
+const discoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  ...rateLimitHeaders,
+  message: { error: 'Too many discovery requests. Wait a moment and try again.' },
+})
+const messagingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  ...rateLimitHeaders,
+  skip: (req) => !mutationMethods.has(req.method),
+  message: { error: 'Too many messages sent in a short time. Wait a moment and try again.' },
+})
+const reportingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  ...rateLimitHeaders,
+  skip: (req) => !mutationMethods.has(req.method),
+  message: { error: 'Too many reports submitted. Try again later.' },
+})
+
 try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
 const mediaGcTimer = setInterval(() => {
   try { pruneUnusedMedia() } catch { console.warn('Could not prune unused provider media.') }
@@ -60,7 +90,13 @@ app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : true, cre
 app.use('/api/collections/import', express.json({ limit: '20mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
-app.use('/api', rateLimit({ skip: (req) => req.path === '/health', windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api', rateLimit({
+  skip: (req) => req.path === '/health',
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  ...rateLimitHeaders,
+  message: { error: 'Too many requests. Wait a moment and try again.' },
+}))
 app.use('/api/auth/login', rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -83,6 +119,11 @@ app.use('/api/auth/register/verify', rateLimit({
   message: { error: 'Too many verification attempts. Request a new code.' },
 }))
 app.use('/api/auth/demo', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api/search', discoveryLimiter)
+app.use('/api/explore', discoveryLimiter)
+app.use(['/api/collections', '/api/pins', '/api/profiles', '/api/shared', '/api/notifications'], mutationLimiter)
+app.use('/api/messages', messagingLimiter)
+app.use('/api/reports', reportingLimiter)
 app.use(loadUser)
 
 app.get('/api/health', (_req, res) => {

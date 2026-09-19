@@ -145,7 +145,7 @@ test('unfiltered Pixabay browse mixes general results with rotating visual theme
   }) as typeof fetch
 
   const first = await request(app).get('/api/search?seed=1234&page=1').expect(200)
-  const cachedSamePool = await request(app).get('/api/search?seed=1244&page=1').expect(200)
+  const cachedSamePool = await request(app).get('/api/search?seed=1276&page=1').expect(200)
   const second = await request(app).get('/api/search?seed=1234&page=2').expect(200)
 
   assert.equal(urls.length, 6)
@@ -153,12 +153,12 @@ test('unfiltered Pixabay browse mixes general results with rotating visual theme
   const secondRequests = urls.slice(3, 6)
   assert.equal(firstRequests.every((url) => url.searchParams.get('image_type') === 'all'), true)
   assert.equal(firstRequests.filter((url) => !url.searchParams.has('q')).length, 1)
-  assert.equal(firstRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '5')
+  assert.equal(firstRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '17')
   assert.equal(firstRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('order'), 'latest')
-  assert.deepEqual(firstRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['space', 'street photography'])
+  assert.deepEqual(firstRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['science', 'sports'])
   assert.equal(firstRequests.filter((url) => url.searchParams.has('q')).every((url) => url.searchParams.get('order') === 'popular'), true)
-  assert.equal(secondRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '6')
-  assert.deepEqual(secondRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['gaming', 'travel'])
+  assert.equal(secondRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '18')
+  assert.deepEqual(secondRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['music', 'technology'])
   assert.equal(first.body.nextPage, 2)
   assert.equal(second.body.nextPage, 3)
   assert.equal(first.body.results.slice(0, 6).map((result: { tags: string[] }) => result.tags[0]).filter((tag: string) => tag === 'general').length <= 2, true)
@@ -167,6 +167,56 @@ test('unfiltered Pixabay browse mixes general results with rotating visual theme
   assert.equal(new Set(cachedSamePool.body.results.slice(0, 6).map((result: { tags: string[] }) => result.tags[0])).size, 3)
   assert.equal(first.body.results.some((result: Record<string, unknown>) => '__browseGroup' in result), false)
   assert.equal(cachedSamePool.body.results.some((result: Record<string, unknown>) => '__browseGroup' in result), false)
+})
+
+test('a later Pixabay browse outage is retryable instead of being cached as the end', async () => {
+  db.prepare("DELETE FROM search_cache WHERE key LIKE 'pixabay:diverse-v3:%'").run()
+  let unavailable = true
+  let calls = 0
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    const url = new URL(String(input))
+    if (url.hostname !== 'pixabay.com') throw new Error('Unexpected fetch')
+    calls++
+    if (unavailable) return new Response('', { status: 503 })
+    const query = url.searchParams.get('q') || 'general'
+    const page = Number(url.searchParams.get('page') ?? 1)
+    return Response.json({
+      totalHits: 10_000,
+      hits: [{ id: calls * 1000 + page, tags: `${query}, retry`, user: 'Retry Maker', webformatURL: `https://cdn.pixabay.com/retry-${calls}.jpg`, pageURL: `https://pixabay.com/images/id-${calls}/`, webformatWidth: 640, webformatHeight: 480 }],
+    })
+  }) as typeof fetch
+
+  const failed = await request(app).get('/api/search?seed=9012&page=2').expect(503)
+  assert.equal(failed.headers['retry-after'], '15')
+  assert.match(failed.body.error, /retry loading more/i)
+
+  unavailable = false
+  const retried = await request(app).get('/api/search?seed=9012&page=2').expect(200)
+  assert.equal(retried.body.source, 'pixabay')
+  assert.equal(retried.body.nextPage, 3)
+  assert.ok(retried.body.results.length > 0)
+  assert.equal(calls, 6)
+})
+
+test('a later typed Pixabay page is retryable after a provider outage', async () => {
+  const query = `retry-${randomUUID()}`
+  let unavailable = true
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    const url = new URL(String(input))
+    if (url.hostname !== 'pixabay.com') throw new Error('Unexpected fetch')
+    if (unavailable) return new Response('', { status: 503 })
+    return Response.json({
+      totalHits: 90,
+      hits: [{ id: 777, tags: 'retry, city', user: 'Retry Maker', webformatURL: 'https://cdn.pixabay.com/retry-city.jpg', pageURL: 'https://pixabay.com/images/id-777/', webformatWidth: 640, webformatHeight: 480 }],
+    })
+  }) as typeof fetch
+
+  const failed = await request(app).get(`/api/search?q=${query}&page=2&source=pixabay`).expect(503)
+  assert.equal(failed.headers['retry-after'], '15')
+  unavailable = false
+  const retried = await request(app).get(`/api/search?q=${query}&page=2&source=pixabay`).expect(200)
+  assert.equal(retried.body.source, 'pixabay')
+  assert.equal(retried.body.results[0].id, 'pixabay-777')
 })
 
 test('typed Pixabay search preserves provider relevance order', async () => {
@@ -246,4 +296,31 @@ test('discarding one overlapping media save cannot remove another committed refe
   first.discard()
   assert.equal(existsSync(path), true)
   assert.equal(pruneUnusedMedia(), 0)
+})
+
+test('search suggestions expand from Pixabay tags and cache provider lookups', async () => {
+  let calls = 0
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    if (!String(input).startsWith('https://pixabay.com/api/')) throw new Error('Unexpected fetch')
+    calls++
+    return Response.json({
+      totalHits: 20,
+      hits: [{
+        id: 99123,
+        tags: 'tokyo, night city, street photography, neon',
+        user: 'Suggestion Maker',
+        webformatURL: 'https://cdn.pixabay.com/suggestion.jpg',
+        pageURL: 'https://pixabay.com/photos/suggestion-99123/',
+        webformatWidth: 640,
+        webformatHeight: 480,
+      }],
+    })
+  }) as typeof fetch
+
+  const query = `tokyo-${randomUUID().slice(0, 8)}`
+  const first = await request(app).get(`/api/search/recommendations?q=${encodeURIComponent(query)}`).expect(200)
+  const second = await request(app).get(`/api/search/recommendations?q=${encodeURIComponent(query)}`).expect(200)
+  assert.ok(first.body.suggestions.some((suggestion: string) => suggestion.includes('night city')))
+  assert.deepEqual(second.body.suggestions, first.body.suggestions)
+  assert.equal(calls, 1)
 })

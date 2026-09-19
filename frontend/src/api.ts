@@ -33,7 +33,7 @@ export const api = {
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   deleteAccount: (password: string, confirmation: 'DELETE') => request<void>('/api/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirmation }) }),
   explore: (page = 1, mode: 'all' | 'following' | 'trending' = 'all') => request<{ pins: PublicPin[]; nextPage: number | null }>(`/api/explore?page=${page}&mode=${mode}`),
-  recommendations: () => request<{ pins: PublicPin[]; basedOn: string[] }>('/api/explore/recommended'),
+  recommendations: () => request<{ pins: PublicPin[]; basedOn: string[]; personalized: boolean }>('/api/explore/recommended'),
   recommendationFeedback: (id: number, signal: 'more' | 'not_interested') => request<void>(`/api/pins/${id}/recommendation-feedback`, { method: 'POST', body: JSON.stringify({ signal }) }),
   pin: (id: number) => request<{ pin: PinDetail }>(`/api/pins/${id}`),
   relatedPins: (id: number) => request<{ pins: PublicPin[] }>(`/api/pins/${id}/related`),
@@ -48,7 +48,7 @@ export const api = {
   deletePinComment: (id: number, commentId: number) => request<void>(`/api/pins/${id}/comments/${commentId}`, { method: 'DELETE' }),
   socialSearch: (query: string) => request<{ people: SocialSearchPerson[]; collections: SocialSearchCollection[] }>(`/api/search/social?q=${encodeURIComponent(query)}`),
   search: (query = '', page = 1, source = '', seed?: number) =>
-    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}${seed == null ? '' : `&seed=${seed}`}`),
+    request<{ results: CatalogImage[]; source: 'local' | 'pixabay' | 'wikimedia'; fallback?: boolean; cached?: boolean; providerUnavailable?: boolean; nextPage?: number }>(`/api/search?q=${encodeURIComponent(query)}&page=${page}&source=${encodeURIComponent(source)}${seed == null ? '' : `&seed=${seed}`}`),
   searchRecommendations: (query = '') => request<{ suggestions: string[]; pins: PublicPin[]; basedOn: string[] }>(`/api/search/recommendations?q=${encodeURIComponent(query)}`),
   profile: (identifier: string | number) => request<{ profile: PublicProfile; collections: Collection[] }>(`/api/profiles/${encodeURIComponent(String(identifier))}`),
   profileConnections: (id: number, kind: 'followers' | 'following') => request<{ kind: string; people: ProfileConnection[] }>(`/api/profiles/${id}/connections?kind=${kind}`),
