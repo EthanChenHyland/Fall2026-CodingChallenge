@@ -53,10 +53,10 @@ test('registration rolls back if a session cannot be created', async () => {
   db.exec(`CREATE TRIGGER fail_test_registration_session BEFORE INSERT ON sessions
     WHEN EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id AND email = '${email}')
     BEGIN SELECT RAISE(ABORT, 'test session failure'); END`)
-  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password' }).expect(500)
+  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password', ageConfirmed: true }).expect(500)
   assert.equal(db.prepare('SELECT 1 FROM users WHERE email = ?').get(email), undefined)
   db.exec('DROP TRIGGER fail_test_registration_session')
-  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password' }).expect(201)
+  await request(app).post('/api/auth/register').send({ name: 'Atomic Register', email, password: 'atomic-password', ageConfirmed: true }).expect(201)
 })
 
 test('account deletion requires reauthentication, deletes owned collections, and preserves collaborator-owned collections', async () => {
@@ -65,8 +65,8 @@ test('account deletion requires reauthentication, deletes owned collections, and
   const ownerEmail = `delete-owner-${randomUUID()}@example.test`
   const editorEmail = `delete-editor-${randomUUID()}@example.test`
   const password = 'delete-me-1234'
-  const ownerRegistered = await owner.post('/api/auth/register').send({ name: 'Delete Owner', email: ownerEmail, password }).expect(201)
-  const editorRegistered = await editor.post('/api/auth/register').send({ name: 'Delete Editor', email: editorEmail, password }).expect(201)
+  const ownerRegistered = await owner.post('/api/auth/register').send({ name: 'Delete Owner', email: ownerEmail, password, ageConfirmed: true }).expect(201)
+  const editorRegistered = await editor.post('/api/auth/register').send({ name: 'Delete Editor', email: editorEmail, password, ageConfirmed: true }).expect(201)
   const owned = await owner.post('/api/collections').send({ name: 'Delete with owner' }).expect(201)
   const kept = await editor.post('/api/collections').send({ name: 'Keep after collaborator deletion' }).expect(201)
   await editor.post(`/api/collections/${kept.body.collection.id}/collaborators`).send({ email: ownerEmail }).expect(201)

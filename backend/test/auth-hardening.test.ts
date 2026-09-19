@@ -30,10 +30,10 @@ test('email verification creates an account only after the correct code', async 
   try {
     const agent = request.agent(app)
     const email = `verified-${randomUUID()}@example.test`
-    await agent.post('/api/auth/register/start').send({ name: 'Verified Person', email, password: 'verified-password' }).expect(202)
+    await agent.post('/api/auth/register/start').send({ name: 'Verified Person', email, password: 'verified-password', ageConfirmed: true }).expect(202)
     assert.match(deliveredCode, /^\d{6}$/)
     assert.equal(db.prepare('SELECT 1 FROM users WHERE email = ?').get(email), undefined)
-    await agent.post('/api/auth/register').send({ name: 'Bypass', email: `bypass-${randomUUID()}@example.test`, password: 'verified-password' }).expect(400)
+    await agent.post('/api/auth/register').send({ name: 'Bypass', email: `bypass-${randomUUID()}@example.test`, password: 'verified-password', ageConfirmed: true }).expect(400)
     await agent.post('/api/auth/register/verify').send({ email, code: '000000' }).expect(400)
     await agent.post('/api/auth/register/verify').send({ email, code: deliveredCode }).expect(201)
     await agent.get('/api/auth/me').expect(200)
@@ -44,6 +44,15 @@ test('email verification creates an account only after the correct code', async 
     delete process.env.RESEND_API_KEY
     delete process.env.EMAIL_FROM
   }
+})
+
+test('registration requires age confirmation', async () => {
+  const response = await request(app).post('/api/auth/register/start').send({
+    name: 'Young Visitor',
+    email: `age-${randomUUID()}@example.test`,
+    password: 'age-check-password',
+  }).expect(400)
+  assert.match(response.body.error, /at least 13/i)
 })
 
 test('production demo account uses its normal seeded credentials', async () => {

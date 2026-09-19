@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { api } from '../api'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 import type { PublicProfile } from '../types'
+import { ConsentCheckbox } from './ConsentCheckbox'
 
 export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
   const queryClient = useQueryClient()
@@ -17,8 +18,14 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
   const [bio, setBio] = useState(profile.bio)
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
   const [uploading, setUploading] = useState(false)
+  const [avatarRightsConfirmed, setAvatarRightsConfirmed] = useState(false)
   const initials = name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'M'
+  const avatarNeedsConsent = Boolean(avatarUrl && avatarUrl !== profile.avatar_url)
   const handleAvatarUpload = async (file: File) => {
+    if (!avatarRightsConfirmed) {
+      toast.error('Confirm that you have the right to use this profile photo before uploading it.')
+      return
+    }
     setUploading(true)
     try {
       const uploaded = await uploadImage(file, 'mosaic-avatars')
@@ -54,6 +61,7 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
       setDeleteMode(false)
       setDeletePassword('')
       setDeleteConfirmation('')
+      setAvatarRightsConfirmed(false)
     }
   }
 
@@ -67,14 +75,15 @@ export function EditProfileDialog({ profile }: { profile: PublicProfile }) {
           <div className="profile-photo-editor">
             <div className="profile-photo-preview">{avatarUrl ? <img src={avatarUrl} alt="Profile preview" /> : initials}</div>
             <div className="profile-photo-actions">
-              {cloudUploadsConfigured() && <label className="secondary-button profile-photo-upload"><UploadCloud size={15} /> {uploading ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Upload photo'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleAvatarUpload(file); event.currentTarget.value = '' }} /></label>}
+              {cloudUploadsConfigured() && <label className={`secondary-button profile-photo-upload ${!avatarRightsConfirmed ? 'disabled' : ''}`}><UploadCloud size={15} /> {uploading ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Upload photo'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading || !avatarRightsConfirmed} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleAvatarUpload(file); event.currentTarget.value = '' }} /></label>}
               {avatarUrl && <button type="button" className="secondary-button" disabled={uploading} onClick={() => setAvatarUrl('')}><Trash2 size={14} /> Remove</button>}
             </div>
           </div>
+          <ConsentCheckbox checked={avatarRightsConfirmed} onChange={setAvatarRightsConfirmed}>I confirm I have the right to use this profile photo.</ConsentCheckbox>
           <label className="field-label">Name<input maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="field-label">Bio<textarea maxLength={220} rows={4} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="What are you collecting lately?" /></label>
-          <label className="field-label">Photo URL <span className="field-optional">optional</span><input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} placeholder="https://…" /></label>
-          <button className="primary-button full" disabled={update.isPending || uploading || name.trim().length < 2} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save profile'}</button>
+          <label className="field-label">Photo URL <span className="field-optional">optional</span><input value={avatarUrl} onChange={(event) => { setAvatarUrl(event.target.value); setAvatarRightsConfirmed(false) }} placeholder="https://…" /></label>
+          <button className="primary-button full" disabled={update.isPending || uploading || name.trim().length < 2 || (avatarNeedsConsent && !avatarRightsConfirmed)} onClick={() => update.mutate()}>{update.isPending ? 'Saving…' : 'Save profile'}</button>
           <section className="profile-danger-zone">
             <div><strong>Delete account</strong><span>Permanently remove your account and collections you own.</span></div>
             {!deleteMode ? (

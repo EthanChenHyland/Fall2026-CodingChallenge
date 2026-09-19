@@ -21,6 +21,7 @@ const authSchema = z.object({
 
 const registerSchema = authSchema.extend({
   name: z.string().trim().min(2).max(80),
+  ageConfirmed: z.literal(true),
 })
 
 const verificationSchema = z.object({
@@ -70,6 +71,7 @@ async function sendVerificationCode(email: string, code: string) {
 }
 
 authRouter.post('/register', (req, res) => {
+  if (req.body?.ageConfirmed !== true) return res.status(400).json({ error: 'Confirm that you are at least 13 years old.' })
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name, email, and password.' })
   if (emailVerificationConfigured()) return res.status(400).json({ error: 'Email verification is required for new accounts.' })
@@ -82,6 +84,7 @@ authRouter.post('/register', (req, res) => {
 })
 
 authRouter.post('/register/start', async (req, res) => {
+  if (req.body?.ageConfirmed !== true) return res.status(400).json({ error: 'Confirm that you are at least 13 years old.' })
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name, email, and password.' })
   db.prepare('DELETE FROM registration_verifications WHERE expires_at <= ?').run(new Date().toISOString())

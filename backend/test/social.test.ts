@@ -21,7 +21,7 @@ async function makeCurator(name = 'Test Curator') {
   const agent = request.agent(app)
   const email = `curator-${randomUUID()}@example.test`
   const credential = `local-${randomUUID()}`
-  const registered = await agent.post('/api/auth/register').send({ name, email, password: credential }).expect(201)
+  const registered = await agent.post('/api/auth/register').send({ name, email, password: credential, ageConfirmed: true }).expect(201)
   return { agent, id: registered.body.user.id as number }
 }
 

@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { ConsentCheckbox } from './ConsentCheckbox'
 import { rememberCollection } from '../lib/recentCollection'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
 import type { CatalogImage, Collection, SavedItem } from '../types'
@@ -401,8 +402,13 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [rightsConfirmed, setRightsConfirmed] = useState(false)
   const queryClient = useQueryClient()
   const handleUpload = async (file: File) => {
+    if (!rightsConfirmed) {
+      toast.error('Confirm that you have the right to use this image before uploading it.')
+      return
+    }
     setUploading(true)
     try {
       const uploaded = await uploadImage(file)
@@ -434,24 +440,26 @@ export function AddPinDialog({ collectionId, trigger }: { collectionId: number; 
       setSourceUrl('')
       setTitle('')
       setTags('')
+      setRightsConfirmed(false)
       toast.success('Pin added')
     },
     onError: (error) => toast.error(error.message),
   })
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setRightsConfirmed(false) }}>
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content aria-describedby={undefined} className="dialog-card">
           <div className="dialog-head"><div><span className="eyebrow">ADD YOUR OWN PIN</span><Dialog.Title>Save something from anywhere.</Dialog.Title></div><Dialog.Close className="icon-button" aria-label="Close dialog"><X size={19} /></Dialog.Close></div>
+          <ConsentCheckbox checked={rightsConfirmed} onChange={setRightsConfirmed}>I confirm I have the right to use this image.</ConsentCheckbox>
           {imageUrl && <img className="edit-image" src={imageUrl} alt="Preview" />}
-          {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (!uploading && file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : 'Drop an image here'}</strong><span>or choose one from your computer</span><label className="secondary-button upload-browse">Browse<input type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
+          {cloudUploadsConfigured() && <div className={`upload-dropzone ${uploading ? 'busy' : ''} ${!rightsConfirmed ? 'locked' : ''}`} aria-disabled={!rightsConfirmed} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (!uploading && file?.type.startsWith('image/')) void handleUpload(file) }}><UploadCloud size={22} /><strong>{uploading ? 'Uploading image…' : rightsConfirmed ? 'Drop an image here' : 'Confirm your rights to upload'}</strong><span>{rightsConfirmed ? 'or choose one from your computer' : 'Check the confirmation above first'}</span><label className={`secondary-button upload-browse ${!rightsConfirmed ? 'disabled' : ''}`}>Browse<input type="file" accept="image/*" disabled={uploading || !rightsConfirmed} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file) }} /></label></div>}
           <label className="field-label">Image URL<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://…/image.jpg" /></label>
           <label className="field-label">Title<input maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What should you remember this as?" /></label>
           <label className="field-label">Tags <span className="field-optional">optional</span><input maxLength={240} value={tags} onChange={(event) => setTags(event.target.value)} placeholder="interior, type, reference" /></label>
           <label className="field-label">Source URL <span className="field-optional">optional</span><input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" /></label>
-          <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
+          <button className="primary-button full" disabled={!imageUrl.trim() || !title.trim() || !rightsConfirmed || save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Add pin'}</button>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

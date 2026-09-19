@@ -82,7 +82,7 @@ test('editor invite links require owner control and grant editor access only whi
   await request(app).post(`/api/collections/editor-invites/${token}/accept`).expect(401)
 
   const invitedEmail = `invite-${randomUUID()}@mosaic.local`
-  await invited.post('/api/auth/register').send({ name: 'Invite Tester', email: invitedEmail, password: 'demo1234' }).expect(201)
+  await invited.post('/api/auth/register').send({ name: 'Invite Tester', email: invitedEmail, password: 'demo1234', ageConfirmed: true }).expect(201)
   const preview = await invited.get(`/api/collections/editor-invites/${token}`).expect(200)
   assert.equal(preview.body.invite.collectionId, collectionId)
   assert.equal(preview.body.invite.collectionName, 'Invite link board')
@@ -107,7 +107,7 @@ test('editor invite links require owner control and grant editor access only whi
 
   await owner.delete(`/api/collections/${collectionId}/editor-invite`).expect(204)
   assert.equal((await owner.get(`/api/collections/${collectionId}/editor-invite`).expect(200)).body.invite, null)
-  await revokedTarget.post('/api/auth/register').send({ name: 'Revoked Tester', email: `revoked-${randomUUID()}@mosaic.local`, password: 'demo1234' }).expect(201)
+  await revokedTarget.post('/api/auth/register').send({ name: 'Revoked Tester', email: `revoked-${randomUUID()}@mosaic.local`, password: 'demo1234', ageConfirmed: true }).expect(201)
   await revokedTarget.get(`/api/collections/editor-invites/${token}`).expect(404)
   await revokedTarget.post(`/api/collections/editor-invites/${token}/accept`).expect(404)
 })

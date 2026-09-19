@@ -24,9 +24,9 @@ export const api = {
   me: () => request<{ user: User }>('/api/auth/me'),
   login: (body: { email: string; password: string }) =>
     request<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-  register: (body: { name: string; email: string; password: string }) =>
+  register: (body: { name: string; email: string; password: string; ageConfirmed: true }) =>
     request<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  startRegistration: (body: { name: string; email: string; password: string }) =>
+  startRegistration: (body: { name: string; email: string; password: string; ageConfirmed: boolean }) =>
     request<{ verificationRequired: false; user: User } | { verificationRequired: true; email: string }>('/api/auth/register/start', { method: 'POST', body: JSON.stringify(body) }),
   verifyRegistration: (body: { email: string; code: string }) =>
     request<{ user: User }>('/api/auth/register/verify', { method: 'POST', body: JSON.stringify(body) }),

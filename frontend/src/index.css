@@ -248,6 +248,16 @@ img { display: block; max-width: 100%; }
 .field-label { display: grid; gap: 7px; margin: 15px 0; color: #605c55; font-size: 11px; font-weight: 700; }
 .field-label input, .field-label textarea { width: 100%; border: 1px solid #d7d1c6; background: #fffefb; border-radius: 10px; padding: 11px 12px; outline: none; color: var(--ink); resize: vertical; }
 .field-label input:focus, .field-label textarea:focus { border-color: #9f7c83; box-shadow: 0 0 0 3px rgba(126,48,64,.08); }
+.consent-checkbox { position: relative; display: flex; align-items: flex-start; gap: 10px; margin: 13px 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: #f5f1ea; color: #625d55; cursor: pointer; font-size: 10px; font-weight: 650; line-height: 1.45; transition: border-color .16s ease, background .16s ease, box-shadow .16s ease; }
+.consent-checkbox:hover { border-color: #c9c2b8; background: #f8f5ef; }
+.consent-checkbox:focus-within { border-color: #aeb5ea; box-shadow: 0 0 0 3px rgba(77,91,209,.09); }
+.consent-checkbox input { position: absolute; left: 12px; top: 11px; z-index: 2; width: 18px; height: 18px; margin: 0; opacity: .001; cursor: pointer; }
+.consent-checkbox-box { width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #bdb6ab; border-radius: 5px; background: #fffefb; color: white; pointer-events: none; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.consent-checkbox-box svg { opacity: 0; transform: scale(.7); transition: opacity .12s ease, transform .12s ease; }
+.consent-checkbox input:checked + .consent-checkbox-box { border-color: var(--accent); background: var(--accent); }
+.consent-checkbox input:checked + .consent-checkbox-box svg { opacity: 1; transform: scale(1); }
+.consent-checkbox.disabled { opacity: .55; cursor: not-allowed; }
+.consent-checkbox-copy { padding-top: 1px; }
 .save-preview { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .save-preview img { width: 58px; height: 58px; object-fit: cover; border-radius: 9px; }
 .save-preview > div { display: grid; gap: 4px; }
@@ -562,6 +572,7 @@ img { display: block; max-width: 100%; }
 .profile-photo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .profile-photo-upload { position: relative; }
 .profile-photo-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.secondary-button.disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
 .profile-copy h1 { margin: 10px 0 9px; font-family: Georgia, serif; font-size: clamp(48px, 6vw, 76px); font-weight: 400; letter-spacing: -.04em; }
 .profile-handle { display: block; margin: -3px 0 9px; color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .01em; }
 .profile-copy > p { margin: 0; max-width: 620px; color: var(--muted); font-family: Georgia, serif; font-size: 16px; line-height: 1.55; }
@@ -803,6 +814,7 @@ img { display: block; max-width: 100%; }
 .upload-dropzone strong { color: var(--ink); font-size: 12px; }
 .upload-dropzone span { font-size: 9px; }
 .upload-dropzone.busy { opacity: .65; pointer-events: none; }
+.upload-dropzone.locked { opacity: .72; }
 .upload-browse { margin-top: 5px; min-height: 34px; }
 .upload-browse input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
@@ -825,6 +837,8 @@ img { display: block; max-width: 100%; }
 .capture-upload-dropzone { gap: 9px; padding: 28px 18px; border: 1.5px dashed #aaa49a; background: linear-gradient(145deg, #f2eee7, #e7e2d9); cursor: pointer; text-align: center; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .capture-upload-dropzone:hover, .capture-upload-dropzone:focus-within { border-color: #8d95d9; background: #f0f0fb; transform: translateY(-1px); }
 .capture-upload-dropzone.uploading { cursor: wait; opacity: .72; }
+.capture-upload-dropzone.locked { cursor: default; transform: none; }
+.capture-upload-dropzone.locked .capture-upload-cta { opacity: .55; }
 .capture-upload-dropzone strong { color: var(--ink); font-family: Georgia, serif; font-size: 19px; font-weight: 400; }
 .capture-upload-dropzone > span:not(.capture-upload-icon):not(.capture-upload-cta) { max-width: 260px; line-height: 1.45; }
 .capture-upload-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 15px; background: #fffdf8; color: var(--accent); box-shadow: 0 5px 18px rgba(35,31,26,.08); }

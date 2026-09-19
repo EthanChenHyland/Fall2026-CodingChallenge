@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
+import { ConsentCheckbox } from '../components/ConsentCheckbox'
 import type { User } from '../types'
 
 type AuthResult =
@@ -16,6 +17,7 @@ export function AuthPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -32,7 +34,7 @@ export function AuthPage() {
     mutationFn: (): Promise<AuthResult> =>
       mode === 'login'
         ? api.login({ email, password })
-        : api.startRegistration({ name, email, password }),
+        : api.startRegistration({ name, email, password, ageConfirmed }),
     onSuccess: (result) => {
       if ('verificationRequired' in result && result.verificationRequired) {
         setVerificationEmail(result.email)
@@ -53,6 +55,7 @@ export function AuthPage() {
     if (nextMode === mode || auth.isPending || verify.isPending) return
     setMode(nextMode)
     setPassword('')
+    setAgeConfirmed(false)
     setShowPassword(false)
     setVerificationEmail('')
     setVerificationCode('')
@@ -62,7 +65,7 @@ export function AuthPage() {
 
   const errorMessage = verify.error?.message ?? auth.error?.message
   const showCreateAccountPrompt = mode === 'login' && auth.error?.message === 'Email or password is incorrect.'
-  const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || name.trim().length >= 2)
+  const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || (name.trim().length >= 2 && ageConfirmed))
 
   return (
     <main className="auth-shell">
@@ -105,6 +108,8 @@ export function AuthPage() {
                 <button type="button" className="auth-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
               </span>
             </div>
+
+            {mode === 'register' && <ConsentCheckbox checked={ageConfirmed} onChange={setAgeConfirmed}>I confirm I am at least 13 years old.</ConsentCheckbox>}
 
             {errorMessage && <div className="auth-inline-error" role="alert">{errorMessage}</div>}
             {showCreateAccountPrompt && (
