@@ -133,7 +133,7 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="main-area" id="main-content">
+      <main className="main-area" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <button className="mini-brand" onClick={() => navigate('/')} aria-label="Mosaic home">
             <BrandMark compact /> Mosaic

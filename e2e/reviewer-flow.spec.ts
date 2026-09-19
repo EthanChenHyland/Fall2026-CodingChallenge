@@ -833,3 +833,21 @@ test('reduced motion disables decorative interaction animations', async ({ page 
   expect(durationMs).toBeLessThanOrEqual(0.01)
   expect(routeAnimation.iterations).toBe('1')
 })
+
+
+test('skip links move keyboard focus to the main landmark', async ({ page }) => {
+  await enterDemo(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press('Tab')
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await expect(skip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#main-content')).toBeFocused()
+
+  await page.goto('/privacy')
+  await page.keyboard.press('Tab')
+  const privacySkip = page.getByRole('link', { name: 'Skip to privacy policy' })
+  await expect(privacySkip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#privacy-content')).toBeFocused()
+})

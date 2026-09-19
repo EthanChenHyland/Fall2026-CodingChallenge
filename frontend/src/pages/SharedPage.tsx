@@ -29,8 +29,9 @@ export function SharedPage() {
   const collection = data.collection
   return (
     <div className={`shared-shell theme-${collection.theme ?? 'paper'}`}>
+      <a className="skip-link" href="#shared-content">Skip to collection</a>
       <header className="shared-header"><Link to="/"><BrandMark compact /><strong>Mosaic</strong></Link><Link className="shared-join-link" to="/">Make your own <ArrowUpRight size={14} /></Link></header>
-      <main className="shared-main">
+      <main className="shared-main" id="shared-content" tabIndex={-1}>
         <Link className="back-link" to="/"><ArrowLeft size={16} /> Explore Mosaic</Link>
         <section className="shared-title"><span className="eyebrow">{collection.audience === 'followers' ? 'FOLLOWERS COLLECTION' : 'SHARED COLLECTION'}</span><h1>{collection.name}</h1><p>{collection.description}</p><div className="shared-byline"><span className="shared-owner-avatar">{collection.owner_avatar ? <img src={collection.owner_avatar} alt="" /> : <UserRound size={15} />}</span><span><strong>{collection.owner_name ?? 'Mosaic curator'}</strong><small>{collection.item_count} {collection.item_count === 1 ? 'save' : 'saves'} · {collection.audience === 'followers' ? 'followers only · ' : ''}view only</small></span></div><div className="shared-title-actions">{collection.items?.length ? <Link className="secondary-button shared-present-link" to={`/shared/${token}/present`}><Play size={15} /> Present collection</Link> : null}{collection.audience === 'public' && <button className="secondary-button" disabled={clone.isPending} onClick={() => clone.mutate()}><CopyPlus size={15} /> {clone.isPending ? 'Copying…' : 'Save a copy'}</button>}</div></section>
         <div className="shared-grid">

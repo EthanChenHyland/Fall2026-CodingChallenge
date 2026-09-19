@@ -5,8 +5,9 @@ import { BrandMark } from '../components/BrandMark'
 export function PrivacyPage() {
   return (
     <div className="legal-shell">
+      <a className="skip-link" href="#privacy-content">Skip to privacy policy</a>
       <header className="legal-header"><Link to="/"><BrandMark compact /><strong>Mosaic</strong></Link><span>Privacy</span></header>
-      <main className="legal-page">
+      <main className="legal-page" id="privacy-content" tabIndex={-1}>
         <Link className="back-link" to="/"><ArrowLeft size={16} /> Back to Mosaic</Link>
         <div className="legal-title"><ShieldCheck size={28} /><span className="eyebrow">PRIVACY POLICY</span><h1>Your data, in plain language.</h1><p>Effective September 18, 2026 · This policy describes the current educational Mosaic deployment.</p></div>
 
