@@ -3,6 +3,7 @@ import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { db } from './db.js'
@@ -114,10 +115,63 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found
 
 if (process.env.NODE_ENV === 'production') {
   const frontendDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../frontend/dist')
+  const indexPath = resolve(frontendDist, 'index.html')
+  const indexTemplate = readFileSync(indexPath, 'utf8')
+  const escapeMeta = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const renderMetaPage = (req: Request, res: Response, meta: { title: string; description: string; image?: string }) => {
+    const base = `${req.protocol}://${req.get('host')}`
+    const image = meta.image ? (meta.image.startsWith('http') ? meta.image : `${base}${meta.image}`) : ''
+    const tags = [
+      `<meta property="og:site_name" content="Mosaic" />`,
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:title" content="${escapeMeta(meta.title)}" />`,
+      `<meta property="og:description" content="${escapeMeta(meta.description)}" />`,
+      `<meta property="og:url" content="${escapeMeta(base + req.originalUrl)}" />`,
+      image ? `<meta property="og:image" content="${escapeMeta(image)}" />` : '',
+      `<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />`,
+      `<meta name="twitter:title" content="${escapeMeta(meta.title)}" />`,
+      `<meta name="twitter:description" content="${escapeMeta(meta.description)}" />`,
+      image ? `<meta name="twitter:image" content="${escapeMeta(image)}" />` : '',
+    ].filter(Boolean).join('\n    ')
+    const html = indexTemplate
+      .replace(/<title>.*?<\/title>/, `<title>${escapeMeta(meta.title)}</title>`)
+      .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeMeta(meta.description)}" />`)
+      .replace('</head>', `    ${tags}\n  </head>`)
+    res.setHeader('Cache-Control', 'public, max-age=60')
+    return res.type('html').send(html)
+  }
+
+  app.get(['/shared/:token', '/shared/:token/present'], (req, res, next) => {
+    const collection = db.prepare(`
+      SELECT c.name, c.description,
+        COALESCE((SELECT image_url FROM items WHERE id = c.cover_item_id AND collection_id = c.id), (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1)) AS cover_url,
+        u.name AS owner_name
+      FROM collections c
+      JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
+      JOIN users u ON u.id = m.user_id
+      WHERE c.share_token = ? AND c.visibility = 'public'
+    `).get(req.params.token) as { name: string; description: string; cover_url: string | null; owner_name: string } | undefined
+    if (!collection) return next()
+    return renderMetaPage(req, res, { title: `${collection.name} · Mosaic`, description: collection.description || `A visual collection by ${collection.owner_name} on Mosaic.`, image: collection.cover_url ?? undefined })
+  })
+
+  app.get('/pin/:id', (req, res, next) => {
+    const pin = db.prepare(`
+      SELECT i.title, i.note, i.image_url, c.name AS collection_name, u.name AS owner_name
+      FROM items i
+      JOIN collections c ON c.id = i.collection_id
+      JOIN collection_members m ON m.collection_id = c.id AND m.role = 'owner'
+      JOIN users u ON u.id = m.user_id
+      WHERE i.id = ? AND c.visibility = 'public' AND c.share_token IS NOT NULL
+    `).get(Number(req.params.id)) as { title: string; note: string; image_url: string; collection_name: string; owner_name: string } | undefined
+    if (!pin) return next()
+    return renderMetaPage(req, res, { title: `${pin.title} · Mosaic`, description: pin.note || `Saved to ${pin.collection_name} by ${pin.owner_name} on Mosaic.`, image: pin.image_url })
+  })
+
   app.use(express.static(frontendDist, { maxAge: '1h', immutable: false, setHeaders: (res, path) => { res.setHeader('Cache-Control', path.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache') } }))
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next()
-    return res.sendFile(resolve(frontendDist, 'index.html'))
+    return res.sendFile(indexPath)
   })
 }
 
