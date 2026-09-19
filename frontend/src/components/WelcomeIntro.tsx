@@ -1,9 +1,11 @@
 import { ArrowLeft, ArrowRight, Bookmark, MessageCircle, Search, UsersRound } from 'lucide-react'
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { BrandMark } from './BrandMark'
 
 type AuthMode = 'login' | 'register'
+
+const AmbientMosaic3D = lazy(() => import('./AmbientMosaic3D').then((module) => ({ default: module.AmbientMosaic3D })))
 
 const slides = [
   {
@@ -97,6 +99,7 @@ export function WelcomeIntro({ onContinue }: { onContinue: (mode: AuthMode) => v
       </section>
 
       <section className="welcome-visual" onPointerMove={nudgeVisual} onPointerLeave={resetVisual} aria-label={slide.label + ' preview'}>
+        <Suspense fallback={null}><AmbientMosaic3D /></Suspense>
         <div className="welcome-visual-card" ref={visualRef} key={'visual-' + index}>
           <div className="welcome-visual-topline"><span>{slide.label}</span><span>{String(index + 1).padStart(2, '0')} / 03</span></div>
           <div className="welcome-collage">

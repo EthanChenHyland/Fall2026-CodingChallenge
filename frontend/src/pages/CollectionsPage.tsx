@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, Clock3, FolderHeart, Globe2, Heart, Inbox, LockKeyhole, Plus, Search, Upload, UserRound, UsersRound } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
@@ -12,6 +12,24 @@ function AudienceLabel({ collection }: { collection: Collection }) {
   if (collection.audience === 'public') return <span className="collection-audience public"><Globe2 size={12} /> Public</span>
   if (collection.audience === 'followers') return <span className="collection-audience followers"><UsersRound size={12} /> Followers</span>
   return <span className="collection-audience private"><LockKeyhole size={12} /> Private</span>
+}
+
+function tiltCollectionCard(event: ReactPointerEvent<HTMLAnchorElement>) {
+  if (event.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const box = event.currentTarget.getBoundingClientRect()
+  const x = (event.clientX - box.left) / Math.max(box.width, 1)
+  const y = (event.clientY - box.top) / Math.max(box.height, 1)
+  event.currentTarget.style.setProperty('--card-rx', ((0.5 - y) * 3.2).toFixed(2) + 'deg')
+  event.currentTarget.style.setProperty('--card-ry', ((x - 0.5) * 4.2).toFixed(2) + 'deg')
+  event.currentTarget.style.setProperty('--card-px', (x * 100).toFixed(1) + '%')
+  event.currentTarget.style.setProperty('--card-py', (y * 100).toFixed(1) + '%')
+}
+
+function resetCollectionCard(event: ReactPointerEvent<HTMLAnchorElement>) {
+  event.currentTarget.style.setProperty('--card-rx', '0deg')
+  event.currentTarget.style.setProperty('--card-ry', '0deg')
+  event.currentTarget.style.setProperty('--card-px', '50%')
+  event.currentTarget.style.setProperty('--card-py', '50%')
 }
 
 export function CollectionsPage() {
@@ -55,8 +73,15 @@ export function CollectionsPage() {
       {!!data?.collections.length && <div className="library-tools"><label><Search size={15} /><input aria-label="Find a collection" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a collection" /></label><select aria-label="Sort collections" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="recent">Recently changed</option><option value="name">Name</option><option value="size">Most saved</option></select></div>}
       {isError ? <div className="empty-state"><h3>Could not load this view.</h3><p>Reconnect and try again.</p><button className="secondary-button" onClick={() => void refetch()}>Try again</button></div> : isLoading ? <div className="collection-grid"><div className="collection-skeleton" /><div className="collection-skeleton" /></div> : collections.length ? (
         <div className="collection-grid">
-          {collections.map((collection) => (
-            <Link className="collection-card" to={`/collections/${collection.id}`} key={collection.id}>
+          {collections.map((collection, index) => (
+            <Link
+              className="collection-card"
+              to={`/collections/${collection.id}`}
+              key={collection.id}
+              style={{ animationDelay: String(Math.min(index, 6) * 55) + 'ms' }}
+              onPointerMove={tiltCollectionCard}
+              onPointerLeave={resetCollectionCard}
+            >
               <div className="collection-cover"><CollectionCover collection={collection} /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
               <div className="collection-card-copy">
                 <div className="collection-card-heading"><h3>{collection.name}</h3><span>{collection.item_count} saved</span></div>
