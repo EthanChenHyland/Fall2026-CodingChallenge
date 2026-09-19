@@ -457,17 +457,29 @@ searchRouter.get('/recommendations', async (req: AuthedRequest, res) => {
   }
 
   const pixabayKey = process.env.PIXABAY_API_KEY?.trim()
-  const [providerTerms, aiTerms] = query.length >= 2
-    ? await Promise.all([
-        pixabayKey ? pixabaySuggestionTerms(query, pixabayKey) : Promise.resolve([]),
-        aiDiscoverySuggestions(query, [...publicAiContext].slice(0, 12)),
-      ])
-    : [[], []]
+  const shouldUseAi = query.length >= 2 || Boolean(userId)
+  const aiQuery = query.length >= 2 ? query : 'visual inspiration'
+  const [providerTerms, aiTerms] = await Promise.all([
+    query.length >= 2 && pixabayKey ? pixabaySuggestionTerms(query, pixabayKey) : Promise.resolve([]),
+    shouldUseAi ? aiDiscoverySuggestions(aiQuery, [...publicAiContext].slice(0, 12)) : Promise.resolve([]),
+  ])
   for (const term of providerTerms) {
     if (term.includes(query) || query.includes(term)) addSuggestion(term, 90, true)
     else addSuggestion(`${query} ${term}`, 70, true)
   }
-  for (const term of aiTerms) addSuggestion(term, 115, true)
+  for (const term of aiTerms) {
+    if (query) {
+      addSuggestion(term, 115, true)
+      continue
+    }
+    const normalized = term.toLowerCase()
+    const affinity = interests.slice(0, 16).reduce((score, [interest, weight]) => (
+      normalized.includes(interest) || interest.includes(normalized) ? score + weight : score
+    ), 0)
+    // OpenRouter only sees public discovery context here. Private saves remain
+    // local and influence the final ordering through this affinity score.
+    addSuggestion(term, 110 + Math.min(40, affinity), true)
+  }
 
   if (!query) {
     for (const [index, topic] of DISCOVERY_THEME_PAIRS.flat().entries()) addSuggestion(topic, 12 - Math.floor(index / 4))

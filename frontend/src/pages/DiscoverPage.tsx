@@ -3,6 +3,7 @@ import { ArrowRight, Bookmark, LoaderCircle, Search, Shuffle, SlidersHorizontal,
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { FilterMenu } from '../components/FilterMenu'
 import { ImageCard } from '../components/ImageCard'
 import { ImageFilterControls } from '../components/ImageFilterControls'
 import { PublicPinCard } from '../components/PublicPinCard'
@@ -36,10 +37,12 @@ export function DiscoverPage() {
   const [imageOrientation, setImageOrientation] = useState<ImageOrientation>('all')
   const [imageOrder, setImageOrder] = useState<ImageOrder>('default')
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false)
   const [searchMemoryVersion, setSearchMemoryVersion] = useState(0)
   const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim())
   const inputRef = useRef<HTMLInputElement>(null)
+  const searchWrapRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const effectiveQuery = submittedQuery || (activeTopic === 'All' ? '' : activeTopic)
@@ -79,6 +82,8 @@ export function DiscoverPage() {
   const showPeople = searchKind === 'All' || searchKind === 'People'
   const showCollections = searchKind === 'All' || searchKind === 'Collections'
   const showPins = searchKind === 'All' || searchKind === 'Pins'
+  const activeFilterCount = Number(searchKind !== 'All') + Number(imageOrientation !== 'all') + Number(imageOrder !== 'default')
+  const showAutocomplete = autocompleteOpen && query.trim() !== submittedQuery && debouncedQuery.length >= 2
   void searchMemoryVersion
   const recentSearches = recentSearchKey ? readStoredSearches(recentSearchKey) : []
   const savedSearches = savedSearchKey ? readStoredSearches(savedSearchKey) : []
@@ -140,6 +145,7 @@ export function DiscoverPage() {
 
   const chooseSuggestion = (suggestion: string) => {
     setActiveSuggestion(-1)
+    setAutocompleteOpen(false)
     setActiveTopic('All')
     setQuery(suggestion)
     setSubmittedQuery(suggestion)
@@ -151,6 +157,7 @@ export function DiscoverPage() {
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const nextQuery = query.trim()
+    setAutocompleteOpen(false)
     setActiveTopic('All')
     setSubmittedQuery(nextQuery)
     setBrowseSeed(randomBrowseSeed())
@@ -159,6 +166,7 @@ export function DiscoverPage() {
   }
 
   const chooseTopic = (topic: string) => {
+    setAutocompleteOpen(false)
     setActiveTopic(topic)
     setQuery('')
     setSubmittedQuery('')
@@ -176,32 +184,46 @@ export function DiscoverPage() {
         </div>
       </section>
 
-      <form className="discover-search" onSubmit={submitSearch}>
-        <Search size={20} />
-        <input
-          aria-label="Search images"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={autocompleteSuggestions.length > 0 && query.trim() !== submittedQuery}
-          aria-controls="search-suggestions-listbox"
-          aria-activedescendant={activeSuggestion >= 0 ? `search-suggestion-${activeSuggestion}` : undefined}
-          ref={inputRef}
-          value={query}
-          onChange={(event) => { setQuery(event.target.value); setActiveTopic('All'); setActiveSuggestion(-1) }}
-          onKeyDown={(event) => {
-            if (!autocompleteSuggestions.length || query.trim() === submittedQuery) return
-            if (event.key === 'ArrowDown') { event.preventDefault(); setActiveSuggestion((current) => Math.min(current + 1, autocompleteSuggestions.length - 1)) }
-            else if (event.key === 'ArrowUp') { event.preventDefault(); setActiveSuggestion((current) => Math.max(current - 1, 0)) }
-            else if (event.key === 'Escape') setActiveSuggestion(-1)
-            else if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); chooseSuggestion(autocompleteSuggestions[activeSuggestion]) }
-          }}
-          placeholder="Try “Tokyo”, “ceramics”, or “architecture”"
-        />
-        <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
-      </form>
-      {autocomplete.isFetching && debouncedQuery === query.trim() && query.trim() !== submittedQuery ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
-      {autocomplete.isError && debouncedQuery === query.trim() && query.trim() !== submittedQuery ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
-      {autocompleteSuggestions.length && query.trim() !== submittedQuery ? <div id="search-suggestions-listbox" className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocompleteSuggestions.map((suggestion, suggestionIndex) => <button id={`search-suggestion-${suggestionIndex}`} role="option" aria-selected={activeSuggestion === suggestionIndex} key={suggestion} onMouseEnter={() => setActiveSuggestion(suggestionIndex)} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
+      <div
+        className="discover-search-wrap"
+        ref={searchWrapRef}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setAutocompleteOpen(false)
+            setActiveSuggestion(-1)
+          }
+        }}
+      >
+        <form className="discover-search" onSubmit={submitSearch}>
+          <Search size={20} />
+          <input
+            aria-label="Search images"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={showAutocomplete && autocompleteSuggestions.length > 0}
+            aria-controls="search-suggestions-listbox"
+            aria-activedescendant={activeSuggestion >= 0 ? `search-suggestion-${activeSuggestion}` : undefined}
+            ref={inputRef}
+            value={query}
+            onFocus={() => setAutocompleteOpen(true)}
+            onChange={(event) => { setQuery(event.target.value); setActiveTopic('All'); setActiveSuggestion(-1); setAutocompleteOpen(true) }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') { setAutocompleteOpen(false); setActiveSuggestion(-1); return }
+              if (!autocompleteSuggestions.length || query.trim() === submittedQuery) return
+              if (event.key === 'ArrowDown') { event.preventDefault(); setAutocompleteOpen(true); setActiveSuggestion((current) => Math.min(current + 1, autocompleteSuggestions.length - 1)) }
+              else if (event.key === 'ArrowUp') { event.preventDefault(); setAutocompleteOpen(true); setActiveSuggestion((current) => Math.max(current - 1, 0)) }
+              else if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); chooseSuggestion(autocompleteSuggestions[activeSuggestion]) }
+            }}
+            placeholder="Try “Tokyo”, “ceramics”, or “architecture”"
+          />
+          <button type="submit" aria-label="Search"><ArrowRight size={19} /></button>
+        </form>
+        {showAutocomplete ? <div className="search-autocomplete-popover">
+          {autocomplete.isFetching && debouncedQuery === query.trim() ? <div className="search-autocomplete-status" role="status" aria-live="polite"><LoaderCircle size={13} className="spin" /> Finding suggestions…</div> : null}
+          {autocomplete.isError && debouncedQuery === query.trim() ? <div className="search-autocomplete-status error" role="status" aria-live="polite"><span>Suggestions are unavailable right now.</span><button onClick={() => void autocomplete.refetch()}>Retry</button></div> : null}
+          {autocompleteSuggestions.length ? <div id="search-suggestions-listbox" className="search-autocomplete" role="listbox" aria-label="Search suggestions">{autocompleteSuggestions.map((suggestion, suggestionIndex) => <button id={`search-suggestion-${suggestionIndex}`} role="option" aria-selected={activeSuggestion === suggestionIndex} key={suggestion} onMouseEnter={() => setActiveSuggestion(suggestionIndex)} onClick={() => chooseSuggestion(suggestion)}><Search size={13} /><span>{suggestion}</span><ArrowRight size={12} /></button>)}</div> : null}
+        </div> : null}
+      </div>
 
       {(recentSearches.length || savedSearches.length) ? <div className="search-memory" aria-label="Saved and recent searches">
         {savedSearches.length ? <div><span className="eyebrow">SAVED</span><div>{savedSearches.map((entry) => <button key={`saved-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}<Bookmark size={11} fill="currentColor" /></button>)}</div></div> : null}
@@ -212,14 +234,16 @@ export function DiscoverPage() {
         {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
       </div>
 
-      <div className="discovery-filter-toolbar" aria-label="Discovery filters">
-        <span className="filter-heading"><SlidersHorizontal size={14} /> Filters</span>
-        <label><span>Results</span><select aria-label="Result type" value={searchKind} onChange={(event) => setSearchKind(event.target.value as SearchKind)}>{searchKinds.map((kind) => <option value={kind} key={kind}>{kind}</option>)}</select></label>
-        <ImageFilterControls orientation={imageOrientation} order={imageOrder} onOrientationChange={setImageOrientation} onOrderChange={setImageOrder} showHeading={false} onReset={() => { setImageOrientation('all'); setImageOrder('default') }} />
+      <div className="discovery-filter-actions" aria-label="Discovery controls">
+        <FilterMenu activeCount={activeFilterCount} label="Discovery filters">
+          <label><span>Results</span><select aria-label="Result type" value={searchKind} onChange={(event) => setSearchKind(event.target.value as SearchKind)}>{searchKinds.map((kind) => <option value={kind} key={kind}>{kind}</option>)}</select></label>
+          <ImageFilterControls orientation={imageOrientation} order={imageOrder} onOrientationChange={setImageOrientation} onOrderChange={setImageOrder} showHeading={false} />
+          {activeFilterCount > 0 ? <button type="button" className="filter-reset" onClick={() => { setSearchKind('All'); setImageOrientation('all'); setImageOrder('default') }}><X size={13} /> Reset filters</button> : null}
+        </FilterMenu>
         {submittedQuery ? <button type="button" className={`save-search-filter${savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? ' saved' : ''}`} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved' : 'Save search'}</button> : null}
       </div>
 
-      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{submittedQuery && recommendations.data.aiEnhanced ? <span className="ai-assist-badge">AI expanded</span> : null}{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
+      {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{recommendations.data.aiEnhanced ? <span className="ai-assist-badge">AI assisted</span> : null}{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
 
       {(showPeople || showCollections) && <SocialSearchResults query={submittedQuery} showPeople={showPeople} showCollections={showCollections} />}
 

@@ -372,6 +372,32 @@ test('optional AI expands typed search suggestions through OpenRouter', async ()
   assert.doesNotMatch(openRouterBody, /test-openrouter-key/)
 })
 
+test('homepage suggested searches can be AI-assisted without sending private saves', async () => {
+  process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
+  process.env.OPENROUTER_MODEL = 'test/model'
+  let openRouterBody = ''
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const url = String(input)
+    if (url === 'https://openrouter.ai/api/v1/chat/completions') {
+      openRouterBody = String(init?.body ?? '')
+      return Response.json({ choices: [{ message: { content: '{"suggestions":["editorial color studies","quiet architectural details","night street textures"]}' } }] })
+    }
+    throw new Error(`Unexpected fetch: ${url}`)
+  }) as typeof fetch
+
+  const owner = request.agent(app)
+  await owner.post('/api/auth/demo').expect(200)
+  const result = await owner.get('/api/search/recommendations').expect(200)
+  assert.equal(result.body.aiEnhanced, true)
+  assert.ok(result.body.suggestions.includes('editorial color studies'))
+  const requestBody = JSON.parse(openRouterBody) as { messages: Array<{ role: string; content: string }> }
+  const userPayload = JSON.parse(requestBody.messages.find((message) => message.role === 'user')!.content) as { query: string; publicContext: string[] }
+  assert.equal(userPayload.query, 'visual inspiration')
+  assert.ok(userPayload.publicContext.length > 0)
+  assert.doesNotMatch(openRouterBody, /demo@mosaic\.local/)
+  assert.doesNotMatch(openRouterBody, /test-openrouter-key/)
+})
+
 test('AI provider failures preserve normal search suggestions', async () => {
   process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
   globalThis.fetch = (async (input: URL | RequestInfo) => {

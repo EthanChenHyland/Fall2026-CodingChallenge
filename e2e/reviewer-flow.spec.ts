@@ -868,10 +868,12 @@ test('discover remembers searches and filters result types and image shape', asy
   const search = page.getByLabel('Search images')
   await search.fill('ceramics')
   await search.press('Enter')
-  const filters = page.getByLabel('Discovery filters')
-  await expect(filters).toBeVisible()
-  await filters.getByRole('button', { name: 'Save search' }).click()
-  await expect(filters.getByRole('button', { name: 'Saved' })).toBeVisible()
+  const filterButton = page.getByRole('button', { name: /Discovery filters/ })
+  await expect(filterButton).toBeVisible()
+  await page.getByRole('button', { name: 'Save search' }).click()
+  await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
+  await filterButton.click()
+  const filters = page.getByRole('group', { name: 'Discovery filters' })
   await filters.getByLabel('Result type').selectOption('People')
   await expect(page.getByRole('heading', { name: 'Results for “ceramics”' })).toHaveCount(0)
   await filters.getByLabel('Result type').selectOption('Images')
@@ -879,8 +881,8 @@ test('discover remembers searches and filters result types and image shape', asy
   await filters.getByLabel('Image orientation').selectOption('portrait')
   await expect(filters.getByLabel('Image orientation')).toHaveValue('portrait')
   await filters.getByLabel('Image order').selectOption('largest')
-  await expect(filters.getByRole('button', { name: 'Reset' })).toBeVisible()
-  await filters.getByRole('button', { name: 'Reset' }).click()
+  await expect(filters.getByRole('button', { name: 'Reset filters' })).toBeVisible()
+  await filters.getByRole('button', { name: 'Reset filters' }).click()
   await expect(filters.getByLabel('Image orientation')).toHaveValue('all')
   await expect(filters.getByLabel('Image order')).toHaveValue('default')
 
@@ -891,7 +893,9 @@ test('discover remembers searches and filters result types and image shape', asy
   await expect(memory.getByRole('button', { name: /ceramics/ }).first()).toBeVisible()
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
     await page.setViewportSize(viewport)
-    const orientationBounds = await page.getByLabel('Image orientation').boundingBox()
+    const mobileFilterButton = page.getByRole('button', { name: /Discovery filters/ })
+    if (await page.getByRole('group', { name: 'Discovery filters' }).count() === 0) await mobileFilterButton.click()
+    const orientationBounds = await page.getByRole('group', { name: 'Discovery filters' }).getByLabel('Image orientation').boundingBox()
     expect(orientationBounds?.height ?? 0).toBeGreaterThanOrEqual(44)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   }
@@ -915,10 +919,12 @@ test('Discover and Explore images open in-site previews', async ({ page }) => {
   await page.getByRole('button', { name: 'Close pin preview' }).click()
 
   await page.locator('.explore-web-section').scrollIntoViewIfNeeded()
-  const webFilters = page.locator('.explore-web-section').getByText('Filters').first()
-  await expect(webFilters).toBeVisible()
-  await page.locator('.explore-web-section').getByLabel('Image orientation').selectOption('landscape')
-  await expect(page.locator('.explore-web-section').getByLabel('Image orientation')).toHaveValue('landscape')
+  const webFilterButton = page.locator('.explore-web-section').getByRole('button', { name: /Web image filters/ })
+  await expect(webFilterButton).toBeVisible()
+  await webFilterButton.click()
+  const webFilters = page.getByRole('group', { name: 'Web image filters' })
+  await webFilters.getByLabel('Image orientation').selectOption('landscape')
+  await expect(webFilters.getByLabel('Image orientation')).toHaveValue('landscape')
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
@@ -1066,7 +1072,7 @@ test('search suggestions stay usable at 320px and 390px', async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ suggestions, pins: [], basedOn: query ? [] : ['ceramics'] }),
+      body: JSON.stringify({ suggestions, pins: [], basedOn: query ? [] : ['ceramics'], aiEnhanced: false }),
     })
   })
 
@@ -1075,13 +1081,21 @@ test('search suggestions stay usable at 320px and 390px', async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.goto('/discover')
     const search = page.getByRole('combobox', { name: 'Search images' })
+    const topicRow = page.locator('.topic-row')
+    const topicBefore = await topicRow.boundingBox()
     await search.fill('tokyo')
     const listbox = page.getByRole('listbox', { name: 'Search suggestions' })
     await expect(listbox).toBeVisible()
+    const topicAfter = await topicRow.boundingBox()
+    expect(Math.abs((topicAfter?.y ?? 0) - (topicBefore?.y ?? 0))).toBeLessThanOrEqual(1)
     const firstSuggestion = listbox.getByRole('option').first()
     const bounds = await firstSuggestion.boundingBox()
     expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    await page.getByRole('heading', { name: 'Save the good stuff.' }).click()
+    await expect(listbox).toBeHidden()
+    await search.focus()
+    await expect(listbox).toBeVisible()
     await firstSuggestion.click()
     await expect(search).toHaveValue('tokyo night city')
   }
