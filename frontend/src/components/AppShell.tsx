@@ -182,7 +182,7 @@ export function AppShell() {
             </div>
           </div>
         </header>
-        <div className="page-wrap"><Outlet key={location.pathname} /></div>
+        <div className="page-wrap"><div className="route-stage" key={location.pathname}><Outlet /></div></div>
       </main>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">

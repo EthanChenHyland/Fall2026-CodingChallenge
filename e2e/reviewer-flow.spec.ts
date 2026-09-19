@@ -9,6 +9,8 @@ test.beforeEach(async ({ context }) => {
 
 async function enterDemo(page: Page) {
   await page.goto('/')
+  const introSignIn = page.getByRole('button', { name: 'Sign in', exact: true }).first()
+  if (await introSignIn.count()) await introSignIn.click()
   await page.getByLabel('Email').fill('demo@mosaic.local')
   await page.getByLabel('Password', { exact: true }).fill('demo1234')
   await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -17,6 +19,8 @@ async function enterDemo(page: Page) {
 
 test('sign in form is keyboard-friendly and exposes useful errors', async ({ page }) => {
   await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Find it once. Keep it.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).first().click()
   await expect(page.getByLabel('Account action').getByRole('button', { name: 'Sign in' })).toHaveAttribute('aria-pressed', 'true')
   for (const button of await page.getByLabel('Account action').getByRole('button').all()) {
     const box = await button.boundingBox()
@@ -73,7 +77,7 @@ test('a user can permanently delete their own account from Edit profile', async 
   const email = `delete-ui-${Date.now()}@example.test`
   const password = 'delete-ui-password'
   await page.goto('/')
-  await page.getByRole('button', { name: 'Create account', exact: true }).click()
+  await page.getByRole('button', { name: 'Start collecting' }).click()
   await page.getByLabel('Name', { exact: true }).fill('Delete UI')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
@@ -407,6 +411,19 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
   expect(await overflowReport()).toEqual({ overflow: 0, offenders: [] })
 
   await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Find it once. Keep it.' })).toBeVisible()
+  expect(await overflowReport()).toEqual({ overflow: 0, offenders: [] })
+  for (const control of await page.locator('.welcome-actions button, .welcome-arrow').all()) {
+    const box = await control.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await overflowReport()).toEqual({ overflow: 0, offenders: [] })
+  await page.getByRole('button', { name: 'Next slide' }).click()
+  await expect(page.getByRole('heading', { name: 'Turn finds into a point of view.' })).toBeVisible()
+
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.getByRole('button', { name: 'Sign in', exact: true }).first().click()
   await expect(page.getByRole('link', { name: 'Read the Privacy Policy' })).toBeVisible()
   const email = await page.getByLabel('Email').boundingBox()
   expect(email?.height ?? 0).toBeGreaterThanOrEqual(44)
@@ -542,7 +559,7 @@ test('collection visibility is discoverable from the collection header', async (
 
 test('new account can create, capture, edit, share, revoke and undo', async ({ page, browser }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Create account', exact: true }).click()
+  await page.getByRole('button', { name: 'Start collecting' }).click()
   await page.getByLabel('Name', { exact: true }).fill('Reviewer')
   await page.getByLabel('Email').fill(`reviewer-${Date.now()}@example.test`)
   await page.getByLabel('Password', { exact: true }).fill('reviewer-password')

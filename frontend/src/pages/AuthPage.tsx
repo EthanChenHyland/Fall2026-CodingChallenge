@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
 import { ConsentCheckbox } from '../components/ConsentCheckbox'
+import { WelcomeIntro } from '../components/WelcomeIntro'
 import type { User } from '../types'
 
 type AuthResult =
@@ -13,6 +14,7 @@ type AuthResult =
   | { verificationRequired: true; email: string }
 
 export function AuthPage() {
+  const [showIntro, setShowIntro] = useState(() => window.sessionStorage.getItem('mosaic:intro:seen') !== '1')
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -63,9 +65,17 @@ export function AuthPage() {
     verify.reset()
   }
 
+  const enterAuth = (nextMode: 'login' | 'register') => {
+    window.sessionStorage.setItem('mosaic:intro:seen', '1')
+    setMode(nextMode)
+    setShowIntro(false)
+  }
+
   const errorMessage = verify.error?.message ?? auth.error?.message
   const showCreateAccountPrompt = mode === 'login' && auth.error?.message === 'Email or password is incorrect.'
   const canSubmit = Boolean(email.trim()) && password.length >= 6 && (mode === 'login' || (name.trim().length >= 2 && ageConfirmed))
+
+  if (showIntro) return <WelcomeIntro onContinue={enterAuth} />
 
   return (
     <main className="auth-shell">
