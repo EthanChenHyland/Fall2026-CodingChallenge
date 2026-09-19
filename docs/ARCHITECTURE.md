@@ -61,7 +61,9 @@ Mosaic can run without paid APIs.
 
 ### Pixabay
 
-When `PIXABAY_API_KEY` is configured, Pixabay is the preferred live provider. Typed search stays query-driven and relevance-oriented. Unfiltered discovery intentionally behaves differently: it requests all image types, uses recent results, rotates through provider pages with a stable browse seed, and shuffles the returned pool. That keeps blank discovery from collapsing into one repetitive popularity niche.
+When `PIXABAY_API_KEY` is configured, Pixabay is the preferred live provider. Typed search stays query-driven and preserves Pixabay's relevance ordering. Unfiltered discovery intentionally behaves differently: each browse page combines a recent all-image pool with two rotating visual themes (for example digital art + cars, anime illustration + interiors, space + street photography, or gaming + travel). Mosaic then shuffles within those groups and round-robins between them, so even the first few cards stay varied instead of merely shuffling a potentially homogeneous provider page.
+
+The ten logical browse pages rotate through twenty themes spanning art, cars, anime-style illustration, interiors, fashion, food, animals, architecture, space, street photography, gaming, travel, science, sports, music, technology, fantasy art, transportation, people, and abstract art. The general pool remains in every batch so the feed can still surface genuinely unexpected recent uploads rather than becoming a fixed category menu.
 
 Provider responses are cached in SQLite and guarded against excessive requests. When a Pixabay result is saved, Mosaic downloads and validates a durable local copy instead of depending forever on the provider's temporary delivery URL.
 

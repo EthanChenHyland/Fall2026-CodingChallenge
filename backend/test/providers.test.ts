@@ -120,38 +120,73 @@ test('cached Pixabay searches do not consume extra provider requests', async () 
   assert.equal(calls, 1)
 })
 
-test('unfiltered Pixabay browse rotates latest all-image pages for broader discovery', async () => {
+test('unfiltered Pixabay browse mixes general results with rotating visual themes', async () => {
   const urls: URL[] = []
   globalThis.fetch = (async (input: URL | RequestInfo) => {
     const url = new URL(String(input))
     if (url.hostname !== 'pixabay.com') throw new Error('Unexpected fetch')
     urls.push(url)
     const page = Number(url.searchParams.get('page') ?? 1)
+    const query = url.searchParams.get('q')
+    const label = query || 'general'
+    const idOffset = query ? urls.length * 100 : 0
     return Response.json({
       totalHits: 10_000,
-      hits: [{
-        id: 9000 + page,
-        tags: 'digital art, sports car, illustration',
+      hits: Array.from({ length: 4 }, (_, index) => ({
+        id: 9000 + idOffset + page * 10 + index,
+        tags: `${label}, visual ${index}, discovery`,
         user: 'Variety Maker',
-        webformatURL: `https://cdn.pixabay.com/browse-${page}.jpg`,
-        pageURL: `https://pixabay.com/images/id-${9000 + page}/`,
+        webformatURL: `https://cdn.pixabay.com/${encodeURIComponent(label)}-${page}-${index}.jpg`,
+        pageURL: `https://pixabay.com/images/id-${9000 + idOffset + page * 10 + index}/`,
         webformatWidth: 640,
         webformatHeight: 480,
-      }],
+      })),
     })
   }) as typeof fetch
 
   const first = await request(app).get('/api/search?seed=1234&page=1').expect(200)
+  const cachedSamePool = await request(app).get('/api/search?seed=1244&page=1').expect(200)
   const second = await request(app).get('/api/search?seed=1234&page=2').expect(200)
 
-  assert.equal(urls.length, 2)
-  assert.equal(urls[0]?.searchParams.get('image_type'), 'all')
-  assert.equal(urls[0]?.searchParams.get('order'), 'latest')
-  assert.equal(urls[0]?.searchParams.has('q'), false)
-  assert.equal(urls[0]?.searchParams.get('page'), '5')
-  assert.equal(urls[1]?.searchParams.get('page'), '6')
+  assert.equal(urls.length, 6)
+  const firstRequests = urls.slice(0, 3)
+  const secondRequests = urls.slice(3, 6)
+  assert.equal(firstRequests.every((url) => url.searchParams.get('image_type') === 'all'), true)
+  assert.equal(firstRequests.filter((url) => !url.searchParams.has('q')).length, 1)
+  assert.equal(firstRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '5')
+  assert.equal(firstRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('order'), 'latest')
+  assert.deepEqual(firstRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['space', 'street photography'])
+  assert.equal(firstRequests.filter((url) => url.searchParams.has('q')).every((url) => url.searchParams.get('order') === 'popular'), true)
+  assert.equal(secondRequests.find((url) => !url.searchParams.has('q'))?.searchParams.get('page'), '6')
+  assert.deepEqual(secondRequests.filter((url) => url.searchParams.has('q')).map((url) => url.searchParams.get('q')), ['gaming', 'travel'])
   assert.equal(first.body.nextPage, 2)
   assert.equal(second.body.nextPage, 3)
+  assert.equal(first.body.results.slice(0, 6).map((result: { tags: string[] }) => result.tags[0]).filter((tag: string) => tag === 'general').length <= 2, true)
+  assert.equal(new Set(first.body.results.slice(0, 6).map((result: { tags: string[] }) => result.tags[0])).size, 3)
+  assert.equal(cachedSamePool.body.cached, true)
+  assert.equal(new Set(cachedSamePool.body.results.slice(0, 6).map((result: { tags: string[] }) => result.tags[0])).size, 3)
+  assert.equal(first.body.results.some((result: Record<string, unknown>) => '__browseGroup' in result), false)
+  assert.equal(cachedSamePool.body.results.some((result: Record<string, unknown>) => '__browseGroup' in result), false)
+})
+
+test('typed Pixabay search preserves provider relevance order', async () => {
+  let requestedUrl: URL | null = null
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    requestedUrl = new URL(String(input))
+    return Response.json({
+      totalHits: 3,
+      hits: [
+        { id: 301, tags: 'best match', user: 'A', webformatURL: 'https://cdn.pixabay.com/301.jpg', pageURL: 'https://pixabay.com/images/id-301/', webformatWidth: 640, webformatHeight: 480 },
+        { id: 302, tags: 'second match', user: 'B', webformatURL: 'https://cdn.pixabay.com/302.jpg', pageURL: 'https://pixabay.com/images/id-302/', webformatWidth: 640, webformatHeight: 480 },
+        { id: 303, tags: 'third match', user: 'C', webformatURL: 'https://cdn.pixabay.com/303.jpg', pageURL: 'https://pixabay.com/images/id-303/', webformatWidth: 640, webformatHeight: 480 },
+      ],
+    })
+  }) as typeof fetch
+
+  const result = await request(app).get('/api/search?q=city&seed=1234').expect(200)
+  assert.equal(requestedUrl?.searchParams.get('q'), 'city')
+  assert.equal(requestedUrl?.searchParams.get('order'), 'popular')
+  assert.deepEqual(result.body.results.map((item: { id: string }) => item.id), ['pixabay-301', 'pixabay-302', 'pixabay-303'])
 })
 
 test('provider failure cannot create a half-saved pin', async () => {

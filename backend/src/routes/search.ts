@@ -18,8 +18,22 @@ type SearchResponse = {
 const CACHE_MS = 24 * 60 * 60 * 1000
 const PAGE_SIZE = 30
 const MAX_PAGE = 10
+const BROWSE_GENERAL_SIZE = 12
+const BROWSE_THEME_SIZE = 9
 const PIXABAY_WINDOW_MS = 60_000
 const PIXABAY_REQUEST_LIMIT = 90
+const DISCOVERY_THEME_PAIRS = [
+  ['digital art', 'cars'],
+  ['anime illustration', 'interior design'],
+  ['fashion', 'food'],
+  ['animals', 'architecture'],
+  ['space', 'street photography'],
+  ['gaming', 'travel'],
+  ['science', 'sports'],
+  ['music', 'technology'],
+  ['fantasy art', 'transportation'],
+  ['people', 'abstract art'],
+] as const
 let pixabayRequestTimes: number[] = []
 const recommendationStopWords = new Set(['about', 'after', 'again', 'also', 'and', 'from', 'have', 'into', 'more', 'saved', 'that', 'the', 'this', 'with', 'your'])
 
@@ -98,7 +112,7 @@ function mixSeed(seed: number, value: string) {
   return mixed
 }
 
-function shuffledResults(results: SearchResult[], seed: number | null, salt: string) {
+function shuffledResults<T>(results: T[], seed: number | null, salt: string) {
   if (seed == null || results.length < 2) return results
   const shuffled = [...results]
   let state = mixSeed(seed, salt) || 0x6d2b79f5
@@ -116,6 +130,37 @@ function shuffledResults(results: SearchResult[], seed: number | null, salt: str
   return shuffled
 }
 
+type BrowseSearchResult = SearchResult & { __browseGroup?: string }
+
+function diversifiedBrowseResults(results: SearchResult[], seed: number | null, salt: string) {
+  const grouped = new Map<string, BrowseSearchResult[]>()
+  for (const result of results as BrowseSearchResult[]) {
+    const group = result.__browseGroup ?? 'general'
+    const current = grouped.get(group) ?? []
+    current.push(result)
+    grouped.set(group, current)
+  }
+
+  const groupNames = shuffledResults([...grouped.keys()], seed, `${salt}:groups`)
+  const queues = new Map(groupNames.map((group) => [
+    group,
+    shuffledResults(grouped.get(group) ?? [], seed, `${salt}:${group}`),
+  ]))
+  const balanced: BrowseSearchResult[] = []
+  let added = true
+  while (added) {
+    added = false
+    for (const group of groupNames) {
+      const next = queues.get(group)?.shift()
+      if (!next) continue
+      balanced.push(next)
+      added = true
+    }
+  }
+
+  return balanced.map(({ __browseGroup: _group, ...result }) => result as SearchResult)
+}
+
 function titleFromFileName(fileName: string) {
   return fileName
     .replace(/^File:/i, '')
@@ -125,7 +170,12 @@ function titleFromFileName(fileName: string) {
     .trim()
 }
 
-async function searchPixabay(query: string, page: number, apiKey: string): Promise<SearchResponse | null> {
+async function searchPixabay(
+  query: string,
+  page: number,
+  apiKey: string,
+  options: { perPage?: number; order?: 'popular' | 'latest'; browseGroup?: string } = {},
+): Promise<SearchResponse | null> {
   // Pixabay's published limit is per API key, not per visitor. Keep a small
   // safety margin so concurrent users on this single production instance
   // cannot collectively exhaust the provider allowance.
@@ -137,9 +187,11 @@ async function searchPixabay(query: string, page: number, apiKey: string): Promi
   // cars, art, anime-style work, and other non-photo results. Explicit
   // searches still stay relevant because Pixabay ranks by `q`.
   url.searchParams.set('image_type', 'all')
-  if (!query) url.searchParams.set('order', 'latest')
+  const order = options.order ?? (query ? 'popular' : 'latest')
+  url.searchParams.set('order', order)
   url.searchParams.set('safesearch', 'true')
-  url.searchParams.set('per_page', String(PAGE_SIZE))
+  const perPage = options.perPage ?? PAGE_SIZE
+  url.searchParams.set('per_page', String(perPage))
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url, { signal: AbortSignal.timeout(6_000) })
@@ -169,16 +221,37 @@ async function searchPixabay(query: string, page: number, apiKey: string): Promi
       tags: tags.slice(0, 8).map((tag) => tag.slice(0, 40)),
       width: hit.webformatWidth,
       height: hit.webformatHeight,
+      ...(options.browseGroup ? { __browseGroup: options.browseGroup } : {}),
     }
-  })
+  }) as BrowseSearchResult[]
 
   if (!results.length) return null
   const totalHits = body.totalHits ?? results.length
   return {
     results,
     source: 'pixabay',
-    nextPage: page < MAX_PAGE && page * PAGE_SIZE < totalHits ? page + 1 : undefined,
+    nextPage: page < MAX_PAGE && page * perPage < totalHits ? page + 1 : undefined,
   }
+}
+
+async function searchDiversePixabayBrowse(page: number, apiKey: string): Promise<SearchResponse | null> {
+  const themes = DISCOVERY_THEME_PAIRS[(page - 1) % DISCOVERY_THEME_PAIRS.length]
+  const searches = await Promise.allSettled([
+    searchPixabay('', page, apiKey, { perPage: BROWSE_GENERAL_SIZE, order: 'latest', browseGroup: 'general' }),
+    searchPixabay(themes[0], 1, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[0]}` }),
+    searchPixabay(themes[1], 1, apiKey, { perPage: BROWSE_THEME_SIZE, order: 'popular', browseGroup: `theme:${themes[1]}` }),
+  ])
+  const responses = searches.flatMap((search) => search.status === 'fulfilled' && search.value ? [search.value] : [])
+  if (!responses.length) return null
+
+  const unique = new Map<string, SearchResult>()
+  for (const response of responses) {
+    for (const result of response.results) {
+      if (!unique.has(result.id)) unique.set(result.id, result)
+    }
+  }
+  if (!unique.size) return null
+  return { results: [...unique.values()], source: 'pixabay' }
 }
 
 async function searchWikimedia(query: string, page: number): Promise<SearchResponse | null> {
@@ -370,7 +443,9 @@ searchRouter.get('/', async (req, res) => {
   const page = isPixabayBrowse && seed != null
     ? 1 + ((requestedPage - 1 + (seed % MAX_PAGE)) % MAX_PAGE)
     : requestedPage
-  const cacheKey = `${provider}:${query}:${isPixabayBrowse ? 'latest:' : ''}${page}`
+  const cacheKey = isPixabayBrowse
+    ? `${provider}:diverse-v2:${page}`
+    : `${provider}:${query}:${page}`
   const logicalNextPage = isPixabayBrowse
     ? (requestedPage < MAX_PAGE ? requestedPage + 1 : undefined)
     : undefined
@@ -381,7 +456,9 @@ searchRouter.get('/', async (req, res) => {
     return res.json({
       ...payload,
       nextPage: isPixabayBrowse ? logicalNextPage : payload.nextPage,
-      results: shuffledResults(payload.results, seed, `${query}:${requestedPage}:${page}`),
+      results: isPixabayBrowse
+        ? diversifiedBrowseResults(payload.results, seed, `${requestedPage}:${page}`)
+        : payload.results,
       cached: true,
     })
   }
@@ -390,7 +467,7 @@ searchRouter.get('/', async (req, res) => {
   if (cacheCount >= 5000) return res.status(503).json({ error: 'Search is busy. Please try again later.' })
   let response: SearchResponse | null = null
   if (provider === 'pixabay' && apiKey) {
-    try { response = await searchPixabay(query, page, apiKey) }
+    try { response = isPixabayBrowse ? await searchDiversePixabayBrowse(page, apiKey) : await searchPixabay(query, page, apiKey) }
     catch { console.warn('Pixabay search unavailable.') }
   }
   // A provider must not change halfway through its page sequence.
@@ -405,6 +482,8 @@ searchRouter.get('/', async (req, res) => {
   return res.json({
     ...response,
     nextPage: isPixabayBrowse ? logicalNextPage : response.nextPage,
-    results: shuffledResults(response.results, seed, `${query}:${requestedPage}:${page}`),
+    results: isPixabayBrowse
+      ? diversifiedBrowseResults(response.results, seed, `${requestedPage}:${page}`)
+      : response.results,
   })
 })
