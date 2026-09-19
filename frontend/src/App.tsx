@@ -19,6 +19,7 @@ const CapturePage = lazy(() => import('./pages/CapturePage').then((module) => ({
 const SmartCollectionPage = lazy(() => import('./pages/SmartCollectionPage').then((module) => ({ default: module.SmartCollectionPage })))
 const MessagesPage = lazy(() => import('./pages/MessagesPage').then((module) => ({ default: module.MessagesPage })))
 const InviteAcceptPage = lazy(() => import('./pages/InviteAcceptPage').then((module) => ({ default: module.InviteAcceptPage })))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((module) => ({ default: module.PrivacyPage })))
 
 function handleUnauthorized(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 401) return false
@@ -61,6 +62,7 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<div className="app-boot"><BrandMark /><span>Mosaic</span></div>}>
           <Routes>
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route element={<ProtectedApp />}>
               <Route path="/" element={<DiscoverPage />} />
               <Route path="/explore" element={<ExplorePage />} />

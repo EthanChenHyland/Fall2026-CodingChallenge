@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { BrandMark } from '../components/BrandMark'
 import type { User } from '../types'
@@ -96,6 +97,7 @@ export function AuthPage() {
               {demo.isPending ? 'Opening…' : 'Open demo'}
             </button>
           </div>
+          <p className="auth-legal">By using Mosaic, you acknowledge how this educational deployment handles account and content data. <Link to="/privacy">Read the Privacy Policy</Link>.</p>
         </div>
       </section>
     </main>

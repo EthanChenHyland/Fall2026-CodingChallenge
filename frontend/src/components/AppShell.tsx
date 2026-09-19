@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, Search, UserRound, WifiOff, X } from 'lucide-react'
+import { Bell, Compass, Download, FolderHeart, Globe2, HelpCircle, LogOut, MessageCircle, Plus, Search, ShieldCheck, UserRound, WifiOff, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -171,6 +171,7 @@ export function AppShell() {
                   <button className="popover-action" onClick={() => { navigate(`/people/${me?.user.username}`); setProfileOpen(false) }}><UserRound size={15} /> View profile</button>
                   <button className="popover-action" onClick={() => { setShortcutOpen(true); setProfileOpen(false) }}><HelpCircle size={15} /> Keyboard shortcuts</button>
                   <button className="popover-action" onClick={() => { setCoachReplay((value) => value + 1); setProfileOpen(false) }}><Compass size={15} /> Replay quick tour</button>
+                  <button className="popover-action" onClick={() => { navigate('/privacy'); setProfileOpen(false) }}><ShieldCheck size={15} /> Privacy policy</button>
                   {installPrompt && <button className="popover-action" onClick={() => { void installPrompt.prompt().then(() => installPrompt.userChoice).then(() => setInstallPrompt(null)); setProfileOpen(false) }}><Download size={15} /> Install Mosaic</button>}
                   <button className="popover-action" onClick={() => logout.mutate()}><LogOut size={15} /> Sign out</button>
                 </div>
