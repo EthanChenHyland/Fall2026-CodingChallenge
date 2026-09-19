@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { getCollection } from '../lib/collections.js'
+import { shareVisitorHash } from '../lib/shareAnalytics.js'
 import type { AuthedRequest } from '../middleware/auth.js'
 
 export const sharedRouter = Router()
@@ -21,6 +22,9 @@ sharedRouter.get('/:token', (req: AuthedRequest, res) => {
       || db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(userId, row.owner_id)
     )
     if (!allowed) return res.status(404).json({ error: 'Shared collection not found.' })
+  }
+  if (req.user?.id !== row.owner_id) {
+    db.prepare("INSERT INTO share_events (collection_id, event_type, visitor_hash) VALUES (?, 'view', ?)").run(row.id, shareVisitorHash(req, res))
   }
   const collection = getCollection(row.id) as Record<string, unknown>
   const owner = db.prepare(`

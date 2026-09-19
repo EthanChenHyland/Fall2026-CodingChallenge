@@ -202,6 +202,13 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'dismissed')),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS share_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL CHECK (event_type IN ('view', 'clone')),
+    visitor_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS deleted_items (
     item_id INTEGER PRIMARY KEY,
     collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -228,6 +235,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id ASC);
   CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_open_unique ON reports(reporter_id, target_type, target_id) WHERE status = 'open';
+  CREATE INDEX IF NOT EXISTS idx_share_events_collection ON share_events(collection_id, event_type, created_at DESC);
 `)
 
 ensureColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''")

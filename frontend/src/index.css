@@ -1585,3 +1585,5 @@ img { display: block; max-width: 100%; }
 .comment-report:hover, .comment-report:focus-visible { color: #95404e; }
 
 .shared-title-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+.share-analytics { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 650; }

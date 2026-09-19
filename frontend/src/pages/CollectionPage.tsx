@@ -139,6 +139,11 @@ export function CollectionPage() {
   }
   const [guide, setGuide] = useState<CanvasGuide>(null)
   const { data, isLoading, isError } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), enabled: Number.isFinite(id) })
+  const shareAnalytics = useQuery({
+    queryKey: ['share-analytics', id],
+    queryFn: () => api.shareAnalytics(id),
+    enabled: data?.collection.role === 'owner' && Boolean(data.collection.share_token),
+  })
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections })
   const collection = data?.collection
   const items = useMemo(() => collection?.items ?? [], [collection?.items])
@@ -372,7 +377,7 @@ export function CollectionPage() {
       </section>
       <CollectionPresentation collection={collection} open={presentationOpen} onOpenChange={setPresentationOpen} />
 
-      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {audience === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}</span><div className="share-strip-actions"><Link to={`/shared/${collection.share_token}/present`}><Play size={15} /> Presentation link</Link><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div></div>}
+      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {audience === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}{collection.role === 'owner' && shareAnalytics.data ? <small className="share-analytics">{shareAnalytics.data.analytics.views} views · {shareAnalytics.data.analytics.uniqueVisitors} visitors · {shareAnalytics.data.analytics.clones} copies</small> : null}</span><div className="share-strip-actions"><Link to={`/shared/${collection.share_token}/present`}><Play size={15} /> Presentation link</Link><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div></div>}
 
       {items.length ? (
         <Tabs.Root defaultValue="grid" className="collection-tabs">

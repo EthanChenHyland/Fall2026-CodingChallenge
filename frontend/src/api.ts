@@ -61,6 +61,7 @@ export const api = {
   smartCollection: (view: 'recent' | 'popular' | 'unsorted') => request<{ view: string; items: SmartSavedItem[] }>(`/api/collections/smart/${view}`),
   collection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}`),
   cloneCollection: (id: number) => request<{ collection: Collection }>(`/api/collections/${id}/clone`, { method: 'POST' }),
+  shareAnalytics: (id: number) => request<{ analytics: { views: number; uniqueVisitors: number; clones: number } }>(`/api/collections/${id}/share-analytics`),
   exportCollection: (id: number) => request<Record<string, unknown>>(`/api/collections/${id}/export`),
   importCollection: (payload: unknown) => request<{ collection: Collection }>('/api/collections/import', { method: 'POST', body: JSON.stringify(payload) }),
   createCollection: (body: { name: string; description?: string }) =>

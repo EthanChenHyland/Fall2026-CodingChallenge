@@ -6,6 +6,7 @@ import { imageUrlSchema, sourceUrlSchema } from '../lib/urls.js'
 import { exportPortableMedia, localMediaReferenceExists, persistProviderImage, pruneUnusedMedia, stagePortableMedia } from '../lib/media.js'
 import { snapshotItem, restoreSnapshot } from '../lib/restore.js'
 import { copyItemLineage, recordRepinLineage } from '../lib/provenance.js'
+import { userShareHash } from '../lib/shareAnalytics.js'
 import { actor, getCollection, logActivity, normalizeCollectionRow } from '../lib/collections.js'
 import {
   requireAuth,
@@ -154,6 +155,25 @@ collectionsRouter.post('/', (req: AuthedRequest, res) => {
   res.status(201).json({ collection: getCollection(id, req.user!.id) })
 })
 
+collectionsRouter.get('/:id/share-analytics', requireMembership, requireOwner, (req: AuthedRequest, res) => {
+  const collectionId = Number(req.params.id)
+  const rows = db.prepare(`
+    SELECT
+      SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,
+      COUNT(DISTINCT CASE WHEN event_type = 'view' THEN visitor_hash END) AS unique_visitors,
+      SUM(CASE WHEN event_type = 'clone' THEN 1 ELSE 0 END) AS clones
+    FROM share_events
+    WHERE collection_id = ?
+  `).get(collectionId) as { views: number | null; unique_visitors: number; clones: number | null }
+  return res.json({
+    analytics: {
+      views: Number(rows.views ?? 0),
+      uniqueVisitors: Number(rows.unique_visitors ?? 0),
+      clones: Number(rows.clones ?? 0),
+    },
+  })
+})
+
 collectionsRouter.post('/:id/clone', (req: AuthedRequest, res) => {
   const sourceId = Number(req.params.id)
   if (!Number.isSafeInteger(sourceId) || sourceId <= 0) return res.status(400).json({ error: 'Invalid collection.' })
@@ -207,6 +227,7 @@ collectionsRouter.post('/:id/clone', (req: AuthedRequest, res) => {
     if (sourceCoverId && itemMap.has(sourceCoverId)) {
       db.prepare('UPDATE collections SET cover_item_id = ? WHERE id = ?').run(itemMap.get(sourceCoverId), id)
     }
+    db.prepare("INSERT INTO share_events (collection_id, event_type, visitor_hash) VALUES (?, 'clone', ?)").run(sourceId, userShareHash(req.user!.id))
     logActivity(id, `${actor(req)} copied “${sourceName}” into a private collection`, req.user!.id)
     return id
   })()
