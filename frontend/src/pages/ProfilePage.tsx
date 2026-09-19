@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { AvatarFrame } from '../components/AvatarFrame'
+import { CollectionCover } from '../components/CollectionCover'
 import { EditProfileDialog } from '../components/EditProfileDialog'
 import { ConnectionsDialog } from '../components/ConnectionsDialog'
 
@@ -51,10 +52,15 @@ export function ProfilePage() {
           {collections.map((collection) => (
             <article className="collection-card profile-collection-card" key={collection.id}>
               <Link to={`/shared/${collection.share_token}`} aria-label={`Open ${collection.name}`}>
-                <div className="collection-cover">{collection.cover_url ? <img src={collection.cover_url} alt="" /> : <div className="blank-cover"><FolderHeart size={28} /></div>}<span className="open-badge"><ArrowUpRight size={16} /></span></div>
+                <div className="collection-cover"><CollectionCover collection={collection} emptyLabel="Waiting for a first save" /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
               </Link>
-              <div className="collection-card-copy"><div><Link to={`/shared/${collection.share_token}`}><h3>{collection.name}</h3></Link><p>{collection.description || 'A Mosaic collection.'}</p>{collection.audience === 'followers' && <small className="followers-only-label">Followers only</small>}</div><span>{collection.item_count} saved</span></div>
-              <div className="collection-follow-row"><span>{collection.follower_count ?? 0} {(collection.follower_count ?? 0) === 1 ? 'follower' : 'followers'}</span>{!profile.is_self && collection.audience === 'public' && <button className={collection.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={followCollection.isPending} onClick={() => followCollection.mutate({ collectionId: collection.id, followed: Boolean(collection.followed_by_me) })}>{collection.followed_by_me ? 'Following board' : 'Follow board'}</button>}</div>
+              <div className="collection-card-copy">
+                <div className="collection-card-heading"><Link to={`/shared/${collection.share_token}`}><h3>{collection.name}</h3></Link><span>{collection.item_count} saved</span></div>
+                <p>{collection.description || 'A Mosaic collection.'}</p>
+                <div className="collection-card-meta"><span>{collection.audience === 'followers' ? 'Followers only' : 'Public'}</span><span>{collection.follower_count ?? 0} {(collection.follower_count ?? 0) === 1 ? 'follower' : 'followers'}</span></div>
+                <div className="collection-card-byline"><AvatarFrame className="collection-owner-avatar" src={profile.avatar_url} name={profile.name} /><span>Curated by {profile.is_self ? 'you' : profile.name}</span></div>
+              </div>
+              {!profile.is_self && collection.audience === 'public' && <div className="collection-follow-row"><span>See new saves in Following</span><button className={collection.followed_by_me ? 'secondary-button' : 'primary-button'} disabled={followCollection.isPending} onClick={() => followCollection.mutate({ collectionId: collection.id, followed: Boolean(collection.followed_by_me) })}>{collection.followed_by_me ? 'Following board' : 'Follow board'}</button></div>}
             </article>
           ))}
         </div>

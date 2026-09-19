@@ -84,7 +84,12 @@ collectionsRouter.get('/', (req: AuthedRequest, res) => {
   const rows = db.prepare(`
     SELECT c.*,
       member.role AS role,
+      owner_user.id AS owner_id,
+      owner_user.name AS owner_name,
+      owner_user.avatar_url AS owner_avatar,
       COUNT(DISTINCT i.id) AS item_count,
+      (SELECT COUNT(*) FROM collection_members collection_people WHERE collection_people.collection_id = c.id) AS collaborator_count,
+      (SELECT COUNT(*) FROM collection_follows collection_followers WHERE collection_followers.collection_id = c.id) AS follower_count,
       COALESCE(
         (SELECT image_url FROM items WHERE id = c.cover_item_id AND collection_id = c.id),
         (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1)
@@ -102,6 +107,8 @@ collectionsRouter.get('/', (req: AuthedRequest, res) => {
     FROM collections c
     LEFT JOIN items i ON i.collection_id = c.id
     JOIN collection_members member ON member.collection_id = c.id AND member.user_id = ?
+    JOIN collection_members owner_member ON owner_member.collection_id = c.id AND owner_member.role = 'owner'
+    JOIN users owner_user ON owner_user.id = owner_member.user_id
     GROUP BY c.id
     ORDER BY c.updated_at DESC
   `).all(req.user!.id) as Array<Record<string, unknown>>

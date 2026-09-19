@@ -136,35 +136,53 @@ img { display: block; max-width: 100%; }
 .full { width: 100%; }
 .icon-button { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--white); cursor: pointer; padding: 0; }
 
-.collection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.collection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 24px; }
 .collection-card { display: block; min-width: 0; transition: transform .18s ease; }
 .collection-card:hover { transform: translateY(-3px); }
-.collection-cover { height: 300px; position: relative; overflow: hidden; border-radius: 18px; background: #e9e4db; }
+.collection-cover { height: 320px; position: relative; overflow: hidden; border-radius: 18px; background: #e9e4db; box-shadow: 0 12px 30px rgba(48, 43, 35, .06); }
 .collection-cover > img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.collection-cover-mosaic { width: 100%; height: 100%; display: grid; gap: 3px; background: #ddd7cc; overflow: hidden; }
+.collection-cover-mosaic { width: 100%; height: 100%; display: grid; gap: 4px; background: #ddd7cc; overflow: hidden; }
 .collection-cover-mosaic img { width: 100%; height: 100%; object-fit: cover; min-width: 0; min-height: 0; transition: transform .45s ease; }
 .collection-card:hover .collection-cover-mosaic img { transform: scale(1.018); }
 .collection-cover-mosaic.count-1 { grid-template-columns: 1fr; }
-.collection-cover-mosaic.count-2 { grid-template-columns: 1.3fr .7fr; }
-.collection-cover-mosaic.count-3 { grid-template-columns: 1.25fr .75fr; grid-template-rows: 1fr 1fr; }
+.collection-cover-mosaic.count-2 { grid-template-columns: 1.55fr .85fr; }
+.collection-cover-mosaic.count-3 { grid-template-columns: 1.35fr .85fr; grid-template-rows: 1fr 1fr; }
 .collection-cover-mosaic.count-3 img:first-child { grid-row: 1 / 3; }
-.collection-cover-mosaic.count-4 { grid-template-columns: 1.25fr .75fr; grid-template-rows: 1fr 1fr 1fr; }
+.collection-cover-mosaic.count-4 { grid-template-columns: 1.35fr .85fr; grid-template-rows: 1fr 1fr 1fr; }
 .collection-cover-mosaic.count-4 img:first-child { grid-row: 1 / 4; }
 .blank-cover { height: 100%; display: grid; place-items: center; align-content: center; gap: 10px; color: #8e887e; background: radial-gradient(circle at 30% 20%, #f0ece3, #dfd9cd); }
 .blank-cover span { font-family: Georgia, serif; font-size: 14px; }
 .open-badge { position: absolute; right: 13px; bottom: 13px; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.92); display: grid; place-items: center; opacity: 0; transform: translateY(5px); transition: .2s ease; }
 .collection-card:hover .open-badge { opacity: 1; transform: translateY(0); }
-.collection-card-copy { display: flex; gap: 20px; justify-content: space-between; padding: 14px 3px 0; }
-.collection-card-copy > div { min-width: 0; }
-.collection-card-copy h3 { margin: 0 0 4px; font-family: Georgia, serif; font-size: 20px; font-weight: 400; }
-.collection-card-copy p { margin: 0; color: var(--muted); font-size: 12px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.collection-card-copy > span { white-space: nowrap; font-size: 11px; color: #8d877e; }
+.collection-card-copy { min-width: 0; display: grid; gap: 7px; padding: 15px 3px 0; }
+.collection-card-heading { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.collection-card-copy h3 { margin: 0; font-family: Georgia, serif; font-size: 21px; font-weight: 400; }
+.collection-card-heading > span { flex: 0 0 auto; color: #8d877e; font-size: 10px; }
+.collection-card-copy > p { margin: 0; color: var(--muted); font-size: 11px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.collection-card-meta { min-height: 22px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 11px; color: #857f76; font-size: 9px; }
+.collection-card-meta > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.collection-audience { padding: 4px 7px; border-radius: 999px; background: #ece8df; }
+.collection-audience.public { color: #4d6255; background: #eaf0e9; }
+.collection-audience.followers { color: #575d80; background: #eceef8; }
+.collection-audience.private { color: #756b61; background: #eee9e2; }
+.collection-card-byline { min-width: 0; display: flex; align-items: center; gap: 7px; color: #837d75; font-size: 9px; }
+.collection-owner-avatar { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #e3ddd3; color: #7c756b; font-family: Georgia, serif; font-size: 9px; }
+.collection-owner-avatar > img, .collection-owner-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .collection-follow-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 8px 3px 0; }
 .collection-follow-row > span { color: var(--muted); font-size: 9px; }
 .collection-follow-row .primary-button, .collection-follow-row .secondary-button { min-height: 34px; padding-inline: 11px; }
-.new-collection-tile { min-height: 380px; border-radius: 18px; border: 1px dashed #bdb7ab; background: transparent; color: #777169; cursor: pointer; display: grid; place-items: center; align-content: center; gap: 10px; }
-.new-collection-tile:hover { background: #f0ede6; color: var(--ink); }
-.collection-skeleton { height: 375px; border-radius: 18px; background: #e5e1d8; }
+.new-collection-tile { min-height: 424px; border-radius: 18px; border: 1px dashed #bbb3a7; background: #f0ece4; color: #6f6960; cursor: pointer; display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; gap: 14px; padding: 16px; text-align: left; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+.new-collection-tile:hover { transform: translateY(-3px); border-color: #9f978b; background: #ece7dd; color: var(--ink); }
+.new-collection-preview { grid-column: 1 / -1; min-height: 280px; display: grid; grid-template-columns: 1.35fr .85fr; grid-template-rows: 1fr 1fr; gap: 4px; overflow: hidden; border-radius: 13px; background: #d8d1c5; opacity: .82; }
+.new-collection-preview i { background: linear-gradient(145deg, #ddd7cc, #c9c0b2); }
+.new-collection-preview i:first-child { grid-row: 1 / 3; background: linear-gradient(145deg, #cbc3b6, #e3ddd2); }
+.new-collection-preview i:nth-child(3) { background: linear-gradient(145deg, #e5dfd5, #c7bdae); }
+.new-collection-preview i:last-child { display: none; }
+.new-collection-copy { min-width: 0; display: grid; gap: 3px; align-content: end; }
+.new-collection-copy strong { font-family: Georgia, serif; font-size: 18px; font-weight: 400; }
+.new-collection-copy > span { color: #8b847b; font-size: 9px; }
+.new-collection-plus { width: 36px; height: 36px; align-self: end; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: #fff; }
+.collection-skeleton { height: 424px; border-radius: 18px; background: #e5e1d8; }
 
 .back-link { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; margin: -8px -4px 20px; padding: 8px 4px; font-size: 12px; color: #777169; }
 .collection-hero { display: flex; align-items: end; justify-content: space-between; gap: 30px; padding-bottom: 36px; border-bottom: 1px solid var(--line); }
@@ -365,7 +383,14 @@ img { display: block; max-width: 100%; }
   .page-title-actions .primary-button, .page-title-actions .secondary-button { width: 100%; min-height: 44px; padding: 0 12px; font-size: 11px; }
   .collection-grid { grid-template-columns: 1fr; gap: 28px; }
   .collection-cover { height: auto; aspect-ratio: 16 / 10; }
-  .new-collection-tile { min-height: 150px; }
+  .collection-card-copy { padding-top: 12px; }
+  .collection-card-heading h3 { font-size: 20px; }
+  .collection-card-meta { gap: 5px 9px; font-size: 10px; }
+  .collection-card-byline { font-size: 10px; }
+  .new-collection-tile { min-height: 0; grid-template-columns: 96px minmax(0,1fr) auto; grid-template-rows: 96px; align-items: center; gap: 12px; padding: 11px; }
+  .new-collection-preview { grid-column: auto; min-height: 0; width: 96px; height: 96px; border-radius: 12px; }
+  .new-collection-copy { align-content: center; }
+  .new-collection-plus { align-self: center; }
   .collection-hero { align-items: start; }
   .collection-hero h1 { font-size: 48px; }
   .hero-actions .secondary-button { width: 40px; padding: 0; font-size: 0; }

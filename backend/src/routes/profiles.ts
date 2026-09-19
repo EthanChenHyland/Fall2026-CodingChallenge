@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { db } from '../db.js'
+import { normalizeCollectionRow } from '../lib/collections.js'
 import { imageUrlSchema } from '../lib/urls.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
@@ -63,10 +64,21 @@ profilesRouter.get('/:identifier', (req: AuthedRequest, res) => {
       (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
   `).get(userId, userId, userId, userId) as { collection_count: number; pin_count: number; follower_count: number; following_count: number }
 
-  const collections = db.prepare(`
+  const collectionRows = db.prepare(`
     SELECT c.id, c.name, c.description, c.visibility, c.audience, c.share_token, c.created_at, c.updated_at,
+      c.cover_focus_x, c.cover_focus_y,
       COUNT(i.id) AS item_count,
       (SELECT image_url FROM items WHERE collection_id = c.id ORDER BY id DESC LIMIT 1) AS cover_url,
+      (
+        SELECT json_group_array(image_url)
+        FROM (
+          SELECT image_url
+          FROM items AS cover_items
+          WHERE cover_items.collection_id = c.id
+          ORDER BY CASE WHEN cover_items.id = c.cover_item_id THEN 0 ELSE 1 END, cover_items.id DESC
+          LIMIT 4
+        )
+      ) AS cover_urls_json,
       (SELECT COUNT(*) FROM collection_follows cf WHERE cf.collection_id = c.id) AS follower_count,
       CASE WHEN EXISTS (
         SELECT 1 FROM collection_follows cf WHERE cf.collection_id = c.id AND cf.follower_id = ?
@@ -77,7 +89,8 @@ profilesRouter.get('/:identifier', (req: AuthedRequest, res) => {
     WHERE c.audience IN ${visibleAudiences} AND c.share_token IS NOT NULL
     GROUP BY c.id
     ORDER BY c.updated_at DESC
-  `).all(req.user?.id ?? -1, userId)
+  `).all(req.user?.id ?? -1, userId) as Array<Record<string, unknown>>
+  const collections = collectionRows.map(normalizeCollectionRow)
 
   return res.json({
     profile: {

@@ -1,29 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, Clock3, FolderHeart, Heart, Inbox, Plus, Search, Upload } from 'lucide-react'
+import { ArrowUpRight, Clock3, FolderHeart, Globe2, Heart, Inbox, LockKeyhole, Plus, Search, Upload, UserRound, UsersRound } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { CollectionCover } from '../components/CollectionCover'
 import { CreateCollectionDialog } from '../components/Dialogs'
 import type { Collection } from '../types'
 
-function CollectionCover({ collection }: { collection: Collection }) {
-  const images = collection.cover_urls?.length ? collection.cover_urls : collection.cover_url ? [collection.cover_url] : []
-  if (!images.length) return <div className="blank-cover"><FolderHeart size={28} /><span>Ready for a first save</span></div>
-  return (
-    <div className={`collection-cover-mosaic count-${Math.min(images.length, 4)}`}>
-      {images.slice(0, 4).map((url, index) => (
-        <img
-          key={`${url}-${index}`}
-          src={url}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          style={index === 0 ? { objectPosition: `${collection.cover_focus_x ?? 50}% ${collection.cover_focus_y ?? 50}%` } : undefined}
-        />
-      ))}
-    </div>
-  )
+function AudienceLabel({ collection }: { collection: Collection }) {
+  if (collection.audience === 'public') return <span className="collection-audience public"><Globe2 size={12} /> Public</span>
+  if (collection.audience === 'followers') return <span className="collection-audience followers"><UsersRound size={12} /> Followers</span>
+  return <span className="collection-audience private"><LockKeyhole size={12} /> Private</span>
 }
 
 export function CollectionsPage() {
@@ -70,10 +58,22 @@ export function CollectionsPage() {
           {collections.map((collection) => (
             <Link className="collection-card" to={`/collections/${collection.id}`} key={collection.id}>
               <div className="collection-cover"><CollectionCover collection={collection} /><span className="open-badge"><ArrowUpRight size={16} /></span></div>
-              <div className="collection-card-copy"><div><h3>{collection.name}</h3><p>{collection.description || 'No description yet.'}</p></div><span>{collection.item_count} saved</span></div>
+              <div className="collection-card-copy">
+                <div className="collection-card-heading"><h3>{collection.name}</h3><span>{collection.item_count} saved</span></div>
+                <p>{collection.description || 'No description yet.'}</p>
+                <div className="collection-card-meta">
+                  <AudienceLabel collection={collection} />
+                  <span><UsersRound size={12} /> {collection.collaborator_count ?? 1} {(collection.collaborator_count ?? 1) === 1 ? 'curator' : 'curators'}</span>
+                  {!!collection.follower_count && <span><Heart size={12} /> {collection.follower_count} {collection.follower_count === 1 ? 'follower' : 'followers'}</span>}
+                </div>
+                <div className="collection-card-byline">
+                  <span className="collection-owner-avatar">{collection.owner_avatar ? <img src={collection.owner_avatar} alt="" /> : <UserRound size={13} />}</span>
+                  <span>{collection.role === 'owner' ? 'Owned by you' : `Editing for ${collection.owner_name ?? 'collection owner'}`}</span>
+                </div>
+              </div>
             </Link>
           ))}
-          {!query && <CreateCollectionDialog trigger={<button className="new-collection-tile"><Plus size={24} /><span>Create another collection</span></button>} />}
+          {!query && <CreateCollectionDialog trigger={<button type="button" className="new-collection-tile"><span className="new-collection-preview" aria-hidden="true"><i /><i /><i /><i /></span><span className="new-collection-copy"><strong>Start a collection</strong><span>Gather a new visual thread.</span></span><span className="new-collection-plus"><Plus size={18} /></span></button>} />}
         </div>
       ) : data?.collections.length ? <div className="empty-state"><Search size={28} /><h3>No collections match “{query}”.</h3></div> : <div className="empty-state"><FolderHeart size={30} /><h3>Your first collection starts here.</h3><CreateCollectionDialog trigger={<button className="primary-button"><Plus size={17} /> Create collection</button>} /></div>}
     </>

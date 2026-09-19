@@ -234,6 +234,7 @@ export type Collection = {
   owner_name?: string
   owner_avatar?: string
   role?: 'owner' | 'editor' | null
+  collaborator_count?: number
   follower_count?: number
   followed_by_me?: boolean | number
   items?: SavedItem[]

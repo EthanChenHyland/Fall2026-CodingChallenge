@@ -498,22 +498,23 @@ test('profile collection covers fill their full frame', async ({ page }) => {
   await page.goto('/people/demo-curator')
 
   const cover = page.locator('.profile-collection-card .collection-cover').first()
-  const image = cover.locator('img')
-  await expect(image).toBeVisible()
+  await expect(cover.locator('img').first()).toBeVisible()
 
   const geometry = await cover.evaluate((element) => {
-    const image = element.querySelector<HTMLImageElement>('img')!
+    const mosaic = element.querySelector<HTMLElement>('.collection-cover-mosaic')!
+    const images = [...element.querySelectorAll<HTMLImageElement>('img')]
     const coverBox = element.getBoundingClientRect()
-    const imageBox = image.getBoundingClientRect()
+    const mosaicBox = mosaic.getBoundingClientRect()
     return {
       cover: [Math.round(coverBox.width), Math.round(coverBox.height)],
-      image: [Math.round(imageBox.width), Math.round(imageBox.height)],
-      objectFit: getComputedStyle(image).objectFit,
+      mosaic: [Math.round(mosaicBox.width), Math.round(mosaicBox.height)],
+      objectFits: images.map((image) => getComputedStyle(image).objectFit),
     }
   })
 
-  expect(geometry.image).toEqual(geometry.cover)
-  expect(geometry.objectFit).toBe('cover')
+  expect(geometry.mosaic).toEqual(geometry.cover)
+  expect(geometry.objectFits.length).toBeGreaterThan(0)
+  expect(geometry.objectFits.every((value) => value === 'cover')).toBe(true)
 })
 
 test('collection visibility is discoverable from the collection header', async ({ page }) => {
