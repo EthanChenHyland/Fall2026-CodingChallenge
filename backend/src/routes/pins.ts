@@ -32,7 +32,19 @@ pinsRouter.get('/:id', (req: AuthedRequest, res) => {
   ).get(req.user.id, pin.owner_id))
   const canView = pin.visibility === 'public' || pinMembership || canViewFollowers
   if (!canView) return res.status(404).json({ error: 'Pin not found.' })
-  return res.json({ pin: { ...pin, can_edit: Boolean(pinMembership), liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false, provenance: provenanceForViewer(pinId, req.user?.id) } })
+  const siblings = db.prepare(`
+    SELECT id FROM items
+    WHERE collection_id = ?
+    ORDER BY CASE WHEN position = 0 THEN 0 ELSE 1 END ASC, position ASC, id DESC
+  `).all(Number(pin.collection_id)) as Array<{ id: number }>
+  const index = siblings.findIndex((item) => item.id === pinId)
+  const navigation = {
+    previous_id: index > 0 ? siblings[index - 1].id : null,
+    next_id: index >= 0 && index < siblings.length - 1 ? siblings[index + 1].id : null,
+    index: index >= 0 ? index + 1 : 1,
+    total: siblings.length,
+  }
+  return res.json({ pin: { ...pin, can_edit: Boolean(pinMembership), liked_by_me: req.user ? Boolean(db.prepare('SELECT 1 FROM item_likes WHERE item_id = ? AND user_id = ?').get(pinId, req.user.id)) : false, provenance: provenanceForViewer(pinId, req.user?.id), navigation } })
 })
 
 

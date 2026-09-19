@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, FolderHeart, Heart, MessageCircle, Pencil, Reply, Share2, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -20,6 +20,7 @@ export function PinPage() {
   const [likesOpen, setLikesOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
+  const swipeStart = useRef<number | null>(null)
   const { id: rawId } = useParams()
   const id = Number(rawId)
   const { data, isLoading, isError } = useQuery({ queryKey: ['pin', id], queryFn: () => api.pin(id), enabled: Number.isInteger(id) })
@@ -82,6 +83,20 @@ export function PinPage() {
     return () => observer.disconnect()
   }, [fetchMoreWebRelated, hasMoreWebRelated, isFetchingMoreWebRelated])
 
+  useEffect(() => {
+    if (!data?.pin.navigation) return
+    const listener = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
+      const targetId = event.key === 'ArrowLeft' ? data.pin.navigation.previous_id : event.key === 'ArrowRight' ? data.pin.navigation.next_id : null
+      if (!targetId) return
+      event.preventDefault()
+      navigate(`/pin/${targetId}`)
+    }
+    window.addEventListener('keydown', listener)
+    return () => window.removeEventListener('keydown', listener)
+  }, [data?.pin.navigation, navigate])
+
   if (isLoading) return <div className="loading-page">Opening pin…</div>
   if (isError || !data) return <div className="empty-state large"><h3>That pin is not available.</h3><Link className="primary-button" to="/explore">Explore public pins</Link></div>
 
@@ -116,7 +131,10 @@ export function PinPage() {
     <>
       <Link className="back-link" to="/explore"><ArrowLeft size={16} /> Explore</Link>
       <article className="pin-page-card">
-        <div className="pin-page-media" style={{ viewTransitionName: 'pin-image-' + pin.id }}><img src={pin.image_url} alt={pin.title} /></div>
+        <div className="pin-page-media" style={{ viewTransitionName: 'pin-image-' + pin.id }} onPointerDown={(event) => { swipeStart.current = event.clientX }} onPointerUp={(event) => { if (swipeStart.current === null) return; const delta = event.clientX - swipeStart.current; swipeStart.current = null; if (Math.abs(delta) < 60) return; const targetId = delta > 0 ? pin.navigation.previous_id : pin.navigation.next_id; if (targetId) navigate(`/pin/${targetId}`) }}>
+          <img src={pin.image_url} alt={pin.title} />
+          <div className="pin-sequence-controls" aria-label="Browse collection pins"><button aria-label="Previous pin in collection" disabled={!pin.navigation.previous_id} onClick={() => pin.navigation.previous_id && navigate(`/pin/${pin.navigation.previous_id}`)}><ArrowLeft size={18} /></button><span>{pin.navigation.index} / {pin.navigation.total}</span><button aria-label="Next pin in collection" disabled={!pin.navigation.next_id} onClick={() => pin.navigation.next_id && navigate(`/pin/${pin.navigation.next_id}`)}><ArrowRight size={18} /></button></div>
+        </div>
         <div className="pin-page-copy">
           <span className="eyebrow">SAVED TO MOSAIC</span>
           <h1>{pin.title}</h1>
