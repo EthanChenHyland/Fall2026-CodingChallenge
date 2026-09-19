@@ -25,14 +25,19 @@ async function makeCurator(name = 'Test Curator') {
   return { agent, id: registered.body.user.id as number }
 }
 
+function fixtureImage(label: string) {
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + randomUUID()
+  return { id: 'fixture-' + slug, imageUrl: 'https://example.com/' + slug + '.jpg', pageUrl: 'https://example.com/' + slug, creator: 'Test fixture' }
+}
+
 test('following feed is driven by the social graph', async () => {
   const demo = request.agent(app)
   await demo.post('/api/auth/demo').expect(200)
   const curator = await makeCurator()
   const created = await curator.agent.post('/api/collections').send({ name: 'Public test board', description: 'A board for social feed coverage.' }).expect(201)
   const collectionId = created.body.collection.id as number
-  const search = await curator.agent.get('/api/search?q=Tokyo').expect(200)
-  await curator.agent.post(`/api/collections/${collectionId}/items`).send({ sourceId: search.body.results[0].id, imageUrl: search.body.results[0].imageUrl, sourcePage: search.body.results[0].pageUrl, sourceCreator: search.body.results[0].creator, title: 'Feed test pin' }).expect(201)
+  const result = fixtureImage("Tokyo")
+  await curator.agent.post(`/api/collections/${collectionId}/items`).send({ sourceId: result.id, imageUrl: result.imageUrl, sourcePage: result.pageUrl, sourceCreator: result.creator, title: "Feed test pin" }).expect(201)
   await curator.agent.post(`/api/collections/${collectionId}/share`).expect(200)
 
   await demo.post(`/api/profiles/${curator.id}/follow`).expect(204)
@@ -45,8 +50,7 @@ test('public collections can be followed independently and feed Following', asyn
   const curator = await makeCurator('Board Owner')
   const created = await curator.agent.post('/api/collections').send({ name: 'Material walks', description: 'A board worth following.' }).expect(201)
   const collectionId = created.body.collection.id as number
-  const search = await curator.agent.get('/api/search?q=concrete').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("concrete")
   await curator.agent.post(`/api/collections/${collectionId}/items`).send({ sourceId: result.id, imageUrl: result.imageUrl, sourcePage: result.pageUrl, sourceCreator: result.creator, title: 'Board-follow test pin' }).expect(201)
   await curator.agent.post(`/api/collections/${collectionId}/share`).expect(200)
 
@@ -114,8 +118,7 @@ test('recommendation feedback persists and tunes Explore and search recommendati
   const source = await makeCurator('Feedback Source')
   const board = await source.agent.post('/api/collections').send({ name: 'Blue concrete studies' }).expect(201)
   const boardId = board.body.collection.id as number
-  const search = await source.agent.get('/api/search?q=blue concrete').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("blue concrete")
   const saved = await source.agent.post(`/api/collections/${boardId}/items`).send({
     sourceId: `feedback-${randomUUID()}`,
     imageUrl: result.imageUrl,
@@ -170,8 +173,7 @@ test('public pins can be saved into another collection without exposing private 
   await curator.agent.post(`/api/pins/${publicPin.id}/save`).send({ collectionId: targetId }).expect(409)
 
   const privateBoard = await curator.agent.post('/api/collections').send({ name: 'Private source' }).expect(201)
-  const search = await curator.agent.get('/api/search?q=private').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("private")
   const privatePin = await curator.agent.post(`/api/collections/${privateBoard.body.collection.id}/items`).send({
     sourceId: result.id,
     imageUrl: result.imageUrl,
@@ -191,8 +193,7 @@ test('repin provenance preserves lineage without exposing boards that become pri
 
   const sourceBoard = await sam.agent.post('/api/collections').send({ name: 'Material walks' }).expect(201)
   const sourceBoardId = sourceBoard.body.collection.id as number
-  const search = await sam.agent.get('/api/search?q=material').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("material")
   const sourcePin = await sam.agent.post(`/api/collections/${sourceBoardId}/items`).send({
     sourceId: `lineage-${randomUUID()}`,
     imageUrl: result.imageUrl,
@@ -263,8 +264,7 @@ test('public pins can be batch saved with duplicate and privacy safeguards', asy
   assert.equal((await curator.agent.get(`/api/collections/${targetId}`).expect(200)).body.collection.items.length, 2)
 
   const privateBoard = await curator.agent.post('/api/collections').send({ name: 'Batch private source' }).expect(201)
-  const search = await curator.agent.get('/api/search?q=private').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("private")
   const privatePin = await curator.agent.post(`/api/collections/${privateBoard.body.collection.id}/items`).send({
     sourceId: `batch-private-${randomUUID()}`,
     imageUrl: result.imageUrl,
@@ -285,8 +285,7 @@ test('collection sections organize pins and bulk copy preserves the source board
   const target = await curator.agent.post('/api/collections').send({ name: 'Section target' }).expect(201)
   const sourceId = source.body.collection.id as number
   const targetId = target.body.collection.id as number
-  const search = await curator.agent.get('/api/search?q=materials').expect(200)
-  const result = search.body.results[0]
+  const result = fixtureImage("materials")
   const saved = await curator.agent.post(`/api/collections/${sourceId}/items`).send({
     sourceId: result.id,
     imageUrl: result.imageUrl,
