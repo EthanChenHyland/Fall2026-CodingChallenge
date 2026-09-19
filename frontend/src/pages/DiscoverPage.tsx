@@ -1,11 +1,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Bookmark, LoaderCircle, Search, Shuffle, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Bookmark, LoaderCircle, Search, Shuffle, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
+import { ImageFilterControls } from '../components/ImageFilterControls'
 import { PublicPinCard } from '../components/PublicPinCard'
 import { SocialSearchResults } from '../components/SocialSearchResults'
+import { applyImageFilters, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
 
 const topics = ['All', 'Travel', 'Interior', 'Fashion', 'Nature', 'Architecture']
 const searchKinds = ['All', 'Images', 'People', 'Collections', 'Pins'] as const
@@ -31,6 +33,8 @@ export function DiscoverPage() {
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery)
   const [activeTopic, setActiveTopic] = useState(initialTopic)
   const [searchKind, setSearchKind] = useState<SearchKind>('All')
+  const [imageOrientation, setImageOrientation] = useState<ImageOrientation>('all')
+  const [imageOrder, setImageOrder] = useState<ImageOrder>('default')
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
   const [searchMemoryVersion, setSearchMemoryVersion] = useState(0)
   const [browseSeed, setBrowseSeed] = useState(randomBrowseSeed)
@@ -69,6 +73,7 @@ export function DiscoverPage() {
       return true
     })
   }, [data])
+  const filteredResults = useMemo(() => applyImageFilters(results, imageOrientation, imageOrder), [imageOrder, imageOrientation, results])
   const firstPage = data?.pages[0]
   const showImages = searchKind === 'All' || searchKind === 'Images'
   const showPeople = searchKind === 'All' || searchKind === 'People'
@@ -203,10 +208,15 @@ export function DiscoverPage() {
         {recentSearches.length ? <div><span className="eyebrow">RECENT</span><div>{recentSearches.map((entry) => <button key={`recent-${entry}`} onClick={() => chooseSuggestion(entry)}>{entry}</button>)}<button className="search-memory-clear" aria-label="Clear recent searches" onClick={() => { if (recentSearchKey) { window.localStorage.removeItem(recentSearchKey); setSearchMemoryVersion((current) => current + 1) } }}><X size={11} /> Clear</button></div></div> : null}
       </div> : null}
 
-      {submittedQuery ? <div className="search-filter-row" aria-label="Search result type"><div>{searchKinds.map((kind) => <button key={kind} className={searchKind === kind ? 'active' : ''} onClick={() => setSearchKind(kind)}>{kind}</button>)}</div><button className={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'saved' : ''} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved search' : 'Save search'}</button></div> : null}
-
       <div className="topic-row">
         {topics.map((topic) => <button key={topic} className={activeTopic === topic ? 'active' : ''} onClick={() => chooseTopic(topic)}>{topic}</button>)}
+      </div>
+
+      <div className="discovery-filter-toolbar" aria-label="Discovery filters">
+        <span className="filter-heading"><SlidersHorizontal size={14} /> Filters</span>
+        <label><span>Results</span><select aria-label="Result type" value={searchKind} onChange={(event) => setSearchKind(event.target.value as SearchKind)}>{searchKinds.map((kind) => <option value={kind} key={kind}>{kind}</option>)}</select></label>
+        <ImageFilterControls orientation={imageOrientation} order={imageOrder} onOrientationChange={setImageOrientation} onOrderChange={setImageOrder} showHeading={false} onReset={() => { setImageOrientation('all'); setImageOrder('default') }} />
+        {submittedQuery ? <button type="button" className={`save-search-filter${savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? ' saved' : ''}`} onClick={() => toggleSavedSearch(submittedQuery)}><Bookmark size={12} fill={savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'currentColor' : 'none'} /> {savedSearches.some((entry) => entry.toLowerCase() === submittedQuery.toLowerCase()) ? 'Saved' : 'Save search'}</button> : null}
       </div>
 
       {recommendations.data?.suggestions.length ? <section className="search-suggestions" aria-label="Recommended searches"><div className="search-suggestions-title"><Sparkles size={14} /><span>{submittedQuery ? 'Related searches' : 'Suggested for you'}</span>{submittedQuery && recommendations.data.aiEnhanced ? <span className="ai-assist-badge">AI expanded</span> : null}{!submittedQuery && recommendations.data.basedOn.length ? <small>Based on {recommendations.data.basedOn.slice(0, 3).join(' · ')}</small> : null}</div><div className="search-suggestion-chips">{recommendations.data.suggestions.map((suggestion) => <button key={suggestion} onClick={() => chooseSuggestion(suggestion)}>{suggestion}</button>)}</div></section> : null}
@@ -215,7 +225,7 @@ export function DiscoverPage() {
 
       {showPins && recommendations.data?.pins.length ? <section className="search-recommendation-section"><div className="section-head"><div><span className="eyebrow">RECOMMENDED FOR YOU</span><h2>{submittedQuery ? `More around “${submittedQuery}”` : 'Start with something that fits your taste'}</h2></div>{recommendations.data.basedOn.length ? <span className="result-count">Because you saved {recommendations.data.basedOn.slice(0, 3).join(' · ')}</span> : null}</div><div className="masonry-grid recommendation-grid">{recommendations.data.pins.map((pin) => <PublicPinCard pin={pin} key={`search-recommended-${pin.id}`} onRecommendationFeedback={(pinId, signal) => feedback.mutate({ pinId, signal })} feedbackPending={feedback.isPending} />)}</div></section> : null}
 
-      {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {results.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" onClick={() => setBrowseSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
+      {showImages && <section className="section-head browse-section-head"><div><span className="eyebrow">BROWSE</span><h2>{browseTitle}</h2></div><div className="browse-head-actions"><span className="result-count">{sourceLabel} · {filteredResults.length}{hasNextPage ? '+' : ''} finds</span>{!effectiveQuery && firstPage?.source === 'pixabay' ? <button className="secondary-button" onClick={() => setBrowseSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button> : null}</div></section>}
       {showImages && firstPage?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so Mosaic is showing local picks for now.</span><button className="secondary-button" onClick={() => void refetch()}>Retry Pixabay</button></div> : null}
       {showImages && (isLoading ? (
         <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div>
@@ -223,7 +233,7 @@ export function DiscoverPage() {
         <div className="empty-state"><Search size={28} /><h3>Search is taking a break.</h3><p>Your collections are safe. Retry the search or browse a saved topic.</p><div className="empty-actions"><button className="primary-button" onClick={() => void refetch()}>Try again</button><button className="secondary-button" onClick={() => chooseTopic('Architecture')}>Browse architecture</button></div></div>
       ) : results.length ? (
         <>
-          <div className="masonry-grid">{results.map((image) => <ImageCard key={image.id} image={image} />)}</div>
+          {filteredResults.length ? <div className="masonry-grid">{filteredResults.map((image) => <ImageCard key={image.id} image={image} />)}</div> : <div className="empty-state compact"><SlidersHorizontal size={24} /><h3>No loaded images match these filters.</h3><p>More results can still load below, or clear the image filters.</p><button className="secondary-button" onClick={() => { setImageOrientation('all'); setImageOrder('default') }}>Clear image filters</button></div>}
           <div className="discovery-loader" ref={loadMoreRef} aria-live="polite">
             {isFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more ideas…</> : isFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextPage()}>Retry loading more</button></> : hasNextPage ? null : effectiveQuery ? 'You reached the end of these results.' : null}
           </div>

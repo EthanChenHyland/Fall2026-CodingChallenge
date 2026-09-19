@@ -155,6 +155,8 @@ test('reviewer can move through the core product', async ({ page }) => {
   const firstPin = page.locator('.public-pin-image').first()
   await expect(firstPin).toBeVisible()
   await firstPin.click()
+  await expect(page.locator('.public-pin-detail-dialog')).toBeVisible()
+  await page.getByRole('link', { name: 'Open full pin' }).click()
   await expect(page.locator('.pin-page-card')).toBeVisible()
   await expect(page.getByRole('button', { name: /like/i })).toBeVisible()
   await page.getByLabel('Comment').fill('E2E thread starter')
@@ -357,6 +359,8 @@ test('direct messages persist between accounts and surface unread threads', asyn
 
   await page.goto('/explore')
   await page.locator('.public-pin-image').first().click()
+  await expect(page.locator('.public-pin-detail-dialog')).toBeVisible()
+  await page.getByRole('link', { name: 'Open full pin' }).click()
   await expect(page.locator('.pin-page-card')).toBeVisible()
   const sharedPinTitle = await page.locator('.pin-page-copy h1').innerText()
   await page.getByRole('button', { name: 'Send', exact: true }).click()
@@ -545,9 +549,9 @@ test('privacy policy is public and core pages stay inside 320px and 390px viewpo
   const collectionId = [...collectionData.collections].sort((a, b) => b.item_count - a.item_count)[0]!.id
   const shareToken = collectionData.collections.find((collection) => collection.share_token)?.share_token
   await page.goto('/explore')
-  const pinHref = await page.locator('.public-pin-image').first().getAttribute('href')
+  const pinId = await page.locator('.public-pin-card').first().getAttribute('data-pin-id')
   const paths = ['/', '/explore', '/collections', `/collections/${collectionId}`, '/people/demo-curator', '/people/sam-rivera', '/messages', '/capture', '/privacy']
-  if (pinHref) paths.push(pinHref)
+  if (pinId) paths.push(`/pin/${pinId}`)
   if (shareToken) paths.push(`/shared/${shareToken}`)
 
   for (const width of [320, 390]) {
@@ -853,7 +857,7 @@ test('pin detail supports collection-order keyboard navigation', async ({ page }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
-test('discover remembers searches and filters result types', async ({ page }) => {
+test('discover remembers searches and filters result types and image shape', async ({ page }) => {
   await enterDemo(page)
   await page.evaluate(() => {
     localStorage.removeItem('mosaic:recent-searches')
@@ -864,15 +868,21 @@ test('discover remembers searches and filters result types', async ({ page }) =>
   const search = page.getByLabel('Search images')
   await search.fill('ceramics')
   await search.press('Enter')
-  const filters = page.getByLabel('Search result type')
+  const filters = page.getByLabel('Discovery filters')
   await expect(filters).toBeVisible()
   await filters.getByRole('button', { name: 'Save search' }).click()
-  await expect(filters.getByRole('button', { name: 'Saved search' })).toBeVisible()
-  await filters.getByRole('button', { name: 'People', exact: true }).click()
-  await expect(filters.getByRole('button', { name: 'People', exact: true })).toHaveClass(/active/)
+  await expect(filters.getByRole('button', { name: 'Saved' })).toBeVisible()
+  await filters.getByLabel('Result type').selectOption('People')
   await expect(page.getByRole('heading', { name: 'Results for “ceramics”' })).toHaveCount(0)
-  await filters.getByRole('button', { name: 'Images', exact: true }).click()
+  await filters.getByLabel('Result type').selectOption('Images')
   await expect(page.getByRole('heading', { name: 'Results for “ceramics”' })).toBeVisible()
+  await filters.getByLabel('Image orientation').selectOption('portrait')
+  await expect(filters.getByLabel('Image orientation')).toHaveValue('portrait')
+  await filters.getByLabel('Image order').selectOption('largest')
+  await expect(filters.getByRole('button', { name: 'Reset' })).toBeVisible()
+  await filters.getByRole('button', { name: 'Reset' }).click()
+  await expect(filters.getByLabel('Image orientation')).toHaveValue('all')
+  await expect(filters.getByLabel('Image order')).toHaveValue('default')
 
   await page.goto('/explore')
   await page.goto('/')
@@ -881,8 +891,35 @@ test('discover remembers searches and filters result types', async ({ page }) =>
   await expect(memory.getByRole('button', { name: /ceramics/ }).first()).toBeVisible()
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
     await page.setViewportSize(viewport)
+    const orientationBounds = await page.getByLabel('Image orientation').boundingBox()
+    expect(orientationBounds?.height ?? 0).toBeGreaterThanOrEqual(44)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   }
+})
+
+test('Discover and Explore images open in-site previews', async ({ page }) => {
+  await enterDemo(page)
+  const webImage = page.locator('.image-open-button').first()
+  await expect(webImage).toBeVisible()
+  await webImage.click()
+  await expect(page.locator('.pin-detail-dialog')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'View source' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close image details' }).click()
+
+  await page.goto('/explore')
+  const publicPin = page.locator('.public-pin-image').first()
+  await expect(publicPin).toBeVisible()
+  await publicPin.click()
+  await expect(page.locator('.public-pin-detail-dialog')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open full pin' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close pin preview' }).click()
+
+  await page.locator('.explore-web-section').scrollIntoViewIfNeeded()
+  const webFilters = page.locator('.explore-web-section').getByText('Filters').first()
+  await expect(webFilters).toBeVisible()
+  await page.locator('.explore-web-section').getByLabel('Image orientation').selectOption('landscape')
+  await expect(page.locator('.explore-web-section').getByLabel('Image orientation')).toHaveValue('landscape')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
 test('collection reorder controls persist pin order', async ({ page }) => {

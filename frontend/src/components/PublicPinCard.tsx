@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, Bookmark, Check, Heart, MessageCircle, Sparkles, X } from 'lucide-react'
+import { Bookmark, Check, Heart, Maximize2, MessageCircle, Sparkles, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { PublicPin } from '../types'
+import { PublicPinDetailDialog } from './PublicPinDetailDialog'
 import { SavePinDialog } from './SavePinDialog'
 
 export function PublicPinCard({ pin, selectionMode = false, selected = false, onToggleSelection, onRecommendationFeedback, feedbackPending = false }: { pin: PublicPin; selectionMode?: boolean; selected?: boolean; onToggleSelection?: (pinId: number) => void; onRecommendationFeedback?: (pinId: number, signal: 'more' | 'not_interested') => void; feedbackPending?: boolean }) {
@@ -15,18 +16,17 @@ export function PublicPinCard({ pin, selectionMode = false, selected = false, on
           <span className="pin-selection-mark"><Check size={16} /></span>
         </button>
       ) : (
-        <Link
-          className="image-frame public-pin-image"
-          to={'/pin/' + pin.id}
-          viewTransition
-          aria-label={'Open ' + pin.title}
+        <PublicPinDetailDialog pin={pin} trigger={<button
+          type="button"
+          className="image-frame public-pin-image public-pin-preview-trigger"
+          aria-label={'Preview ' + pin.title}
           style={{ viewTransitionName: 'pin-image-' + pin.id }}
           onPointerEnter={() => { void queryClient.prefetchQuery({ queryKey: ['pin', pin.id], queryFn: () => api.pin(pin.id) }) }}
           onFocus={() => { void queryClient.prefetchQuery({ queryKey: ['pin', pin.id], queryFn: () => api.pin(pin.id) }) }}
         >
           <img src={pin.image_url} alt={pin.title} loading="lazy" decoding="async" />
-          <span className="pin-open-badge"><ArrowUpRight size={16} /></span>
-        </Link>
+          <span className="pin-open-badge"><Maximize2 size={16} /></span>
+        </button>} />
       )}
       {!selectionMode && <SavePinDialog pinId={pin.id} pinTitle={pin.title} pinImageUrl={pin.image_url} trigger={<button className="pin-card-save"><Bookmark size={14} /> Save</button>} />}
       <div className="image-meta public-pin-meta">

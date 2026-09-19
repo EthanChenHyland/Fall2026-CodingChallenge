@@ -1,6 +1,6 @@
 # Mosaic architecture and product design
 
-This document contains the detail that would make the root README too slow to scan. The root README is the reviewer landing page; this is the longer explanation of how Mosaic is built, why the major choices were made, and where the product goes beyond the Change++ baseline.
+This document contains the detail that would make the short root `README.txt` too slow to scan. `README.txt` is the reviewer landing page; this is the longer explanation of how Mosaic is built, why the major choices were made, and where the product goes beyond the Change++ baseline.
 
 ## Product shape
 

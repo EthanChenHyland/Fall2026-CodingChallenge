@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
 import { ImageCard } from '../components/ImageCard'
+import { ImageFilterControls } from '../components/ImageFilterControls'
 import { PublicPinCard } from '../components/PublicPinCard'
+import { applyImageFilters, type ImageOrder, type ImageOrientation } from '../lib/imageFilters'
 import { rememberCollection } from '../lib/recentCollection'
 
 const randomBrowseSeed = () => Math.floor(Math.random() * 0x1_0000_0000)
@@ -15,6 +17,8 @@ export function ExplorePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [destinationId, setDestinationId] = useState('')
   const [webSeed, setWebSeed] = useState(randomBrowseSeed)
+  const [webOrientation, setWebOrientation] = useState<ImageOrientation>('all')
+  const [webOrder, setWebOrder] = useState<ImageOrder>('default')
   const sentinel = useRef<HTMLDivElement>(null)
   const webSentinel = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
@@ -54,6 +58,7 @@ export function ExplorePage() {
   })
   const pins = [...new Map((data?.pages.flatMap((page) => page.pins) ?? []).map((pin) => [pin.id, pin])).values()]
   const webResults = [...new Map((webData?.pages.flatMap((page) => page.results) ?? []).map((image) => [image.id, image])).values()]
+  const filteredWebResults = applyImageFilters(webResults, webOrientation, webOrder)
   const webSource = webData?.pages[0]?.source
   const collections = collectionsQuery.data?.collections ?? []
   const resolvedDestinationId = collections.some((collection) => String(collection.id) === destinationId)
@@ -145,10 +150,10 @@ export function ExplorePage() {
         <section className="explore-web-section">
           <div className="section-head explore-web-head">
             <div><span className="eyebrow">AROUND THE WEB</span><h2>{webSource === 'wikimedia' ? 'Fresh visual finds' : 'Fresh from Pixabay'}</h2></div>
-            <button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button>
+            <div className="explore-web-actions"><ImageFilterControls orientation={webOrientation} order={webOrder} onOrientationChange={setWebOrientation} onOrderChange={setWebOrder} onReset={() => { setWebOrientation('all'); setWebOrder('default') }} /><button className="secondary-button" onClick={() => setWebSeed(randomBrowseSeed())}><Shuffle size={14} /> Shuffle</button></div>
           </div>
           {webData?.pages[0]?.providerUnavailable ? <div className="provider-notice" role="status"><span>Pixabay is temporarily busy, so these are Mosaic picks while it recovers.</span><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : null}
-          {webIsLoading ? <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : webIsError && !webResults.length ? <div className="empty-state compact"><h3>Could not reach Pixabay.</h3><p>Try again in a moment.</p><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : webResults.length ? <><div className="masonry-grid explore-web-grid">{webResults.map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div><div className="discovery-loader" ref={webSentinel} aria-live="polite">{webIsFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more from Pixabay…</> : webIsFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextWebPage()}>Retry loading more</button></> : null}</div></> : null}
+          {webIsLoading ? <div className="masonry-grid">{Array.from({ length: 8 }).map((_, index) => <div className="image-skeleton" key={index} />)}</div> : webIsError && !webResults.length ? <div className="empty-state compact"><h3>Could not reach Pixabay.</h3><p>Try again in a moment.</p><button className="secondary-button" onClick={() => void webRefetch()}>Retry Pixabay</button></div> : webResults.length ? <>{filteredWebResults.length ? <div className="masonry-grid explore-web-grid">{filteredWebResults.map((image) => <ImageCard image={image} key={`explore-web-${image.id}`} />)}</div> : <div className="empty-state compact"><h3>No loaded images match these filters.</h3><button className="secondary-button" onClick={() => { setWebOrientation('all'); setWebOrder('default') }}>Clear filters</button></div>}<div className="discovery-loader" ref={webSentinel} aria-live="polite">{webIsFetchingNextPage ? <><LoaderCircle size={17} className="spin" /> Finding more from Pixabay…</> : webIsFetchNextPageError ? <><span>Pixabay paused while loading more.</span><button className="secondary-button" onClick={() => void fetchNextWebPage()}>Retry loading more</button></> : null}</div></> : null}
         </section>
       ) : null}
     </>

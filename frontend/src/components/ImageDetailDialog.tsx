@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { ExternalLink, X } from 'lucide-react'
+import { ExternalLink, Maximize2, X } from 'lucide-react'
 import type { CatalogImage } from '../types'
 import { QuickSaveControls } from './QuickSaveControls'
 
@@ -9,6 +9,7 @@ export function ImageDetailDialog({ image }: { image: CatalogImage }) {
       <Dialog.Trigger asChild>
         <button className="image-open-button" aria-label={`Open ${image.title}`}>
           <img src={image.imageUrl} alt={image.title} loading="lazy" decoding="async" />
+          <span className="image-expand-badge"><Maximize2 size={15} /></span>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>

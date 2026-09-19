@@ -3,7 +3,7 @@ MOSAIC — CHANGE++ FALL 2026 CODING CHALLENGE
 Full Name: Ethan B. Chen
 Vanderbilt Email: ethan.b.chen@vanderbilt.edu
 
-Mosaic is a Pinterest-style social discovery app for finding, saving, organizing, discussing, and sharing visual content. Beyond the required search/save/share flow, it includes public profiles and follows, recommendations, collaborative collections, direct messages, threaded comments, sections, bulk organization, privacy controls, presentation views, and a draggable Canvas.
+Mosaic is a Pinterest-style social discovery app for finding, previewing, saving, organizing, discussing, and sharing visual content. Beyond the required search/save/share flow, it includes public profiles and follows, recommendations, collaborative collections, direct messages, threaded comments, sections, bulk organization, privacy controls, presentation views, filters, and a draggable Canvas.
 
 LIVE
 https://mosaic-f33m.onrender.com/
@@ -34,10 +34,10 @@ Production runs as one Docker service on Render with a persistent /data volume f
 
 QUICK REVIEW PATH
 1. Sign in with the demo account or create an account.
-2. Search or browse in Discover, then save an image.
+2. Search or browse in Discover, try result/orientation/order filters, click an image for the in-site preview, then save it.
 3. Open a collection, create a Section, try bulk organization, and switch to Canvas.
 4. Change the collection cover/theme/layout, then try Present, Activity, and Share.
-5. Open Explore and try For You / Following / Trending, recommendation feedback, and multi-select saving.
+5. Open Explore and try For You / Following / Trending, public-pin previews, web image filters, recommendation feedback, and multi-select saving.
 6. Open a public pin to Like, Comment/Reply/@mention, Share, or Send it through Messages.
 7. Visit another profile to follow/message them or follow one of their public collections.
 
