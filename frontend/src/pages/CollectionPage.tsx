@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CheckSquare, Clock3, Copy, Download, FolderPlus, Grid2X2, ImagePlus, LayoutDashboard, ListTree, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckSquare, ChevronDown, Clock3, Copy, Download, FolderPlus, Globe2, Grid2X2, ImagePlus, LayoutDashboard, ListTree, Lock, MoveRight, Pencil, Redo2, RotateCcw, Search, Share2, Shuffle, Trash2, Undo2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -291,21 +291,24 @@ export function CollectionPage() {
   if (isLoading) return <div className="loading-page">Opening collection…</div>
   if (isError || !collection) return <div className="empty-state"><h3>We couldn’t find this collection.</h3><Link to="/collections">Back to collections</Link></div>
 
+  const audience = collection.audience ?? collection.visibility
+  const audienceLabel = audience === 'followers' ? 'Followers' : audience === 'public' ? 'Public' : 'Private'
+
   return (
     <div className={`collection-page theme-${collection.theme ?? 'paper'}`}>
       <Link className="back-link" to="/collections"><ArrowLeft size={16} /> All collections</Link>
       <section className="collection-hero">
-        <div><span className="eyebrow">{(collection.audience ?? collection.visibility).toUpperCase()} COLLECTION</span><h1>{collection.name}</h1><p>{collection.description}</p><span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span></div>
+        <div><ShareCollectionDialog collection={collection} trigger={<button className={`collection-visibility-trigger ${audience}`} aria-label={`Collection visibility: ${audienceLabel}. Open privacy and sharing`}>{audience === 'private' ? <Lock size={13} /> : audience === 'followers' ? <Users size={13} /> : <Globe2 size={13} />}<span>{audienceLabel}</span><ChevronDown size={12} /></button>} /><h1>{collection.name}</h1><p>{collection.description}</p><span className="collection-stat">{items.length} {items.length === 1 ? 'thing' : 'things'} saved</span></div>
         <div className="hero-actions">
           <AddPinDialog collectionId={id} trigger={<button className="primary-button"><ImagePlus size={16} /> Add pin</button>} />
           {collection.role === 'owner' && <EditCollectionDialog collection={collection} trigger={<button className="secondary-button"><Pencil size={16} /> Edit</button>} />}
-          <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Share</button>} />
+          <ShareCollectionDialog collection={collection} trigger={<button className="secondary-button"><Share2 size={16} /> Privacy &amp; sharing</button>} />
           <button className="secondary-button" onClick={() => void exportCollection()}><Download size={16} /> Export</button>
           <span className="collaborator-count"><Users size={15} /> {collection.collaborators?.length ?? 1}</span>
         </div>
       </section>
 
-      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {(collection.audience ?? collection.visibility) === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}</span><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div>}
+      {collection.share_token && <div className="share-strip"><span><span className="status-dot" /> {audience === 'followers' ? 'Followers with the link can view this collection.' : 'Anyone with the link can view this collection.'}</span><ShareCollectionDialog collection={collection} trigger={<button><Share2 size={15} /> Manage sharing</button>} /></div>}
 
       {items.length ? (
         <Tabs.Root defaultValue="grid" className="collection-tabs">
