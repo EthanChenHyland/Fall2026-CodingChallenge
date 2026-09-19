@@ -203,6 +203,8 @@ img { display: block; max-width: 100%; }
 .share-strip > span { display: flex; align-items: center; gap: 9px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #718261; }
 .share-strip button { min-height: 32px; border: 0; background: transparent; cursor: pointer; display: flex; gap: 6px; align-items: center; padding: 0 4px; font-size: 11px; font-weight: 700; }
+.share-strip-actions { display: flex; align-items: center; gap: 12px; }
+.share-strip-actions > a { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; color: #4d5bd1; font-size: 11px; font-weight: 700; }
 .collection-tabs { margin-top: 25px; }
 .tab-list { display: inline-flex; gap: 4px; padding: 4px; background: #eae6de; border-radius: 10px; margin-bottom: 24px; }
 .tab-list button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; border-radius: 7px; padding: 0 12px; color: #736e66; cursor: pointer; font-size: 12px; font-weight: 700; }
@@ -324,6 +326,7 @@ img { display: block; max-width: 100%; }
 .shared-title { text-align: center; max-width: 720px; margin: 15px auto 45px; }
 .shared-title h1 { font-size: clamp(50px, 8vw, 92px); line-height: 1; margin: 11px 0 13px; }
 .shared-title p { margin-inline: auto; }
+.shared-present-link { width: fit-content; margin: 18px auto 0; }
 .shared-grid { columns: 3 260px; column-gap: 16px; }
 .shared-grid figure { break-inside: avoid; margin: 0 0 22px; }
 .shared-grid img { width: 100%; border-radius: 14px; }
@@ -402,6 +405,7 @@ img { display: block; max-width: 100%; }
   .share-strip { align-items: start; }
   .share-strip > span { line-height: 1.35; }
   .share-strip button { white-space: nowrap; }
+  .share-strip-actions { flex-direction: column; align-items: flex-end; gap: 2px; }
   .saved-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .saved-card > img { height: 180px; }
   .saved-card-copy { display: grid; padding: 10px; }

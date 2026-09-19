@@ -13,6 +13,7 @@ const CollectionsPage = lazy(() => import('./pages/CollectionsPage').then((modul
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
 const ExplorePage = lazy(() => import('./pages/ExplorePage').then((module) => ({ default: module.ExplorePage })))
 const SharedPage = lazy(() => import('./pages/SharedPage').then((module) => ({ default: module.SharedPage })))
+const SharedPresentationPage = lazy(() => import('./pages/SharedPresentationPage').then((module) => ({ default: module.SharedPresentationPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
 const PinPage = lazy(() => import('./pages/PinPage').then((module) => ({ default: module.PinPage })))
 const CapturePage = lazy(() => import('./pages/CapturePage').then((module) => ({ default: module.CapturePage })))
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/invite/:token" element={<InviteAcceptPage />} />
             </Route>
             <Route path="/shared/:token" element={<SharedPage />} />
+            <Route path="/shared/:token/present" element={<SharedPresentationPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
