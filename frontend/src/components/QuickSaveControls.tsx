@@ -3,6 +3,7 @@ import { Bookmark, Check, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { confirmSaveFeedback } from '../lib/feedback'
 import { recentCollection, rememberCollection } from '../lib/recentCollection'
 import type { CatalogImage, Collection } from '../types'
 import { SaveImageDialog } from './Dialogs'
@@ -36,6 +37,7 @@ export function QuickSaveControls({ image, pinId }: { image: CatalogImage; pinId
     },
     onSuccess: (_, collectionId) => {
       rememberCollection(collectionId)
+      confirmSaveFeedback()
       setSaved(true)
       window.setTimeout(() => setSaved(false), 1400)
       queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })

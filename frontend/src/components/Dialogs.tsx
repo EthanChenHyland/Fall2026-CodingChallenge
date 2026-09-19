@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { confirmSaveFeedback } from '../lib/feedback'
 import { ConsentCheckbox } from './ConsentCheckbox'
 import { rememberCollection } from '../lib/recentCollection'
 import { cloudUploadsConfigured, uploadImage } from '../lib/uploads'
@@ -79,6 +80,7 @@ export function SaveImageDialog({ image, trigger }: { image: CatalogImage; trigg
     },
     onSuccess: (_, collectionId) => {
       rememberCollection(collectionId)
+      confirmSaveFeedback()
       queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
       setOpen(false)
       toast.success('Saved to collection')

@@ -4,6 +4,7 @@ import { Check, Plus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '../api'
+import { confirmSaveFeedback } from '../lib/feedback'
 import { rememberCollection } from '../lib/recentCollection'
 import { CreateCollectionDialog } from './Dialogs'
 
@@ -19,6 +20,7 @@ export function SavePinDialog({ pinId, pinTitle, pinImageUrl, trigger }: { pinId
     mutationFn: (collectionId: number) => api.savePin(pinId, collectionId, note),
     onSuccess: ({ item }, collectionId) => {
       rememberCollection(collectionId)
+      confirmSaveFeedback()
       void queryClient.invalidateQueries({ queryKey: ['collections'] })
       void queryClient.invalidateQueries({ queryKey: ['collection', collectionId] })
       void queryClient.invalidateQueries({ queryKey: ['pin-saved-in', pinId] })
