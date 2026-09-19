@@ -7,12 +7,12 @@ LIVE DEPLOYMENT
 https://mosaic-f33m.onrender.com/
 
 WHAT I BUILT
-Mosaic is a Pinterest-inspired image discovery, saving, organization, collaboration, and social curation app. The required challenge flow — search, create collections, save/edit/remove content, share by URL, and collaborate with accounts — is the foundation. I then pushed the project toward a fuller product rather than stopping at CRUD or padding the submission with unrelated technical showcases.
+Mosaic is a Pinterest-inspired app for finding, saving, organizing, and sharing images. I started with the challenge requirements — search, collections, saving/editing/removing content, sharing, and collaboration — and then kept building until it felt more like a real product than a basic CRUD demo.
 
-PRODUCT PHILOSOPHY
-Mosaic deliberately prioritizes product depth over technical spectacle. A submission can look sophisticated on paper by adding an AI chat/agent, an embeddings/vector-search stack, extra microservices, or a cinematic Three.js/WebGL layer. I deliberately did not treat those as bonus points by themselves. A harder technology is not automatically a better product; it earns its place only when it materially improves what the user is trying to do.
+WHY I BUILT IT THIS WAY
+I wanted Mosaic to feel useful, not just technically impressive on paper. I could have spent a lot of time adding an AI chat/agent, embeddings/vector search, extra microservices, or a big Three.js/WebGL intro just because those things sound advanced. I decided not to unless they actually made the app better to use.
 
-For this product, the harder and more useful problem was making the full save-organize-share loop feel complete: fast discovery, reliable persistence, collaboration, messaging, social interactions, bulk organization, responsive behavior, failure recovery, and a Canvas that people can actually manipulate. Mosaic is intended to be a product a user can keep using after the demo, not a simpler core surrounded by impressive-sounding side systems. I would rather have ten product interactions that work together cleanly than one flashy subsystem that mainly exists to make the stack diagram longer.
+For me, the harder and more useful problem was making the whole save-organize-share loop work well together: discovery, persistence, collaboration, messages, social features, bulk organization, mobile behavior, error handling, and the Canvas. I'd rather have a lot of useful interactions that fit together than one flashy subsystem that mostly makes the stack diagram longer.
 
 The app includes:
 - Live image search with Pixabay when configured, Wikimedia fallback, pagination, related searches, and recommendation feedback.
@@ -27,16 +27,16 @@ The app includes:
 
 Core functionality does not depend on paid APIs. With no keys configured, Mosaic still runs using Wikimedia and local functionality.
 
-DESIGN DIRECTION — PRODUCT UI OVER THREE.JS / AWWWARDS-STYLE EFFECTS
-I considered a heavier WebGL/Three.js presentation, but chose not to make visual spectacle the center of Mosaic. The challenge is an image-saving/sharing product with repeated workflows: search, scan many images, save quickly, organize precisely, collaborate, and use the same interface on a phone. A 3D hero or shader-heavy transition would add bundle/runtime cost and motion complexity without improving those tasks.
+DESIGN DIRECTION
+I thought about going much harder on Three.js/WebGL and Awwwards-style effects, but Mosaic is an app people are supposed to keep using, not a portfolio landing page. Search, saving, organizing, editing, and collaborating benefit more from being fast and clear than from a 3D hero or shader-heavy transitions.
 
-That choice also matches the rubric: it rewards working features, maintainable code, responsive polish, collaboration, reliability, and creativity without prescribing a rendering technique. I treated “make the application look good” as a product-design requirement rather than a requirement to turn the app into a cinematic landing page.
+The rubric also cares about working features, maintainability, responsiveness, collaboration, reliability, and creativity. I treated “make the application look good” as making the actual app polished, not turning it into a cinematic intro page.
 
-For the same reason, I did not bolt on a separate AI-agent service, model-dependent chat layer, embedding pipeline, or microservice solely to increase the apparent sophistication of the stack. Those can be useful when they solve a real product problem, but here they would introduce credentials, latency, failure modes, and review/setup overhead without helping the core save-organize-share workflow. I would rather make the main product deeper, faster, and easier to run than optimize for an architecture diagram, an advanced-sounding feature checklist, or a one-time visual demo.
+Same with AI agents, embeddings, or extra microservices: I did not want to add them just to make the project sound more complicated. They can be useful when they solve a real problem, but here they would mostly add setup, latency, API keys, and more ways for the app to break without improving the main workflow.
 
-I spent that complexity budget on interactions that remain useful after the first impression: a real draggable Canvas, multi-select organization, optimistic actions with recovery, responsive layouts, collection customization, social feedback, collaboration, and mobile/offline/error states. The visual language is intentionally closer to a polished consumer app than an Awwwards portfolio landing page. Motion is restrained so the content stays primary and the interface remains understandable, fast, keyboard-usable, and responsive.
+I spent that time on things users keep running into after the first impression: the draggable Canvas, multi-select organization, undo/recovery, responsive layouts, collection customization, social features, collaboration, and mobile/offline/error states.
 
-The Canvas is also intentionally DOM/CSS based instead of WebGL. Pins need normal focus behavior, selection, text, menus, drag state, persisted coordinates, and reliable mobile interaction. Using ordinary interface primitives made those behaviors easier to keep accessible and testable while still giving collections a spatial mode.
+The Canvas is also intentionally DOM/CSS instead of WebGL. Pins still need focus behavior, text, menus, selection, dragging, saved positions, keyboard controls, and decent mobile behavior. Standard UI primitives made that easier to keep predictable and testable.
 
 ENGINEERING CHOICES
 Frontend: React + TypeScript, Vite, TanStack Query, Radix UI primitives, Lucide icons, and hand-written CSS.
@@ -44,9 +44,9 @@ Backend: Node.js + Express REST API with separated route/middleware/library modu
 Database: SQLite in WAL mode with foreign keys, transactions, indexes, ownership/membership rules, and persistent production storage.
 Production: one Docker service on Render; Express serves the compiled frontend and REST API, with a persistent /data volume.
 
-SQLite was deliberate for this submission. Mosaic is deployed as one application instance, so an embedded transactional database keeps setup small, makes the repository easy to run, and still provides real persistence and rollback behavior. The code does not use localStorage as its database. If the product needed horizontal multi-instance scaling, the next infrastructure step would be moving the persistence layer to PostgreSQL/object storage rather than pretending the current deployment has that requirement.
+SQLite was a deliberate choice. Mosaic runs as one app instance, so it keeps setup small while still giving me real persistence, transactions, and rollback behavior. The app does not use localStorage as its database. If this needed horizontal scaling later, PostgreSQL/object storage would be the obvious next step.
 
-Recommendations are similarly designed to degrade cleanly. Mosaic learns from saved interests, follows, popularity, and explicit More like this / Not interested feedback without requiring an AI key. I preferred a recommendation system that every reviewer can run over making the core experience depend on an external model service.
+Recommendations work the same way: saved interests, follows, popularity, and More like this / Not interested feedback, with no AI key required. I liked that anyone reviewing the project can run the full app without setting up a model service first.
 
 EXTERNAL SERVICES / INTEGRATIONS
 - Render — production hosting, health checks, and persistent disk storage.
@@ -57,7 +57,7 @@ EXTERNAL SERVICES / INTEGRATIONS
 - GitHub — source control and submission repository; Render deploys from the main branch.
 - Docker — reproducible production build/runtime packaging.
 
-These integrations are optional around the core app rather than hard dependencies. A reviewer can clone Mosaic, run npm ci + npm run dev, create an account, search, save, organize, share, and collaborate without configuring a paid AI/model service.
+These are optional add-ons around the app, not hard requirements. A reviewer can clone Mosaic, run npm ci + npm run dev, create an account, search, save, organize, share, and collaborate without setting up a paid AI/model service.
 
 RELIABILITY / SECURITY DETAILS
 - Database writes that span related records use transactions and rollback on failure.
@@ -128,7 +128,7 @@ API endpoints are documented in backend/API.md. Development keeps frontend and b
 Collaboration uses normal API refetch/navigation rather than live multiplayer sockets. Smart views intentionally cap their newest/top result sets. The PWA caches the application shell, not private API responses or arbitrary third-party images. Offline writes fail clearly instead of being queued for later. Share-target behavior depends on browser support.
 
 REFLECTION (under 100 words)
-This challenge pushed me beyond CRUD into permissions, collaboration, optimistic UI, rollback behavior, responsive design, and product tradeoffs. I reinforced React, TypeScript, Express, REST APIs, and database modeling while learning that polish is often less about adding another framework, AI layer, or visual effect and more about making many small states behave consistently. The most interesting part was connecting sharing, ownership, notifications, social features, and recovery behavior without fragmenting the experience. I learned to choose complexity for user value, not because it makes a stack sound more advanced.
+This challenge pushed me past basic CRUD into permissions, collaboration, optimistic UI, rollback behavior, responsive design, and a lot of edge cases. I reinforced React, TypeScript, Express, REST APIs, and database modeling, but the biggest lesson was that polish usually comes from making lots of small states behave well together. The hardest part was connecting sharing, ownership, notifications, social features, and recovery without making the app feel messy. I also got better at deciding when extra complexity is actually useful instead of adding it just because it sounds advanced.
 
 FEEDBACK
-I liked that the prompt left room for interpretation and made functionality the priority while still rewarding creativity. That flexibility encouraged me to go well beyond the base requirements. The only thing I would add is more guidance about how reviewers weigh deep end-to-end product work against infrastructure experiments or technically flashy additions that may be impressive in isolation but do not necessarily improve the core application.
+I liked that the prompt was open-ended and still made the baseline expectations clear. It gave me room to go way past the required features without forcing one specific stack. The one thing I would add is a little more guidance on how reviewers weigh deep end-to-end product work against infrastructure experiments or flashy technical extras that may be cool on their own but do not really change the core app.
